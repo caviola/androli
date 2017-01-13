@@ -1,0 +1,200 @@
+object MainForm: TMainForm
+  Left = 1468
+  Height = 689
+  Top = 218
+  Width = 1148
+  HorzScrollBar.Visible = False
+  VertScrollBar.Visible = False
+  Anchors = [akLeft]
+  Caption = 'Androli'
+  ClientHeight = 689
+  ClientWidth = 1148
+  Constraints.MinHeight = 500
+  Constraints.MinWidth = 900
+  Menu = MainMenu
+  OnCreate = FormCreate
+  Position = poDefault
+  LCLVersion = '1.6.0.4'
+  object PanelTreeView: TPanel
+    Left = 0
+    Height = 689
+    Top = 0
+    Width = 275
+    Align = alLeft
+    Alignment = taLeftJustify
+    BevelOuter = bvNone
+    ClientHeight = 689
+    ClientWidth = 275
+    Color = clBackground
+    ParentColor = False
+    TabOrder = 3
+    object TreeFilterEdit: TTreeFilterEdit
+      Left = 7
+      Height = 27
+      Top = 9
+      Width = 268
+      OnAfterFilter = TreeFilterEditAfterFilter
+      OnFilterItem = TreeFilterEditFilterItem
+      ButtonWidth = 23
+      NumGlyphs = 1
+      Anchors = [akTop, akLeft, akRight]
+      AutoSelect = False
+      Enabled = False
+      MaxLength = 0
+      TabOrder = 1
+      FilteredTreeview = TreeView
+      ExpandAllInitially = True
+    end
+    object TreeView: TTreeView
+      AnchorSideTop.Control = TreeFilterEdit
+      AnchorSideTop.Side = asrBottom
+      Left = 0
+      Height = 532
+      Top = 43
+      Width = 275
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      BorderSpacing.Top = 7
+      BorderSpacing.Bottom = 14
+      BackgroundColor = clDefault
+      HideSelection = False
+      ReadOnly = True
+      RightClickSelect = True
+      RowSelect = True
+      ScrollBars = ssAutoBoth
+      TabOrder = 0
+      OnMouseMove = TreeViewMouseMove
+      OnSelectionChanged = TreeViewSelectionChanged
+      Options = [tvoAutoItemHeight, tvoKeepCollapsedNodes, tvoReadOnly, tvoRightClickSelect, tvoRowSelect, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoThemedDraw]
+    end
+    object CheckBoxShowViewIDs: TCheckBox
+      AnchorSideTop.Control = TreeView
+      AnchorSideTop.Side = asrBottom
+      Left = 7
+      Height = 24
+      Top = 589
+      Width = 126
+      Caption = 'Show View IDs'
+      Enabled = False
+      OnChange = UpdateTreeViewLabels
+      TabOrder = 2
+    end
+    object CheckBoxShowFullClassNames: TCheckBox
+      AnchorSideTop.Control = CheckBoxShowViewIDs
+      AnchorSideTop.Side = asrBottom
+      Left = 7
+      Height = 24
+      Top = 613
+      Width = 180
+      Caption = 'Show Full Class Names'
+      Enabled = False
+      OnChange = UpdateTreeViewLabels
+      TabOrder = 3
+    end
+  end
+  object SplitterLeft: TSplitter
+    AnchorSideLeft.Control = PanelTreeView
+    Left = 275
+    Height = 689
+    Top = 0
+    Width = 5
+  end
+  object SplitterRight: TSplitter
+    AnchorSideRight.Control = ValueListEditor
+    Left = 869
+    Height = 689
+    Top = 0
+    Width = 5
+    Align = alRight
+    ResizeAnchor = akRight
+  end
+  object ValueListEditor: TValueListEditor
+    Left = 874
+    Height = 689
+    Top = 0
+    Width = 274
+    Align = alRight
+    FixedCols = 0
+    MouseWheelOption = mwGrid
+    RowCount = 2
+    TabOrder = 0
+    TitleStyle = tsNative
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goColSizing, goDblClickAutoSize, goFixedColSizing, goCellHints, goTruncCellHints, goRowHighlight]
+    Strings.Strings = (
+      ''
+    )
+    TitleCaptions.Strings = (
+      'Property'
+      'Value'
+    )
+    ColWidths = (
+      131
+      141
+    )
+  end
+  object DialogOpenFile: TOpenDialog
+    left = 416
+    top = 88
+  end
+  object MainMenu: TMainMenu
+    left = 312
+    top = 88
+    object MenuItemFile: TMenuItem
+      Caption = '&File'
+      object MenuItemOpenFile: TMenuItem
+        Caption = 'Open Dump &File'
+        ShortCut = 49231
+        OnClick = MenuItemOpenFileClick
+      end
+      object MenuItemOpenWindow: TMenuItem
+        Caption = '&Open Device Window'
+        ShortCut = 16463
+        OnClick = MenuItemOpenWindowClick
+      end
+      object MenuItem4: TMenuItem
+        Caption = '-'
+      end
+      object MenuItemQuit: TMenuItem
+        Caption = '&Quit'
+        ShortCut = 16465
+        OnClick = MenuItemQuitClick
+      end
+    end
+    object MenuItem1: TMenuItem
+      Caption = 'View'
+      OnClick = MenuItem1Click
+      object MenuItemZoomIn: TMenuItem
+        Caption = 'Zoom In'
+        Enabled = False
+        ShortCut = 16491
+      end
+      object MenuItemZoomOut: TMenuItem
+        Caption = 'Zoom Out'
+        Enabled = False
+        ShortCut = 16493
+      end
+      object MenuItemZoomZIn: TMenuItem
+        Caption = 'Zoom Z In'
+        Enabled = False
+        ShortCut = 24683
+      end
+      object MenuItemZoomZOut: TMenuItem
+        Caption = 'Zoom Z Out'
+        Enabled = False
+        ShortCut = 24685
+      end
+      object MenuItemNormalSize: TMenuItem
+        Caption = 'Normal Size'
+        Enabled = False
+        ShortCut = 16432
+      end
+    end
+    object MenuItemHelp: TMenuItem
+      Caption = '&Help'
+      object MenuItemAbout: TMenuItem
+        Caption = 'About'
+        Enabled = False
+        OnClick = MenuItemAboutClick
+      end
+    end
+  end
+end

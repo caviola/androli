@@ -1,0 +1,122 @@
+object OpenWindowForm: TOpenWindowForm
+  Left = 1906
+  Height = 325
+  Top = 297
+  Width = 685
+  Caption = 'Open Device Window'
+  ClientHeight = 325
+  ClientWidth = 685
+  Constraints.MinHeight = 300
+  Constraints.MinWidth = 500
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnKeyPress = FormKeyPress
+  Position = poScreenCenter
+  LCLVersion = '1.6.0.4'
+  object ListBoxDevices: TListBox
+    AnchorSideTop.Control = Label1
+    AnchorSideTop.Side = asrBottom
+    Left = 8
+    Height = 246
+    Top = 38
+    Width = 156
+    Anchors = [akTop, akLeft, akBottom]
+    BorderSpacing.Top = 5
+    ClickOnSelChange = False
+    ExtendedSelect = False
+    ItemHeight = 0
+    OnSelectionChange = ListBoxDevicesSelectionChange
+    ScrollWidth = 154
+    TabOrder = 0
+    TopIndex = -1
+  end
+  object ListBoxWindows: TListBox
+    AnchorSideLeft.Side = asrBottom
+    AnchorSideTop.Control = Label2
+    AnchorSideTop.Side = asrBottom
+    Left = 169
+    Height = 246
+    Top = 38
+    Width = 507
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    BorderSpacing.Top = 5
+    ItemHeight = 0
+    OnDblClick = ListBoxWindowsDblClick
+    OnSelectionChange = ListBoxWindowsSelectionChange
+    ScrollWidth = 505
+    TabOrder = 1
+    TopIndex = -1
+  end
+  object Label1: TLabel
+    AnchorSideLeft.Control = ListBoxDevices
+    Left = 8
+    Height = 17
+    Top = 16
+    Width = 109
+    Caption = '1. Select Device:'
+    ParentColor = False
+  end
+  object Label2: TLabel
+    AnchorSideLeft.Control = ListBoxWindows
+    Left = 169
+    Height = 17
+    Top = 16
+    Width = 120
+    Caption = '2. Select Window:'
+    ParentColor = False
+  end
+  object ButtonRefreshDevices: TButton
+    AnchorSideLeft.Control = ListBoxDevices
+    AnchorSideTop.Control = ListBoxDevices
+    AnchorSideTop.Side = asrBottom
+    Left = 8
+    Height = 29
+    Top = 289
+    Width = 91
+    BorderSpacing.Top = 5
+    Caption = '&Refresh'
+    OnClick = ButtonRefreshDevicesClick
+    TabOrder = 2
+  end
+  object ButtonRefreshWindows: TButton
+    AnchorSideLeft.Control = ListBoxWindows
+    AnchorSideTop.Control = ListBoxWindows
+    AnchorSideTop.Side = asrBottom
+    Left = 169
+    Height = 29
+    Top = 289
+    Width = 91
+    BorderSpacing.Top = 5
+    Caption = 'R&efresh'
+    TabOrder = 3
+  end
+  object ButtonOpen: TButton
+    AnchorSideTop.Control = ListBoxWindows
+    AnchorSideTop.Side = asrBottom
+    AnchorSideRight.Control = ButtonCancel
+    Left = 477
+    Height = 29
+    Top = 289
+    Width = 100
+    Anchors = [akTop, akRight]
+    BorderSpacing.Top = 5
+    BorderSpacing.Right = 5
+    Caption = '&Open'
+    Enabled = False
+    OnClick = ButtonOpenClick
+    TabOrder = 4
+  end
+  object ButtonCancel: TButton
+    AnchorSideTop.Control = ListBoxWindows
+    AnchorSideTop.Side = asrBottom
+    Left = 582
+    Height = 29
+    Top = 289
+    Width = 95
+    Anchors = [akTop, akRight]
+    BorderSpacing.Top = 5
+    Caption = '&Close'
+    OnClick = ButtonCancelClick
+    TabOrder = 5
+  end
+end
