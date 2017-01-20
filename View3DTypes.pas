@@ -89,8 +89,6 @@ type
     procedure SetRootView(V: TView3D);
   public
     procedure ShowAll;
-    procedure HideAllBehind(const Z: single);
-    procedure HideAllInFront(const Z: single);
     property RootView: TView3D write SetRootView;
   end;
 
@@ -146,36 +144,6 @@ var
 begin
   for I := 0 to Count - 1 do
     Items[I].Visible := True;
-end;
-
-procedure TView3DFlatTree.HideAllBehind(const Z: single);
-var
-  V: TView3D;
-  I: integer;
-begin
-  DebugLn('TFlatViewHierarchy.HideAllBehind(%f)', [Z]);
-  for I := 0 to Count - 1 do
-  begin
-    V := Items[I];
-    if V.ZOrder >= Z then
-      Break;
-    V.Visible := False;
-  end;
-end;
-
-procedure TView3DFlatTree.HideAllInFront(const Z: single);
-var
-  V: TView3D;
-  I: integer;
-begin
-  DebugLn('TFlatViewHierarchy.HideAllInFront(%f)', [Z]);
-  for I := Count - 1 downto 0 do
-  begin
-    V := Items[I];
-    if V.ZOrder <= Z then
-      Break;
-    V.Visible := False;
-  end;
 end;
 
 { TView3D }

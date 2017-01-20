@@ -37,10 +37,7 @@ type
     FZoom: single;
     FScaleZ: single;
     FContextMenu: TPopupMenu;
-    FMenuItemHide: TMenuItem;
     FMenuItemShowAll: TMenuItem;
-    FMenuItemHideAllBehind: TMenuItem;
-    FMenuItemHideAllInFront: TMenuItem;
     FMenuItemClipBounds: TMenuItem;
     FOnActiveViewChanged: TNotifyEvent;
     procedure SetActiveView(V: TView3D);
@@ -67,9 +64,6 @@ type
     procedure MouseMoveHandler(Sender: TObject; Shift: TShiftState; X, Y: integer);
     procedure MouseWheelHandler(Sender: TObject; Shift: TShiftState;
       WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
-    procedure MenuItemHideBehindClick(Sender: TObject);
-    procedure MenuItemHideThisClick(Sender: TObject);
-    procedure MenuItemHideFrontClick(Sender: TObject);
     //TODO: this is always available, so make it a toolbar button instead of contextual action
     procedure MenuItemShowAllClick(Sender: TObject);
     procedure ContextMenuPopup(Sender: TObject);
@@ -77,9 +71,6 @@ type
     procedure ResizeHandler(Sender: TObject);
 
     procedure DoActionShowAll;
-    procedure DoActionHideThis;
-    procedure DoActionHideAllBehind;
-    procedure DoActionHideAllInFront;
 
     procedure DoActiveViewChanged;
     function HitTest(const X, Y: integer): TView3D;
@@ -163,20 +154,10 @@ constructor TViewLayout3D.Create(AOwner: TComponent);
         NewItem('Clip Bounds', 0, False, True, @MenuItemClipBoundsClick, 0, '');
       FMenuItemShowAll := NewItem('Show all', 0, False, True,
         @MenuItemShowAllClick, 0, '');
-      FMenuItemHide := NewItem('Hide this', 0, False, True,
-        @MenuItemHideThisClick, 0, '');
-      FMenuItemHideAllBehind :=
-        NewItem('Hide all behind', 0, False, True, @MenuItemHideBehindClick, 0, '');
-      FMenuItemHideAllInFront :=
-        NewItem('Hide all in front', 0, False, True, @MenuItemHideFrontClick, 0, '');
 
       Items.Add(FMenuItemClipBounds);
       Items.Add(NewLine);
       Items.Add(FMenuItemShowAll);
-      Items.Add(NewLine);
-      Items.Add(FMenuItemHide);
-      Items.Add(FMenuItemHideAllBehind);
-      Items.Add(FMenuItemHideAllInFront);
     end;
   end;
 
@@ -653,21 +634,6 @@ begin
     Handled := False;
 end;
 
-procedure TViewLayout3D.MenuItemHideBehindClick(Sender: TObject);
-begin
-  DoActionHideAllBehind;
-end;
-
-procedure TViewLayout3D.MenuItemHideThisClick(Sender: TObject);
-begin
-  DoActionHideThis;
-end;
-
-procedure TViewLayout3D.MenuItemHideFrontClick(Sender: TObject);
-begin
-  DoActionHideAllInFront;
-end;
-
 procedure TViewLayout3D.MenuItemShowAllClick(Sender: TObject);
 begin
   DoActionShowAll;
@@ -675,18 +641,7 @@ end;
 
 procedure TViewLayout3D.ContextMenuPopup(Sender: TObject);
 begin
-  if HighlightedView <> nil then
-  begin
-    FMenuItemHide.Enabled := True;
-    FMenuItemHideAllBehind.Enabled := True;
-    FMenuItemHideAllInFront.Enabled := True;
-  end
-  else
-  begin
-    FMenuItemHide.Enabled := False;
-    FMenuItemHideAllBehind.Enabled := False;
-    FMenuItemHideAllInFront.Enabled := False;
-  end;
+  //TODO:
 end;
 
 procedure TViewLayout3D.ResizeHandler(Sender: TObject);
@@ -699,34 +654,6 @@ procedure TViewLayout3D.DoActionShowAll;
 begin
   FFlatHierarchy.ShowAll;
   Invalidate;
-end;
-
-procedure TViewLayout3D.DoActionHideThis;
-begin
-  if HighlightedView <> nil then
-  begin
-    DebugLn('TViewHierarchyCanvas.DoActionHideThis: %s', [DbgS(HighlightedView)]);
-    HighlightedView.Visible := False;
-    HighlightedView := nil;
-  end;
-end;
-
-procedure TViewLayout3D.DoActionHideAllBehind;
-begin
-  if Assigned(HighlightedView) then
-  begin
-    FFlatHierarchy.HideAllBehind(HighlightedView.ZOrder);
-    Invalidate;
-  end;
-end;
-
-procedure TViewLayout3D.DoActionHideAllInFront;
-begin
-  if Assigned(HighlightedView) then
-  begin
-    FFlatHierarchy.HideAllInFront(HighlightedView.ZOrder);
-    Invalidate;
-  end;
 end;
 
 procedure TViewLayout3D.DoActiveViewChanged;
