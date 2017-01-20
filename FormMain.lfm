@@ -153,6 +153,14 @@ object MainForm: TMainForm
       object MenuItem4: TMenuItem
         Caption = '-'
       end
+      object MenuItemClose: TMenuItem
+        Caption = '&Close'
+        ShortCut = 16471
+        OnClick = MenuItemCloseClick
+      end
+      object MenuItem3: TMenuItem
+        Caption = '-'
+      end
       object MenuItemQuit: TMenuItem
         Caption = '&Quit'
         ShortCut = 16465
@@ -161,7 +169,6 @@ object MainForm: TMainForm
     end
     object MenuItem1: TMenuItem
       Caption = 'View'
-      OnClick = MenuItem1Click
       object MenuItemZoomIn: TMenuItem
         Caption = 'Zoom In'
         Enabled = False

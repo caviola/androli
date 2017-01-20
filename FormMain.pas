@@ -18,6 +18,8 @@ type
     DialogOpenFile: TOpenDialog;
     MainMenu: TMainMenu;
     MenuItem1: TMenuItem;
+    MenuItemClose: TMenuItem;
+    MenuItem3: TMenuItem;
     MenuItemNormalSize: TMenuItem;
     MenuItemZoomZOut: TMenuItem;
     MenuItemZoomZIn: TMenuItem;
@@ -36,8 +38,8 @@ type
     SplitterRight: TSplitter;
     TreeView: TTreeView;
     ValueListEditor: TValueListEditor;
-    procedure MenuItem1Click(Sender: TObject);
     procedure MenuItemAboutClick(Sender: TObject);
+    procedure MenuItemCloseClick(Sender: TObject);
     procedure MenuItemQuitClick(Sender: TObject);
     procedure MenuItemOpenFileClick(Sender: TObject);
     procedure MenuItemOpenWindowClick(Sender: TObject);
@@ -66,8 +68,9 @@ uses
   SysUtils, FormOpenWindow, LazUTF8, DumpFileLoader;
 
 const
-  FormFileCaptionFormat = '%s - Androli';
-  FormWindowCaptionFormat = '%s:%s - Androli';
+  AppName = 'Androli';
+  FormFileCaptionFormat = '%s - ' + AppName;
+  FormWindowCaptionFormat = '%s:%s - ' + AppName;
 
 {$R *.lfm}
 
@@ -286,6 +289,7 @@ begin
     UpdateTreeView(RootView);
     UpdatePropertyInspector;
     Caption := Format(FormFileCaptionFormat, [DialogOpenFile.FileName]);
+    MenuItemClose.Enabled := True;
   end;
 end;
 
@@ -299,9 +303,12 @@ begin
   //TODO:
 end;
 
-procedure TMainForm.MenuItem1Click(Sender: TObject);
+procedure TMainForm.MenuItemCloseClick(Sender: TObject);
 begin
-
+  FViewLayout3D.RootView := nil;
+  UpdateTreeView;
+  Caption := AppName;
+  MenuItemClose.Enabled := False;
 end;
 
 procedure TMainForm.MenuItemOpenWindowClick(Sender: TObject);
@@ -316,6 +323,7 @@ begin
         UpdatePropertyInspector;
         Self.Caption := Format(FormWindowCaptionFormat,
           [SelectedDeviceSerial, SelectedWindowTitle]);
+        MenuItemClose.Enabled := True;
       end;
     finally
       Free;
