@@ -19,6 +19,7 @@ type
     FHierarchyHeight: integer;
     FAnimationEnabled: boolean;
     FAnimation: TAnimator;
+    FOnVisibleBranchChanged: TNotifyEvent;
     FScaleZAnimator: TFloatAnimator;
     FZoomAnimator: TFloatAnimator;
     FOriginX: single;
@@ -40,6 +41,8 @@ type
     FMenuItemShowAll: TMenuItem;
     FMenuItemClipBounds: TMenuItem;
     FOnActiveViewChanged: TNotifyEvent;
+    FVisibleBranch: TView3D;
+    procedure SetVisibleBranch(V: TView3D);
     procedure SetActiveView(V: TView3D);
     procedure SetClipBounds(V: boolean);
     procedure SetHighlightedView(V: TView3D);
@@ -51,6 +54,7 @@ type
     procedure SetOriginY(V: single);
     procedure SetRootView(V: TView3D);
   protected
+    procedure DblClickHandler(Sender: TObject);
     procedure DoPaintBuffer; override;
 
     procedure AnimationUpdateHandler(Animator: TAnimator;
@@ -93,6 +97,9 @@ type
     property OnActiveViewChanged: TNotifyEvent
       read FOnActiveViewChanged write FOnActiveViewChanged;
     property ClipBounds: boolean read FClipBounds write SetClipBounds;
+    property VisibleBranch: TView3D read FVisibleBranch write SetVisibleBranch;
+    property OnVisibleBranchChanged: TNotifyEvent
+      read FOnVisibleBranchChanged write FOnVisibleBranchChanged;
   end;
 
 
@@ -206,6 +213,7 @@ begin
   FScaleZ := InitialScaleZ;
 
   FFlatHierarchy.RootView := V;
+  VisibleBranch := V;
 
   if Assigned(V) then
   begin
@@ -227,6 +235,7 @@ begin
     OnMouseUp := @MouseUpHandler;
     OnMouseMove := @MouseMoveHandler;
     OnMouseWheel := @MouseWheelHandler;
+    OnDblClick := @DblClickHandler;
     PopupMenu := FContextMenu;
     OnResize := @ResizeHandler;
 
@@ -243,10 +252,19 @@ begin
     OnMouseUp := nil;
     OnMouseMove := nil;
     OnMouseWheel := nil;
+    OnDblClick := nil;
     PopupMenu := nil;
     OnResize := nil;
     Invalidate;
   end;
+end;
+
+procedure TViewLayout3D.DblClickHandler(Sender: TObject);
+begin
+  if Assigned(ActiveView) then
+    VisibleBranch := ActiveView
+  else
+    VisibleBranch := FFlatHierarchy.RootView;
 end;
 
 procedure TViewLayout3D.SetRotationX(Deg: single);
@@ -273,6 +291,22 @@ begin
     FActiveView := V;
     DoActiveViewChanged;
     Invalidate;
+  end;
+end;
+
+procedure TViewLayout3D.SetVisibleBranch(V: TView3D);
+begin
+  if FVisibleBranch <> V then
+  begin
+    FVisibleBranch := V;
+    if Assigned(V) then
+    begin
+      FFlatHierarchy.ShowBranch(V);
+      Invalidate;
+    end;
+
+    if Assigned(FOnVisibleBranchChanged) then
+      FOnVisibleBranchChanged(Self);
   end;
 end;
 
@@ -652,8 +686,7 @@ end;
 
 procedure TViewLayout3D.DoActionShowAll;
 begin
-  FFlatHierarchy.ShowAll;
-  Invalidate;
+  VisibleBranch := FFlatHierarchy.RootView;
 end;
 
 procedure TViewLayout3D.DoActiveViewChanged;

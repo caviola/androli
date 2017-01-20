@@ -85,11 +85,13 @@ type
   TView3DFlatTree = class(TView3DList)
   private
     procedure Flatten(ARootView: TView3D);
+    function GetRootView: TView3D;
   protected
     procedure SetRootView(V: TView3D);
   public
     procedure ShowAll;
-    property RootView: TView3D write SetRootView;
+    procedure ShowBranch(AView: TView3D);
+    property RootView: TView3D read GetRootView write SetRootView;
   end;
 
 implementation
@@ -131,6 +133,11 @@ begin
   end;
 end;
 
+function TView3DFlatTree.GetRootView: TView3D;
+begin
+  Result := First;
+end;
+
 procedure TView3DFlatTree.SetRootView(V: TView3D);
 begin
   Clear;
@@ -144,6 +151,28 @@ var
 begin
   for I := 0 to Count - 1 do
     Items[I].Visible := True;
+end;
+
+procedure TView3DFlatTree.ShowBranch(AView: TView3D);
+
+  procedure ShowView(V: TView3D);
+  var
+    I: integer;
+  begin
+    V.Visible := True;
+    for I := 0 to V.ChildrenCount - 1 do
+      ShowView(V.Children[I]);
+  end;
+
+var
+  I: integer;
+begin
+  // Hide all views.
+  for I := 0 to Count - 1 do
+    Items[I].Visible := False;
+
+  // Shows views in branch.
+  ShowView(AView);
 end;
 
 { TView3D }

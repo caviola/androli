@@ -52,6 +52,7 @@ type
     function GetTreeNodeText(View: TView3D): string;
   protected
     procedure ViewLayout3DActiveViewChanged(Sender: TObject);
+    procedure ViewLayout3DVisibleBranchChanged(Sender: TObject);
     procedure UpdateTreeView(RootView: TView3D = nil);
     procedure UpdatePropertyInspector(View: TView3D = nil);
   end;
@@ -90,6 +91,7 @@ begin
     Zoom := 0.4;
     {$ENDIF}
     OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
+    OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
   end;
   SetControlIndex(FViewLayout3D, 0);
 end;
@@ -266,6 +268,11 @@ begin
   finally
     ValueListEditor.EndUpdate;
   end;
+end;
+
+procedure TMainForm.ViewLayout3DVisibleBranchChanged(Sender: TObject);
+begin
+  UpdateTreeView(TViewLayout3D(Sender).VisibleBranch);
 end;
 
 procedure TMainForm.MenuItemOpenFileClick(Sender: TObject);
