@@ -21,7 +21,7 @@ type
     FAnimation: TAnimator;
     FOnVisibleBranchChanged: TNotifyEvent;
     FScaleZAnimator: TFloatAnimator;
-    FZoomAnimator: TFloatAnimator;
+    FZoomLevelAnimator: TFloatAnimator;
     FOriginX: single;
     FOriginY: single;
     FOriginZ: single;
@@ -35,7 +35,7 @@ type
     FLastMouseY: integer;
     FRotationX: single; // degrees
     FRotationY: single; // degrees
-    FZoom: single;
+    FZoomLevel: single;
     FScaleZ: single;
     FContextMenu: TPopupMenu;
     FMenuItemShowAll: TMenuItem;
@@ -48,7 +48,7 @@ type
     procedure SetHighlightedView(V: TView3D);
     procedure SetRotationX(Deg: single);
     procedure SetRotationY(Deg: single);
-    procedure SetZoom(V: single);
+    procedure SetZoomLevel(V: single);
     procedure SetScaleZ(V: single);
     procedure SetOriginX(V: single);
     procedure SetOriginY(V: single);
@@ -84,10 +84,11 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Changed;
+    procedure Zoom(Delta: integer);
     property RootView: TView3D write SetRootView;
     property RotationX: single read FRotationX write SetRotationX;
     property RotationY: single read FRotationY write SetRotationY;
-    property Zoom: single read FZoom write SetZoom;
+    property ZoomLevel: single read FZoomLevel write SetZoomLevel;
     property ScaleZ: single read FScaleZ write SetScaleZ;
     property OriginX: single read FOriginX write SetOriginX;
     property OriginY: single read FOriginY write SetOriginY;
@@ -119,18 +120,18 @@ const
   clMarginColor32 = TColor32($50A0C5E8);
   clContentColor32 = TColor32($30F9824A);
 
-  InitialZoom = 0.5;
+  InitialZoomLevel = 0.5;
   InitialScaleZ = 20;
   InitialRotationX = 0;
   InitialRotationY = 0;
 
-  StepZoom = 0.1;
+  StepZoomLevel = 0.1;
   StepScaleZ = 20;
 
-  MinZoom = 0.1;
+  MinZoomLevel = 0.1;
   MinScaleZ = 0;
 
-  MaxZoom = 2;
+  MaxZoomLevel = 2;
   MaxScaleZ = 200;
 
   MinRotationX = -90;
@@ -180,8 +181,8 @@ begin
 
   FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
   FScaleZAnimator.Duration := 200;
-  FZoomAnimator := TFloatAnimator.Create(@ZoomAnimateValueHandler);
-  FZoomAnimator.Duration := 200;
+  FZoomLevelAnimator := TFloatAnimator.Create(@ZoomAnimateValueHandler);
+  FZoomLevelAnimator.Duration := 200;
 
   RepaintMode := rmOptimizer;
   BufferOversize := 0;
@@ -191,7 +192,7 @@ end;
 
 destructor TViewLayout3D.Destroy;
 begin
-  FZoomAnimator.Free;
+  FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
   FAnimation.Free;
   FFlatHierarchy.Free;
@@ -204,12 +205,19 @@ begin
   Invalidate;
 end;
 
+procedure TViewLayout3D.Zoom(Delta: integer);
+begin
+  FZoomLevelAnimator.SetValueInterval(ZoomLevel,
+    EnsureRange(FZoomLevel + Delta * StepZoomLevel, MinZoomLevel, MaxZoomLevel));
+  FZoomLevelAnimator.Restart;
+end;
+
 procedure TViewLayout3D.SetRootView(V: TView3D);
 begin
   // TODO: center fit initially
   FRotationY := InitialRotationY;
   FRotationX := InitialRotationX;
-  FZoom := InitialZoom;
+  FZoomLevel := InitialZoomLevel;
   FScaleZ := InitialScaleZ;
 
   FFlatHierarchy.RootView := V;
@@ -225,7 +233,7 @@ begin
     with FTransform do
     begin
       SetOrigin(FOriginX, FOriginY, FOriginZ);
-      SetScale(FZoom, FZoom, FZoom * FScaleZ);
+      SetScale(FZoomLevel, FZoomLevel, FZoomLevel * FScaleZ);
       SetRotationY(FRotationY);
       SetTranslation(ClientWidth / 2, ClientHeight / 2, 0);
       SetCameraZ(1000);
@@ -338,12 +346,12 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.SetZoom(V: single);
+procedure TViewLayout3D.SetZoomLevel(V: single);
 begin
-  if FZoom <> V then
+  if FZoomLevel <> V then
   begin
-    FZoom := V;
-    FTransform.SetScale(FZoom, FZoom, FZoom * FScaleZ);
+    FZoomLevel := V;
+    FTransform.SetScale(FZoomLevel, FZoomLevel, FZoomLevel * FScaleZ);
     Invalidate;
   end;
 end;
@@ -351,7 +359,7 @@ end;
 procedure TViewLayout3D.SetScaleZ(V: single);
 begin
   FScaleZ := V;
-  FTransform.SetScale(FZoom, FZoom, FZoom * FScaleZ);
+  FTransform.SetScale(FZoomLevel, FZoomLevel, FZoomLevel * FScaleZ);
   Invalidate;
 end;
 
@@ -619,12 +627,12 @@ begin
     FDragging := True;
     if ssShift in Shift then
     begin
-      // Divide the mouse delta by current Zoom level so that it remains
-      // unaltered when transformed/scaled (multiplied by Zoom).
+      // Divide the mouse delta by current ZoomLevel level so that it remains
+      // unaltered when transformed/scaled (multiplied by ZoomLevel).
       // The visual result is that the layout will always move by delta pixels
-      // independent of current Zoom level.
-      OriginX := OriginX + (X - FLastMouseX) / Zoom;
-      OriginY := OriginY + (Y - FLastMouseY) / Zoom;
+      // independent of current ZoomLevel level.
+      OriginX := OriginX + (X - FLastMouseX) / ZoomLevel;
+      OriginY := OriginY + (Y - FLastMouseY) / ZoomLevel;
     end
     else
     begin
@@ -656,11 +664,7 @@ begin
       FScaleZAnimator.Restart;
     end
     else
-    begin
-      FZoomAnimator.SetValueInterval(Zoom,
-        EnsureRange(FZoom + WheelDelta * StepZoom, MinZoom, MaxZoom));
-      FZoomAnimator.Restart;
-    end;
+      Zoom(WheelDelta);
 
     Handled := True;
   end
@@ -721,7 +725,7 @@ end;
 
 procedure TViewLayout3D.ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
 begin
-  Zoom := Value;
+  ZoomLevel := Value;
 end;
 
 procedure TViewLayout3D.ScaleZAnimateValueHandler(Sender: TFloatAnimator;

@@ -43,6 +43,8 @@ type
     procedure MenuItemQuitClick(Sender: TObject);
     procedure MenuItemOpenFileClick(Sender: TObject);
     procedure MenuItemOpenWindowClick(Sender: TObject);
+    procedure MenuItemZoomInClick(Sender: TObject);
+    procedure MenuItemZoomOutClick(Sender: TObject);
     procedure UpdateTreeViewLabels(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure TreeFilterEditAfterFilter(Sender: TObject);
@@ -91,7 +93,7 @@ begin
     UpdateTreeView(RV);
     UpdatePropertyInspector;
     RotationY := 30;
-    Zoom := 0.4;
+    ZoomLevel := 0.4;
     {$ENDIF}
     OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
     OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
@@ -290,6 +292,8 @@ begin
     UpdatePropertyInspector;
     Caption := Format(FormFileCaptionFormat, [DialogOpenFile.FileName]);
     MenuItemClose.Enabled := True;
+    MenuItemZoomIn.Enabled := True;
+    MenuItemZoomOut.Enabled := True;
   end;
 end;
 
@@ -309,6 +313,8 @@ begin
   UpdateTreeView;
   Caption := AppName;
   MenuItemClose.Enabled := False;
+  MenuItemZoomIn.Enabled := False;
+  MenuItemZoomOut.Enabled := False;
 end;
 
 procedure TMainForm.MenuItemOpenWindowClick(Sender: TObject);
@@ -324,10 +330,22 @@ begin
         Self.Caption := Format(FormWindowCaptionFormat,
           [SelectedDeviceSerial, SelectedWindowTitle]);
         MenuItemClose.Enabled := True;
+        MenuItemZoomIn.Enabled := True;
+        MenuItemZoomOut.Enabled := True;
       end;
     finally
       Free;
     end;
+end;
+
+procedure TMainForm.MenuItemZoomInClick(Sender: TObject);
+begin
+  FViewLayout3D.Zoom(1);
+end;
+
+procedure TMainForm.MenuItemZoomOutClick(Sender: TObject);
+begin
+  FViewLayout3D.Zoom(-1);
 end;
 
 procedure TMainForm.UpdateTreeViewLabels(Sender: TObject);

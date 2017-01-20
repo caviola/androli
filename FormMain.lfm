@@ -173,11 +173,13 @@ object MainForm: TMainForm
         Caption = 'Zoom In'
         Enabled = False
         ShortCut = 16491
+        OnClick = MenuItemZoomInClick
       end
       object MenuItemZoomOut: TMenuItem
         Caption = 'Zoom Out'
         Enabled = False
         ShortCut = 16493
+        OnClick = MenuItemZoomOutClick
       end
       object MenuItemZoomZIn: TMenuItem
         Caption = 'Zoom Z In'
