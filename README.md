@@ -14,7 +14,7 @@ Explore the view layout of Android apps in 3D.
 - Filterable and customizable tree view
 - Inspect view properties
 - Rotate/scale/pan
-- Hide/show layout sections
+- Hide/show/collapse/expand layout sections
 - Clip views to parent
 - Easy installation, just copy/launch a binary
 

@@ -10,6 +10,8 @@ uses
 
 type
 
+  TZOrderAnimator = class;
+
   { TViewLayout3D }
 
   TViewLayout3D = class(TCustomPaintBox32)
@@ -18,6 +20,7 @@ type
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
     FAnimationEnabled: boolean;
+    FZOrderAnimator: TZOrderAnimator;
     FAnimation: TAnimator;
     FOnVisibleBranchChanged: TNotifyEvent;
     FScaleZAnimator: TFloatAnimator;
@@ -80,11 +83,15 @@ type
     function HitTest(const X, Y: integer): TView3D;
     procedure ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
+    procedure ZOrderAnimatorUpdateHandler(Animator: TAnimator;
+      const InterpolatedFraction: single);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure Changed;
     procedure Zoom(Delta: integer);
+    procedure Collapse(Root: TView3D);
+    procedure Expand(Root: TView3D);
     property RootView: TView3D write SetRootView;
     property RotationX: single read FRotationX write SetRotationX;
     property RotationY: single read FRotationY write SetRotationY;
@@ -101,6 +108,25 @@ type
     property VisibleBranch: TView3D read FVisibleBranch write SetVisibleBranch;
     property OnVisibleBranchChanged: TNotifyEvent
       read FOnVisibleBranchChanged write FOnVisibleBranchChanged;
+  end;
+
+
+  TZOrderAnimatorTargetRec = record
+    View: TView3D;
+    StartValue: single;
+    EndValue: single;
+  end;
+
+  { TZOrderAnimator }
+
+  TZOrderAnimator = class(TAnimator)
+  private
+    FTargets: array of TZOrderAnimatorTargetRec;
+  protected
+    procedure DoFrameUpdate(const InterpolatedFraction: single); override;
+  public
+    procedure ClearTargets;
+    procedure AddTarget(View: TView3D; const StartValue, EndValue: single);
   end;
 
 
@@ -147,6 +173,35 @@ const
   CanvasPaddingVertical = 50;
   CanvasPaddingHorizontal = 50;
 
+{ TZOrderAnimator }
+
+procedure TZOrderAnimator.DoFrameUpdate(const InterpolatedFraction: single);
+var
+  I: integer;
+begin
+  for I := 0 to Length(FTargets) - 1 do
+    FTargets[I].View.ZOrder :=
+      FloatEvaluator(InterpolatedFraction, FTargets[I].StartValue, FTargets[I].EndValue);
+  inherited;
+end;
+
+procedure TZOrderAnimator.ClearTargets;
+begin
+  SetLength(FTargets, 0);
+end;
+
+procedure TZOrderAnimator.AddTarget(View: TView3D; const StartValue, EndValue: single);
+var
+  I: integer;
+begin
+  // TODO: should I optimize this list or leave it good-enough as it is now?
+  I := Length(FTargets);
+  SetLength(FTargets, I + 1);
+  FTargets[I].View := View;
+  FTargets[I].StartValue := StartValue;
+  FTargets[I].EndValue := EndValue;
+end;
+
 { TViewLayout3D }
 
 constructor TViewLayout3D.Create(AOwner: TComponent);
@@ -184,6 +239,10 @@ begin
   FZoomLevelAnimator := TFloatAnimator.Create(@ZoomAnimateValueHandler);
   FZoomLevelAnimator.Duration := 200;
 
+  FZOrderAnimator := TZOrderAnimator.Create;
+  FZOrderAnimator.Duration := 200;
+  FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
+
   RepaintMode := rmOptimizer;
   BufferOversize := 0;
 
@@ -192,6 +251,7 @@ end;
 
 destructor TViewLayout3D.Destroy;
 begin
+  FZOrderAnimator.Free;
   FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
   FAnimation.Free;
@@ -210,6 +270,64 @@ begin
   FZoomLevelAnimator.SetValueInterval(ZoomLevel,
     EnsureRange(FZoomLevel + Delta * StepZoomLevel, MinZoomLevel, MaxZoomLevel));
   FZoomLevelAnimator.Restart;
+end;
+
+procedure TViewLayout3D.Collapse(Root: TView3D);
+
+  procedure Visit(View: TView3D);
+  var
+    I: integer;
+    Target: TView3D;
+  begin
+    if View.ChildrenCount > 0 then
+    begin
+      View.Expanded := False;
+      for I := 0 to View.ChildrenCount - 1 do
+      begin
+        Target := View.Children[I];
+        FZOrderAnimator.AddTarget(Target, Target.ZOrder, Root.ZOrder);
+        Visit(Target);
+      end;
+    end
+    else
+      FZOrderAnimator.AddTarget(View, View.ZOrder, Root.ZOrder);
+  end;
+
+begin
+  FZOrderAnimator.Finish;
+  FZOrderAnimator.ClearTargets;
+  Visit(Root);
+  FZOrderAnimator.Start;
+end;
+
+procedure TViewLayout3D.Expand(Root: TView3D);
+
+  procedure Visit(View, LastVisibleParent: TView3D);
+  var
+    I: integer;
+    Target: TView3D;
+  begin
+    if View.Expanded then
+      for I := 0 to View.ChildrenCount - 1 do
+      begin
+        Target := View.Children[I];
+        FZOrderAnimator.AddTarget(Target, Root.ZOrder, Target.ZOrderOriginal);
+        Visit(Target, Target);
+      end
+    else
+      for I := 0 to View.ChildrenCount - 1 do
+      begin
+        Target := View.Children[I];
+        FZOrderAnimator.AddTarget(Target, Root.ZOrder, LastVisibleParent.ZOrderOriginal);
+        Visit(Target, LastVisibleParent);
+      end;
+  end;
+
+begin
+  FZOrderAnimator.Finish;
+  FZOrderAnimator.ClearTargets;
+  Visit(Root, Root);
+  FZOrderAnimator.Start;
 end;
 
 procedure TViewLayout3D.SetRootView(V: TView3D);
@@ -732,6 +850,12 @@ procedure TViewLayout3D.ScaleZAnimateValueHandler(Sender: TFloatAnimator;
   Value: single);
 begin
   ScaleZ := Value;
+end;
+
+procedure TViewLayout3D.ZOrderAnimatorUpdateHandler(Animator: TAnimator;
+  const InterpolatedFraction: single);
+begin
+  Invalidate;
 end;
 
 end.

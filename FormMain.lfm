@@ -62,6 +62,8 @@ object MainForm: TMainForm
       RowSelect = True
       ScrollBars = ssAutoBoth
       TabOrder = 0
+      OnCollapsed = TreeViewCollapsed
+      OnExpanded = TreeViewExpanded
       OnMouseMove = TreeViewMouseMove
       OnSelectionChanged = TreeViewSelectionChanged
       Options = [tvoAutoItemHeight, tvoKeepCollapsedNodes, tvoReadOnly, tvoRightClickSelect, tvoRowSelect, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoThemedDraw]

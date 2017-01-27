@@ -45,6 +45,8 @@ type
     procedure MenuItemOpenWindowClick(Sender: TObject);
     procedure MenuItemZoomInClick(Sender: TObject);
     procedure MenuItemZoomOutClick(Sender: TObject);
+    procedure TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
+    procedure TreeViewExpanded(Sender: TObject; Node: TTreeNode);
     procedure UpdateTreeViewLabels(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure TreeFilterEditAfterFilter(Sender: TObject);
@@ -227,7 +229,7 @@ procedure TMainForm.UpdateTreeView(RootView: TView3D);
     NewNode := TreeView.Items.AddChildObject(Parent, View.TreeNodeText, View);
     for I := 0 to View.ChildrenCount - 1 do
       AddView(View.Children[I], NewNode);
-    NewNode.Expanded := True;
+    NewNode.Expanded := View.Expanded;
   end;
 
 begin
@@ -346,6 +348,53 @@ end;
 procedure TMainForm.MenuItemZoomOutClick(Sender: TObject);
 begin
   FViewLayout3D.Zoom(-1);
+end;
+
+procedure TMainForm.TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
+var
+  Root: TView3D;
+begin
+  Root := TView3D(Node.Data);
+  // First checking Node.Deleting is important because this event handler
+  // may be called when TTreeView is being destroyed.
+  if Node.Deleting or not Root.Expanded then
+    Exit;
+
+  FViewLayout3D.Collapse(Root);
+end;
+
+procedure TMainForm.TreeViewExpanded(Sender: TObject; Node: TTreeNode);
+
+  procedure Visit(Node: TTreeNode);
+  var
+    View: TView3D;
+  begin
+    View := TView3D(Node.Data);
+    View.Expanded := True;
+    Node := Node.GetFirstChild;
+    while Assigned(Node) do
+    begin
+      if Node.Expanded then
+        Visit(Node);
+      Node := Node.GetNextSibling;
+    end;
+  end;
+
+var
+  Root: TView3D;
+begin
+  Root := TView3D(Node.Data);
+  if Root.Expanded then
+    Exit;
+
+  // Note that although Node is expanded this doesn't mean
+  // that everything under it is also expanded.
+  // So here we traverse the subtree to determine the expanded nodes and
+  // flag the corresponding views appropriately.
+  // We need this info in the views because expanded views are animated
+  // slightly different than collapsed ones.
+  Visit(Node);
+  FViewLayout3D.Expand(Root);
 end;
 
 procedure TMainForm.UpdateTreeViewLabels(Sender: TObject);

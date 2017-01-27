@@ -9,6 +9,8 @@ uses
 
 type
 
+  TView3DFlags = set of (vfExpanding, vfCollapsing, vfExpanded);
+
   TView3D = class;
 
   TView3DList = specialize TFPGList<TView3D>;
@@ -19,16 +21,20 @@ type
 
   TView3D = class
   private
+    FFlags: TView3DFlags;
     FProperties: TStringList;
     FChildren: TView3DList;
+    function GetExpanded: boolean;
     function GetSimpleClassName: string;
     function GetChildren(I: integer): TView3D;
     function GetChildrenCount: integer; inline;
+    procedure SetExpanded(AValue: boolean);
   public
     Parent: TView3D;
     HashCode: string;
     QualifiedClassName: string;
     ZOrder: single;
+    ZOrderOriginal: single;
     ViewportRect: array[0..3] of TPoint;
     Visible: boolean;
     Left: single;
@@ -78,6 +84,7 @@ type
     property ChildrenCount: integer read GetChildrenCount;
     property Children[I: integer]: TView3D read GetChildren;
     property SimpleClassName: string read GetSimpleClassName;
+    property Expanded: boolean read GetExpanded write SetExpanded;
   end;
 
   { TView3DFlatTree }
@@ -196,6 +203,11 @@ begin
     Result := QualifiedClassName;
 end;
 
+function TView3D.GetExpanded: boolean;
+begin
+  Result := vfExpanded in FFlags;
+end;
+
 function TView3D.GetPropCount: integer; inline;
 begin
   Result := FProperties.Count;
@@ -214,6 +226,14 @@ begin
     Result := 0;
 end;
 
+procedure TView3D.SetExpanded(AValue: boolean);
+begin
+  if AValue then
+    Include(FFlags, vfExpanded)
+  else
+    Exclude(FFlags, vfExpanded);
+end;
+
 constructor TView3D.Create;
 begin
   Visible := True;
@@ -223,6 +243,7 @@ begin
   FProperties.Sorted := True;
   TransformScaleX := 1;
   TransformScaleY := 1;
+  Expanded := True;
 end;
 
 destructor TView3D.Destroy;
@@ -243,6 +264,7 @@ begin
   Bottom := ABottom;
   Right := ARight;
   ZOrder := AZ;
+  ZOrderOriginal := AZ;
 end;
 
 procedure TView3D.SetPaddings(ALeft, ATop, ARight, ABottom: integer);
@@ -268,6 +290,7 @@ begin
   Right := Right + DX;
   Bottom := Bottom + DY;
   ZOrder := ZOrder + DZ;
+  ZOrderOriginal := ZOrderOriginal + DZ;
 end;
 
 function TView3D.Contains(const X, Y: integer): boolean;
