@@ -5,8 +5,7 @@ unit ViewLayout3D;
 interface
 
 uses
-  Classes, Controls, Menus, GR32_Image, View3DTypes, View3DTransformation,
-  Animators;
+  Classes, Controls, Menus, View3DTypes, Animators, OpenGLContext;
 
 type
 
@@ -14,7 +13,7 @@ type
 
   { TViewLayout3D }
 
-  TViewLayout3D = class(TCustomPaintBox32)
+  TViewLayout3D = class(TOpenGLControl)
   private
     FClipBounds: boolean;
     FHierarchyWidth: integer;
@@ -29,7 +28,6 @@ type
     FOriginY: single;
     FOriginZ: single;
     FFlatHierarchy: TView3DFlatTree;
-    FTransform: TView3DTransformation;
     FActiveView: TView3D;
     FHighlightedView: TView3D;
     FMouseDown: boolean;
@@ -40,6 +38,7 @@ type
     FRotationY: single; // degrees
     FZoomLevel: single;
     FScaleZ: single;
+    FCameraZ: single;
     FContextMenu: TPopupMenu;
     FMenuItemShowAll: TMenuItem;
     FMenuItemClipBounds: TMenuItem;
@@ -58,7 +57,7 @@ type
     procedure SetRootView(V: TView3D);
   protected
     procedure DblClickHandler(Sender: TObject);
-    procedure DoPaintBuffer; override;
+    procedure DoOnPaint; override;
 
     procedure AnimationUpdateHandler(Animator: TAnimator;
       const InterpolatedFraction: single);
@@ -75,12 +74,10 @@ type
     procedure MenuItemShowAllClick(Sender: TObject);
     procedure ContextMenuPopup(Sender: TObject);
 
-    procedure ResizeHandler(Sender: TObject);
-
     procedure DoActionShowAll;
 
     procedure DoActiveViewChanged;
-    function HitTest(const X, Y: integer): TView3D;
+    function HitTest(X, Y: integer): TView3D;
     procedure ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ZOrderAnimatorUpdateHandler(Animator: TAnimator;
@@ -133,20 +130,22 @@ type
 implementation
 
 uses
-  SysUtils, Math, GR32, GR32_Polygons, LazLogger;
+  SysUtils, Math, gl, glu, LazLogger;
+
+type
+  TColorABGR = cardinal;
 
 const
-  // 32-bit colors in ABGR (don't undetstand why)
-  clBackgroundCanvas32 = TColor32($FF212121);
-  clBorderColor32 = $C0636363;
-  clActiveBorderColor32 = TColor32($FFFF9430);
-  clFilteredBorderColor32 = TColor32($C091EEFF);
-  clFilteredContentColor32 = TColor32($2062E5FC);
-  clPaddingColor32 = TColor32($50C3DEB7);
-  clMarginColor32 = TColor32($50A0C5E8);
-  clContentColor32 = TColor32($30F9824A);
+  clBackgroundCanvas32 = TColorABGR($FF212121);
+  clBorderColor32 = TColorABGR($C0636363);
+  clActiveBorderColor32 = TColorABGR($FFFF9430);
+  clFilteredBorderColor32 = TColorABGR($C091EEFF);
+  clFilteredContentColor32 = TColorABGR($2062E5FC);
+  clPaddingColor32 = TColorABGR($50C3DEB7);
+  clMarginColor32 = TColorABGR($50A0C5E8);
+  clContentColor32 = TColorABGR($70FF824A);
 
-  InitialZoomLevel = 0.5;
+  InitialZoomLevel = 1;
   InitialScaleZ = 20;
   InitialRotationX = 0;
   InitialRotationY = 0;
@@ -165,6 +164,8 @@ const
 
   MaxRotationX = 90;
   MaxRotationY = 90;
+
+  CameraDistance = 1500;
 
   AnimationDuration = 700;
   AnimationEndScaleZ = 30;
@@ -227,7 +228,10 @@ constructor TViewLayout3D.Create(AOwner: TComponent);
 begin
   inherited;
 
-  FTransform := TView3DTransformation.Create;
+  MultiSampling := 4;
+  AutoResizeViewport := True;
+  glEnable(GL_DEPTH_TEST);
+
   FFlatHierarchy := TView3DFlatTree.Create;
 
   FAnimation := TAnimator.Create;
@@ -243,9 +247,6 @@ begin
   FZOrderAnimator.Duration := 200;
   FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
 
-  RepaintMode := rmOptimizer;
-  BufferOversize := 0;
-
   CreateContextMenu;
 end;
 
@@ -256,7 +257,6 @@ begin
   FScaleZAnimator.Free;
   FAnimation.Free;
   FFlatHierarchy.Free;
-  FTransform.Free;
   inherited Destroy;
 end;
 
@@ -340,22 +340,14 @@ begin
 
   FFlatHierarchy.RootView := V;
   VisibleBranch := V;
+  FCameraZ := CameraDistance + FFlatHierarchy.Depth;
 
   if Assigned(V) then
   begin
     // Initial origin X,Y is the center of root view.
-    FOriginX := -(FFlatHierarchy.First.Right - FFlatHierarchy.First.Left) / 2;
-    FOriginY := -(FFlatHierarchy.First.Bottom - FFlatHierarchy.First.Top) / 2;
-    FOriginZ := -FFlatHierarchy.Last.ZOrder / 2;
-
-    with FTransform do
-    begin
-      SetOrigin(FOriginX, FOriginY, FOriginZ);
-      SetScale(FZoomLevel, FZoomLevel, FZoomLevel * FScaleZ);
-      SetRotationY(FRotationY);
-      SetTranslation(ClientWidth / 2, ClientHeight / 2, 0);
-      SetCameraZ(1000);
-    end;
+    FOriginX := (FFlatHierarchy.First.Right - FFlatHierarchy.First.Left) / 2;
+    FOriginY := (FFlatHierarchy.First.Bottom - FFlatHierarchy.First.Top) / 2;
+    FOriginZ := FFlatHierarchy.Depth / 2;
 
     OnMouseDown := @MouseDownHandler;
     OnMouseUp := @MouseUpHandler;
@@ -363,7 +355,6 @@ begin
     OnMouseWheel := @MouseWheelHandler;
     OnDblClick := @DblClickHandler;
     PopupMenu := FContextMenu;
-    OnResize := @ResizeHandler;
 
     if AnimationEnabled then
       // No need to Invalidate here because the animation starts right away
@@ -380,7 +371,6 @@ begin
     OnMouseWheel := nil;
     OnDblClick := nil;
     PopupMenu := nil;
-    OnResize := nil;
     Invalidate;
   end;
 end;
@@ -398,7 +388,6 @@ begin
   if FRotationX <> Deg then
   begin
     FRotationX := Deg;
-    FTransform.SetRotationX(Deg);
     Invalidate;
   end;
 end;
@@ -410,7 +399,7 @@ begin
     {$IFDEF DEBUG}
     if Assigned(V) then
       DebugLn(
-        'TViewHierarchyCanvas.SetActiveView: Class=%s, Bounds=[%f, %f, %f, %f], TransformScaleX=%f, TransformScaleY=%f',
+        'TViewLayout3D.SetActiveView: Class=%s, Bounds=[%f, %f, %f, %f], TransformScaleX=%f, TransformScaleY=%f',
         [V.QualifiedClassName, V.Left, V.Top, V.Right, V.Bottom,
         V.TransformScaleX, V.TransformScaleY]);
     {$ENDIF}
@@ -459,7 +448,6 @@ begin
   if FRotationY <> Deg then
   begin
     FRotationY := Deg;
-    FTransform.SetRotationY(Deg);
     Invalidate;
   end;
 end;
@@ -469,7 +457,6 @@ begin
   if FZoomLevel <> V then
   begin
     FZoomLevel := V;
-    FTransform.SetScale(FZoomLevel, FZoomLevel, FZoomLevel * FScaleZ);
     Invalidate;
   end;
 end;
@@ -477,7 +464,6 @@ end;
 procedure TViewLayout3D.SetScaleZ(V: single);
 begin
   FScaleZ := V;
-  FTransform.SetScale(FZoomLevel, FZoomLevel, FZoomLevel * FScaleZ);
   Invalidate;
 end;
 
@@ -486,7 +472,6 @@ begin
   if FOriginX <> V then
   begin
     FOriginX := V;
-    FTransform.SetOrigin(FOriginX, FOriginY, FOriginZ);
     Invalidate;
   end;
 end;
@@ -496,39 +481,32 @@ begin
   if FOriginY <> V then
   begin
     FOriginY := V;
-    FTransform.SetOrigin(FOriginX, FOriginY, FOriginZ);
     Invalidate;
   end;
 end;
 
-procedure TViewLayout3D.DoPaintBuffer;
+procedure TViewLayout3D.DoOnPaint;
 
-  procedure PolyFill(Left, Top, Right, Bottom, Z: single; Color: TColor32);
-  var
-    P: array[0..3] of TFixedPoint;
+  procedure PolyFill(Left, Top, Right, Bottom, Z: single; Color: TColorABGR);
   begin
-    with FTransform do
-    begin
-      Transform(Left, Top, Z, P[0]);
-      Transform(Right, Top, Z, P[1]);
-      Transform(Right, Bottom, Z, P[2]);
-      Transform(Left, Bottom, Z, P[3]);
-    end;
-    PolygonXS(Buffer, P, Color);
+    glColor4ubv(@Color);
+    glBegin(GL_POLYGON);
+    glVertex3f(Left, Top, Z);
+    glVertex3f(Right, Top, Z);
+    glVertex3f(Right, Bottom, Z);
+    glVertex3f(Left, Bottom, Z);
+    glEnd;
   end;
 
-  procedure PolyLine(Left, Top, Right, Bottom, Z: single; Color: TColor32);
-  var
-    P: array[0..3] of TFixedPoint;
+  procedure PolyLine(Left, Top, Right, Bottom, Z: single; Color: TColorABGR);
   begin
-    with FTransform do
-    begin
-      Transform(Left, Top, Z, P[0]);
-      Transform(Right, Top, Z, P[1]);
-      Transform(Right, Bottom, Z, P[2]);
-      Transform(Left, Bottom, Z, P[3]);
-    end;
-    PolylineXS(Buffer, P, Color, True);
+    glColor4ubv(@Color);
+    glBegin(GL_LINE_LOOP);
+    glVertex3f(Left, Top, Z);
+    glVertex3f(Right, Top, Z);
+    glVertex3f(Right, Bottom, Z);
+    glVertex3f(Left, Bottom, Z);
+    glEnd;
   end;
 
   procedure DrawPadding(View: TView3D);
@@ -606,7 +584,21 @@ procedure TViewLayout3D.DoPaintBuffer;
 
   procedure DrawView(V: TView3D);
   var
-    C: TColor32;
+    ModelViewMatrix, ProjectionMatrix: T16dArray;
+    ViewportRect: TViewPortArray;
+
+    function GetWindowPoint(const X, Y, Z: single): TPoint; inline;
+    var
+      WinX, WinY, WinZ: GLdouble;
+    begin
+      gluProject(X, Y, Z, ModelViewMatrix, ProjectionMatrix,
+        ViewportRect, @WinX, @WinY, @WinZ);
+      Result.X := Round(WinX);
+      Result.Y := Round(ViewportRect[3] - WinY);
+    end;
+
+  var
+    C: TColorABGR;
   begin
     if ActiveView = V then
     begin
@@ -638,22 +630,26 @@ procedure TViewLayout3D.DoPaintBuffer;
         PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, C);
     end;
 
-    with FTransform, V do
+    glGetDoublev(GL_MODELVIEW_MATRIX, ModelViewMatrix);
+    glGetDoublev(GL_PROJECTION_MATRIX, ProjectionMatrix);
+    glGetIntegerv(GL_VIEWPORT, ViewportRect);
+
+    with V do
     begin
       // Store transformed points; we use them to perform hit test.
       if ClipBounds then
       begin
-        Transform(ClippedLeft, ClippedTop, ZOrder, ViewportRect[0]);
-        Transform(ClippedRight, ClippedTop, ZOrder, ViewportRect[1]);
-        Transform(ClippedRight, ClippedBottom, ZOrder, ViewportRect[2]);
-        Transform(ClippedLeft, ClippedBottom, ZOrder, ViewportRect[3]);
+        ViewportRect[0] := GetWindowPoint(ClippedLeft, ClippedTop, ZOrder);
+        ViewportRect[1] := GetWindowPoint(ClippedRight, ClippedTop, ZOrder);
+        ViewportRect[2] := GetWindowPoint(ClippedRight, ClippedBottom, ZOrder);
+        ViewportRect[3] := GetWindowPoint(ClippedLeft, ClippedBottom, ZOrder);
       end
       else
       begin
-        Transform(Left, Top, ZOrder, ViewportRect[0]);
-        Transform(Right, Top, ZOrder, ViewportRect[1]);
-        Transform(Right, Bottom, ZOrder, ViewportRect[2]);
-        Transform(Left, Bottom, ZOrder, ViewportRect[3]);
+        ViewportRect[0] := GetWindowPoint(Left, Top, ZOrder);
+        ViewportRect[1] := GetWindowPoint(Right, Top, ZOrder);
+        ViewportRect[2] := GetWindowPoint(Right, Bottom, ZOrder);
+        ViewportRect[3] := GetWindowPoint(Left, Bottom, ZOrder);
       end;
 
       // Keep track of the hierarchy's width and height.
@@ -670,12 +666,29 @@ var
   I: integer;
   View: TView3D;
 begin
-  inherited;
-  DebugLn('TViewHierarchyCanvas.DoPaintBuffer');
+  DebugLn('TViewLayout3D.DoOnPaint');
 
-  Buffer.BeginUpdate;
-  // TODO: only clear the rect that will be affected by all the transformations
-  Buffer.Clear(clBackgroundCanvas32);
+  glClearColor(0, 0, 0, 1);
+  glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity;
+  // 3. Move to (-OriginX, OriginY, -FCameraZ).
+  glTranslatef(-OriginX, OriginY, -FCameraZ);
+  // 2. Rotate and scale Z coords around (OriginX, OriginY, FOriginZ).
+  glTranslatef(OriginX, OriginY, FOriginZ);
+  glRotatef(RotationY, 0, 1, 0);
+  glScalef(1, 1, ScaleZ);
+  glTranslatef(-OriginX, -OriginY, -FOriginZ);
+  // 1. Invert our Y-axis.
+  glScalef(1, -1, 1);
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity;
+  glScalef(ZoomLevel, ZoomLevel, 1);
+  gluPerspective(45, Width / Height, 0, FCameraZ);
 
   if FFlatHierarchy.Count > 0 then
   begin
@@ -696,7 +709,7 @@ begin
     end;
   end;
 
-  Buffer.EndUpdate;
+  SwapBuffers;
 end;
 
 procedure TViewLayout3D.AnimationUpdateHandler(Animator: TAnimator;
@@ -745,12 +758,8 @@ begin
     FDragging := True;
     if ssShift in Shift then
     begin
-      // Divide the mouse delta by current ZoomLevel level so that it remains
-      // unaltered when transformed/scaled (multiplied by ZoomLevel).
-      // The visual result is that the layout will always move by delta pixels
-      // independent of current ZoomLevel level.
-      OriginX := OriginX + (X - FLastMouseX) / ZoomLevel;
-      OriginY := OriginY + (Y - FLastMouseY) / ZoomLevel;
+      OriginX := OriginX - (X - FLastMouseX);
+      OriginY := OriginY - (Y - FLastMouseY);
     end
     else
     begin
@@ -800,12 +809,6 @@ begin
   //TODO:
 end;
 
-procedure TViewLayout3D.ResizeHandler(Sender: TObject);
-begin
-  FTransform.SetTranslation(ClientWidth / 2, ClientHeight / 2, 0);
-  Invalidate;
-end;
-
 procedure TViewLayout3D.DoActionShowAll;
 begin
   VisibleBranch := FFlatHierarchy.RootView;
@@ -817,25 +820,25 @@ begin
     FOnActiveViewChanged(Self);
 end;
 
-function TViewLayout3D.HitTest(const X, Y: integer): TView3D;
+function TViewLayout3D.HitTest(X, Y: integer): TView3D;
 var
   I: integer;
-  V: TView3D;
+  View: TView3D;
 begin
   Result := nil;
   for I := FFlatHierarchy.Count - 1 downto 0 do
   begin
-    V := FFlatHierarchy.Items[I];
+    View := FFlatHierarchy.Items[I];
 
     // Don't take into account views that are not visible to the user.
-    if not V.Visible or (V.GetWidth = 0) or (V.GetHeight = 0) then
+    if not View.Visible or (View.GetWidth = 0) or (View.GetHeight = 0) then
       Continue;
-    if ClipBounds and ((V.GetClippedWidth = 0) or (V.GetClippedHeight = 0)) then
+    if ClipBounds and ((View.GetClippedWidth = 0) or (View.GetClippedHeight = 0)) then
       Continue;
 
-    if V.Contains(X, Y) then
+    if View.Contains(X, Y) then
     begin
-      Result := V;
+      Result := View;
       Exit;
     end;
   end;

@@ -72,16 +72,16 @@
     </RunParams>
     <RequiredPackages Count="3">
       <Item1>
-        <PackageName Value="LazControls"/>
+        <PackageName Value="LazOpenGLContext"/>
       </Item1>
       <Item2>
-        <PackageName Value="GR32_L"/>
+        <PackageName Value="LazControls"/>
       </Item2>
       <Item3>
         <PackageName Value="LCL"/>
       </Item3>
     </RequiredPackages>
-    <Units Count="12">
+    <Units Count="11">
       <Unit0>
         <Filename Value="Androli.pas"/>
         <IsPartOfProject Value="True"/>
@@ -125,17 +125,13 @@
         <IsPartOfProject Value="True"/>
       </Unit8>
       <Unit9>
-        <Filename Value="View3DTransformation.pas"/>
+        <Filename Value="DumpFileLoader.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit9>
       <Unit10>
-        <Filename Value="DumpFileLoader.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit10>
-      <Unit11>
         <Filename Value="Logger.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit11>
+      </Unit10>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

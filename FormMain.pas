@@ -95,7 +95,6 @@ begin
     UpdateTreeView(RV);
     UpdatePropertyInspector;
     RotationY := 30;
-    ZoomLevel := 0.4;
     {$ENDIF}
     OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
     OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;

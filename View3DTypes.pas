@@ -92,6 +92,7 @@ type
   TView3DFlatTree = class(TView3DList)
   private
     procedure Flatten(ARootView: TView3D);
+    function GetDepth: single;
     function GetRootView: TView3D;
   protected
     procedure SetRootView(V: TView3D);
@@ -99,6 +100,7 @@ type
     procedure ShowAll;
     procedure ShowBranch(AView: TView3D);
     property RootView: TView3D read GetRootView write SetRootView;
+    property Depth: single read GetDepth;
   end;
 
 implementation
@@ -138,6 +140,14 @@ begin
   finally
     Q.Free;
   end;
+end;
+
+function TView3DFlatTree.GetDepth: single;
+begin
+  if Count > 0 then
+    Result := Last.ZOrderOriginal
+  else
+    Result := 0;
 end;
 
 function TView3DFlatTree.GetRootView: TView3D;

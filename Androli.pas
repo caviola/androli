@@ -16,9 +16,9 @@ uses {$IFDEF UNIX}
   ViewServerClient,
   FormOpenWindow,
   TaskRunner,
-  View3DTransformation,
   DumpFileLoader,
-  Logger;
+  Logger,
+  lazopenglcontext;
 
 {$R *.res}
 
