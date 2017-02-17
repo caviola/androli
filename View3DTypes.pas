@@ -31,6 +31,8 @@ type
     procedure SetExpanded(AValue: boolean);
   public
     Parent: TView3D;
+    Next: TView3D;
+    Previous: TView3D;
     HashCode: string;
     QualifiedClassName: string;
     ZOrder: single;
@@ -87,44 +89,32 @@ type
     property Expanded: boolean read GetExpanded write SetExpanded;
   end;
 
-  { TView3DFlatTree }
 
-  TView3DFlatTree = class(TView3DList)
-  private
-    procedure Flatten(ARootView: TView3D);
-    function GetDepth: single;
-    function GetRootView: TView3D;
-  protected
-    procedure SetRootView(V: TView3D);
-  public
-    procedure ShowAll;
-    procedure ShowBranch(AView: TView3D);
-    property RootView: TView3D read GetRootView write SetRootView;
-    property Depth: single read GetDepth;
-  end;
+function Flatten(RootView: TView3D): TView3D;
 
 implementation
 
 uses
   SysUtils, LazLogger, contnrs;
 
-{ TView3DFlatTree }
-
-procedure TView3DFlatTree.Flatten(ARootView: TView3D);
+function Flatten(RootView: TView3D): TView3D;
 var
   Q: TQueue;
-  View: TView3D;
+  PreviousView, View: TView3D;
   ElementsToDepthIncrease: integer = 1;
   NextElementsToDepthIncreate: integer = 0;
   I: integer;
 begin
+  PreviousView := RootView;
   Q := TQueue.Create;
   try
-    Q.Push(ARootView);
+    Q.Push(RootView);
     while Q.Count > 0 do
     begin
       View := TView3D(Q.Pop);
-      Add(View);
+      PreviousView.Next := View;
+      View.Previous := PreviousView;
+      PreviousView := View;
 
       Inc(NextElementsToDepthIncreate, View.GetChildrenCount);
       Dec(ElementsToDepthIncrease);
@@ -140,56 +130,12 @@ begin
   finally
     Q.Free;
   end;
-end;
 
-function TView3DFlatTree.GetDepth: single;
-begin
-  if Count > 0 then
-    Result := Last.ZOrderOriginal
-  else
-    Result := 0;
-end;
+  // Finish off by making the double-linked list circular.
+  PreviousView.Next := RootView;
+  RootView.Previous := PreviousView;
 
-function TView3DFlatTree.GetRootView: TView3D;
-begin
-  Result := First;
-end;
-
-procedure TView3DFlatTree.SetRootView(V: TView3D);
-begin
-  Clear;
-  if Assigned(V) then
-    Flatten(V);
-end;
-
-procedure TView3DFlatTree.ShowAll;
-var
-  I: integer;
-begin
-  for I := 0 to Count - 1 do
-    Items[I].Visible := True;
-end;
-
-procedure TView3DFlatTree.ShowBranch(AView: TView3D);
-
-  procedure ShowView(V: TView3D);
-  var
-    I: integer;
-  begin
-    V.Visible := True;
-    for I := 0 to V.ChildrenCount - 1 do
-      ShowView(V.Children[I]);
-  end;
-
-var
-  I: integer;
-begin
-  // Hide all views.
-  for I := 0 to Count - 1 do
-    Items[I].Visible := False;
-
-  // Shows views in branch.
-  ShowView(AView);
+  Result := RootView;
 end;
 
 { TView3D }

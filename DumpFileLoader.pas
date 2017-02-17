@@ -81,7 +81,9 @@ begin
     if not Assigned(Node) or (Node.CompareName('node') <> 0) then
       raise Exception.Create('Root element child is not "node"');
 
-    Result := CreateView(Node);
+    // Since we already checked for the presence of at least the root node,
+    // we'll always return at least one view.
+    Result := Flatten(CreateView(Node));
   finally
     Document.Free;
   end;

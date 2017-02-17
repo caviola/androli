@@ -277,8 +277,11 @@ begin
 
   // Rewind to root view.
   if Assigned(CurrentView) then
+  begin
     while Assigned(CurrentView.Parent) do
       CurrentView := CurrentView.Parent;
+    CurrentView := Flatten(CurrentView);
+  end;
 
   Result := CurrentView;
 end;

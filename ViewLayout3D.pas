@@ -15,6 +15,7 @@ type
 
   TViewLayout3D = class(TOpenGLControl)
   private
+    FRootView: TView3D;
     FClipBounds: boolean;
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
@@ -27,7 +28,6 @@ type
     FOriginX: single;
     FOriginY: single;
     FOriginZ: single;
-    FFlatHierarchy: TView3DFlatTree;
     FActiveView: TView3D;
     FHighlightedView: TView3D;
     FMouseDown: boolean;
@@ -78,6 +78,7 @@ type
 
     procedure DoActiveViewChanged;
     function HitTest(X, Y: integer): TView3D;
+    procedure ShowBranch(AView: TView3D);
     procedure ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ZOrderAnimatorUpdateHandler(Animator: TAnimator;
@@ -232,8 +233,6 @@ begin
   AutoResizeViewport := True;
   glEnable(GL_DEPTH_TEST);
 
-  FFlatHierarchy := TView3DFlatTree.Create;
-
   FAnimation := TAnimator.Create;
   FAnimation.Duration := AnimationDuration;
   FAnimation.OnUpdate := @AnimationUpdateHandler;
@@ -256,7 +255,6 @@ begin
   FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
   FAnimation.Free;
-  FFlatHierarchy.Free;
   inherited Destroy;
 end;
 
@@ -338,16 +336,16 @@ begin
   FZoomLevel := InitialZoomLevel;
   FScaleZ := InitialScaleZ;
 
-  FFlatHierarchy.RootView := V;
+  FRootView := V;
   VisibleBranch := V;
-  FCameraZ := CameraDistance + FFlatHierarchy.Depth;
 
-  if Assigned(V) then
+  if Assigned(FRootView) then
   begin
+    FCameraZ := CameraDistance + FRootView.Previous.ZOrderOriginal;
     // Initial origin X,Y is the center of root view.
-    FOriginX := (FFlatHierarchy.First.Right - FFlatHierarchy.First.Left) / 2;
-    FOriginY := (FFlatHierarchy.First.Bottom - FFlatHierarchy.First.Top) / 2;
-    FOriginZ := FFlatHierarchy.Depth / 2;
+    FOriginX := (FRootView.Right - FRootView.Left) / 2;
+    FOriginY := (FRootView.Bottom - FRootView.Top) / 2;
+    FOriginZ := FRootView.Previous.ZOrderOriginal / 2;
 
     OnMouseDown := @MouseDownHandler;
     OnMouseUp := @MouseUpHandler;
@@ -365,6 +363,7 @@ begin
   end
   else
   begin
+    FCameraZ := 0;
     OnMouseDown := nil;
     OnMouseUp := nil;
     OnMouseMove := nil;
@@ -380,7 +379,7 @@ begin
   if Assigned(ActiveView) then
     VisibleBranch := ActiveView
   else
-    VisibleBranch := FFlatHierarchy.RootView;
+    VisibleBranch := FRootView;
 end;
 
 procedure TViewLayout3D.SetRotationX(Deg: single);
@@ -416,7 +415,7 @@ begin
     FVisibleBranch := V;
     if Assigned(V) then
     begin
-      FFlatHierarchy.ShowBranch(V);
+      ShowBranch(V);
       Invalidate;
     end;
 
@@ -663,7 +662,6 @@ procedure TViewLayout3D.DoOnPaint;
   end;
 
 var
-  I: integer;
   View: TView3D;
 begin
   DebugLn('TViewLayout3D.DoOnPaint');
@@ -690,23 +688,26 @@ begin
   glScalef(ZoomLevel, ZoomLevel, 1);
   gluPerspective(45, Width / Height, 0, FCameraZ);
 
-  if FFlatHierarchy.Count > 0 then
+  if Assigned(FRootView) then
   begin
     FHierarchyWidth := 0;
     FHierarchyHeight := 0;
 
-    for I := 0 to FFlatHierarchy.Count - 1 do
-    begin
-      View := FFlatHierarchy.Items[I];
+    View := FRootView;
+    repeat
       // Skip views that won't be visible to the user.
       if not View.Visible or (View.Visibility = vvGone) or (View.GetWidth = 0) or
         (View.GetHeight = 0) then
-        Continue;
+        View := View.Next
+      else
       if ClipBounds and ((View.GetClippedWidth = 0) or (View.GetClippedHeight = 0)) then
-        Continue;
-
-      DrawView(View);
-    end;
+        View := View.Next
+      else
+      begin
+        DrawView(View);
+        View := View.Next;
+      end;
+    until View = FRootView;
   end;
 
   SwapBuffers;
@@ -811,7 +812,7 @@ end;
 
 procedure TViewLayout3D.DoActionShowAll;
 begin
-  VisibleBranch := FFlatHierarchy.RootView;
+  VisibleBranch := FRootView;
 end;
 
 procedure TViewLayout3D.DoActiveViewChanged;
@@ -822,26 +823,52 @@ end;
 
 function TViewLayout3D.HitTest(X, Y: integer): TView3D;
 var
-  I: integer;
   View: TView3D;
 begin
   Result := nil;
-  for I := FFlatHierarchy.Count - 1 downto 0 do
-  begin
-    View := FFlatHierarchy.Items[I];
-
+  // Start at last view and traverse the list backwards.
+  View := FRootView.Previous;
+  repeat
     // Don't take into account views that are not visible to the user.
     if not View.Visible or (View.GetWidth = 0) or (View.GetHeight = 0) then
-      Continue;
+      View := View.Previous // continue
+    else
     if ClipBounds and ((View.GetClippedWidth = 0) or (View.GetClippedHeight = 0)) then
-      Continue;
-
+      View := View.Previous // continue
+    else
     if View.Contains(X, Y) then
     begin
       Result := View;
-      Exit;
-    end;
+      Break;
+    end
+    else
+      View := View.Previous;
+  until View = FRootView.Previous;
+end;
+
+procedure TViewLayout3D.ShowBranch(AView: TView3D);
+
+  procedure ShowView(V: TView3D);
+  var
+    I: integer;
+  begin
+    V.Visible := True;
+    for I := 0 to V.ChildrenCount - 1 do
+      ShowView(V.Children[I]);
   end;
+
+var
+  View: TView3D;
+begin
+  // Hide all views.
+  View := FRootView;
+  repeat
+    View.Visible := False;
+    View := View.Next;
+  until View = FRootView;
+
+  // Shows views in branch.
+  ShowView(AView);
 end;
 
 procedure TViewLayout3D.ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
