@@ -13,7 +13,6 @@ uses {$IFDEF UNIX}
   ViewLayout3D,
   Animators,
   AndroidDebugBridge,
-  ViewServerClient,
   FormOpenWindow,
   TaskRunner,
   DumpFileLoader,

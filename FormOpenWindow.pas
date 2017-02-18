@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  StdCtrls, AndroidDebugBridge, View3DTypes, ViewServerClient;
+  StdCtrls, AndroidDebugBridge, View3DTypes;
 
 type
 
