@@ -68,7 +68,7 @@ begin
   FreeOnTerminate := True;
   InitCriticalSection(FQueueLock);
   FQueue := TObjectQueue.Create;
-  FDequeueEvent := TEventObject.Create(nil, False, False, EmptyStr);
+  FDequeueEvent := TEventObject.Create(nil, True, False, EmptyStr);
 end;
 
 destructor TWorkerThread.Destroy;
@@ -154,6 +154,8 @@ begin
   EnterCriticalSection(FQueueLock);
   try
     Result := TTask(FQueue.Pop);
+    if FQueue.Count = 0 then
+      FDequeueEvent.ResetEvent;
   finally
     LeaveCriticalSection(FQueueLock);
   end;
