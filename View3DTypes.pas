@@ -5,13 +5,29 @@ unit View3DTypes;
 interface
 
 uses
-  Classes, fgl;
+  Classes, fgl, TaskRunner, Graphics;
 
 type
 
   TView3DFlags = set of (vfExpanding, vfCollapsing, vfExpanded);
 
   TView3D = class;
+
+  { TCaptureViewTask }
+
+  TCaptureViewTask = class(TTask)
+  protected
+    FImage: TRasterImage;
+  public
+    destructor Destroy; override;
+    property Image: TRasterImage read FImage;
+  end;
+
+  { ICaptureViewTaskFactory }
+
+  ICaptureViewTaskFactory = interface
+    function CreateTask(View: TView3D): TCaptureViewTask;
+  end;
 
   TView3DList = specialize TFPGList<TView3D>;
 
@@ -24,6 +40,7 @@ type
     FFlags: TView3DFlags;
     FProperties: TStringList;
     FChildren: TView3DList;
+    FTextureName: cardinal;
     function GetExpanded: boolean;
     function GetSimpleClassName: string;
     function GetChildren(I: integer): TView3D;
@@ -60,6 +77,7 @@ type
     TreeNodeText: string;
     TransformScaleX: single;
     TransformScaleY: single;
+    CaptureViewTaskFactory: ICaptureViewTaskFactory;
     constructor Create;
     destructor Destroy; override;
     procedure SetBounds(ALeft, ATop, ARight, ABottom, AZ: integer);
@@ -83,10 +101,12 @@ type
     function GetHeight: single; inline;
     function GetClippedWidth: single; inline;
     function GetClippedHeight: single; inline;
+    function CreateCaptureViewTask: TCaptureViewTask;
     property ChildrenCount: integer read GetChildrenCount;
     property Children[I: integer]: TView3D read GetChildren;
     property SimpleClassName: string read GetSimpleClassName;
     property Expanded: boolean read GetExpanded write SetExpanded;
+    property TextureName: cardinal read FTextureName write FTextureName;
   end;
 
 
@@ -136,6 +156,14 @@ begin
   RootView.Previous := PreviousView;
 
   Result := RootView;
+end;
+
+{ TCaptureViewTask }
+
+destructor TCaptureViewTask.Destroy;
+begin
+  FImage.Free;
+  inherited Destroy;
 end;
 
 { TView3D }
@@ -210,6 +238,7 @@ begin
   for I := 0 to ChildrenCount - 1 do
     Children[I].Free;
   FChildren.Free;
+  CaptureViewTaskFactory := nil;
   inherited;
 end;
 
@@ -354,6 +383,14 @@ end;
 function TView3D.GetClippedHeight: single;
 begin
   Result := ClippedBottom - ClippedTop;
+end;
+
+function TView3D.CreateCaptureViewTask: TCaptureViewTask;
+begin
+  if Assigned(CaptureViewTaskFactory) then
+    Result := CaptureViewTaskFactory.CreateTask(Self)
+  else
+    Result := nil;
 end;
 
 

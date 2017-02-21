@@ -5,16 +5,20 @@ unit ViewLayout3D;
 interface
 
 uses
-  Classes, Controls, Menus, View3DTypes, Animators, OpenGLContext;
+  Classes, Controls, Graphics, Menus, fgl, View3DTypes, Animators,
+  OpenGLContext, TaskRunner;
 
 type
 
   TZOrderAnimator = class;
+  // TODO: use better map class
+  TCaptureViewTaskViewMap = specialize TFPGMap<pointer, TView3D>;
 
   { TViewLayout3D }
 
   TViewLayout3D = class(TOpenGLControl)
   private
+    FCaptureViewTaskViewMap: TCaptureViewTaskViewMap;
     FRootView: TView3D;
     FClipBounds: boolean;
     FHierarchyWidth: integer;
@@ -55,9 +59,13 @@ type
     procedure SetOriginX(V: single);
     procedure SetOriginY(V: single);
     procedure SetRootView(V: TView3D);
+    procedure StartCaptureView;
+    procedure CancelCaptureView;
+    function GetCaptureViewTaskView(Task: TCaptureViewTask): TView3D;
   protected
+    procedure CaptureViewTaskSuccessHandler(Sender: TObject);
+    procedure CaptureViewTaskFreeHandler(Sender: TObject);
     procedure DblClickHandler(Sender: TObject);
-    procedure DoOnPaint; override;
 
     procedure AnimationUpdateHandler(Animator: TAnimator;
       const InterpolatedFraction: single);
@@ -86,6 +94,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure DoOnPaint; override;
     procedure Changed;
     procedure Zoom(Delta: integer);
     procedure Collapse(Root: TView3D);
@@ -127,11 +136,10 @@ type
     procedure AddTarget(View: TView3D; const StartValue, EndValue: single);
   end;
 
-
 implementation
 
 uses
-  SysUtils, Math, gl, glu, LazLogger;
+  SysUtils, Math, GLext, gl, glu, LazLogger;
 
 type
   TColorABGR = cardinal;
@@ -174,6 +182,9 @@ const
 
   CanvasPaddingVertical = 50;
   CanvasPaddingHorizontal = 50;
+
+var
+  CapturableWidgets: TStringList;
 
 { TZOrderAnimator }
 
@@ -232,6 +243,8 @@ begin
   MultiSampling := 4;
   AutoResizeViewport := True;
   glEnable(GL_DEPTH_TEST);
+  glShadeModel(GL_SMOOTH);
+  glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
   FAnimation := TAnimator.Create;
   FAnimation.Duration := AnimationDuration;
@@ -246,11 +259,16 @@ begin
   FZOrderAnimator.Duration := 200;
   FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
 
+  FCaptureViewTaskViewMap := TCaptureViewTaskViewMap.Create;
+  FCaptureViewTaskViewMap.Sorted := True;
+
   CreateContextMenu;
 end;
 
 destructor TViewLayout3D.Destroy;
 begin
+  CancelCaptureView;
+  FCaptureViewTaskViewMap.Free;
   FZOrderAnimator.Free;
   FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
@@ -331,6 +349,9 @@ end;
 procedure TViewLayout3D.SetRootView(V: TView3D);
 begin
   // TODO: center fit initially
+
+  CancelCaptureView;
+
   FRotationY := InitialRotationY;
   FRotationX := InitialRotationX;
   FZoomLevel := InitialZoomLevel;
@@ -360,6 +381,8 @@ begin
       FAnimation.Restart
     else
       Invalidate;
+
+    StartCaptureView;
   end
   else
   begin
@@ -372,6 +395,56 @@ begin
     PopupMenu := nil;
     Invalidate;
   end;
+end;
+
+procedure TViewLayout3D.StartCaptureView;
+var
+  View: TView3D;
+  Task: TTask;
+begin
+  View := FRootView;
+  repeat
+    if CapturableWidgets.IndexOf(View.QualifiedClassName) <> -1 then
+    begin
+      Task := View.CreateCaptureViewTask;
+      if Assigned(Task) then
+      begin
+        Task.OnSuccess := @CaptureViewTaskSuccessHandler;
+        Task.OnFree := @CaptureViewTaskFreeHandler;
+        StartTask(Task);
+        FCaptureViewTaskViewMap.Add(Task, View);
+      end;
+    end;
+    View := View.Next;
+  until View = FRootView;
+end;
+
+procedure TViewLayout3D.CancelCaptureView;
+var
+  I: integer;
+begin
+  // Cancel all pending tasks and remove them from the map.
+  // If by any chance a task successfully completes after this call,
+  // it will be ignored because there will be no associated view in the map.
+  for I := 0 to FCaptureViewTaskViewMap.Count - 1 do
+    TCaptureViewTask(FCaptureViewTaskViewMap.Keys[I]).Cancel;
+  FCaptureViewTaskViewMap.Clear;
+end;
+
+function TViewLayout3D.GetCaptureViewTaskView(Task: TCaptureViewTask): TView3D;
+var
+  I: integer;
+begin
+  if FCaptureViewTaskViewMap.Find(Task, I) then
+    Result := FCaptureViewTaskViewMap.Data[I]
+  else
+    Result := nil;
+end;
+
+procedure TViewLayout3D.CaptureViewTaskFreeHandler(Sender: TObject);
+begin
+  // Remove the task from the map as it's about to be freed.
+  FCaptureViewTaskViewMap.Remove(Sender);
 end;
 
 procedure TViewLayout3D.DblClickHandler(Sender: TObject);
@@ -486,6 +559,29 @@ end;
 
 procedure TViewLayout3D.DoOnPaint;
 
+  procedure DrawTexture(Left, Top, Right, Bottom, Z: single; TextureName: integer);
+  begin
+    // Set color to fully opaque white as the texture is GL_COMBINEd with it.
+    // by default. The result will be only the texture's color components.
+    glColor4f(1, 1, 1, 1);
+
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, TextureName);
+
+    glBegin(GL_POLYGON);
+    glTexCoord2f(0, 0);
+    glVertex3f(Left, Top, Z);
+    glTexCoord2f(1, 0);
+    glVertex3f(Right, Top, Z);
+    glTexCoord2f(1, 1);
+    glVertex3f(Right, Bottom, Z);
+    glTexCoord2f(0, 1);
+    glVertex3f(Left, Bottom, Z);
+    glEnd;
+
+    glDisable(GL_TEXTURE_2D);
+  end;
+
   procedure PolyFill(Left, Top, Right, Bottom, Z: single; Color: TColorABGR);
   begin
     glColor4ubv(@Color);
@@ -599,6 +695,9 @@ procedure TViewLayout3D.DoOnPaint;
   var
     C: TColorABGR;
   begin
+    if V.TextureName <> 0 then
+      DrawTexture(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, V.TextureName);
+
     if ActiveView = V then
     begin
       DrawMargin(V);
@@ -887,5 +986,101 @@ procedure TViewLayout3D.ZOrderAnimatorUpdateHandler(Animator: TAnimator;
 begin
   Invalidate;
 end;
+
+procedure TViewLayout3D.CaptureViewTaskSuccessHandler(Sender: TObject);
+var
+  TextureName: GLint = 0;
+  Task: TCaptureViewTask absolute Sender;
+  View: TView3D;
+begin
+  // Ignore this task if we don't find its associated view.
+  // We don't keep the view reference in the task object because the view
+  // may be destroyed before the task completes.
+  // This can happen, for instance, when the layout is closed or another layout
+  // is loaded.
+  View := GetCaptureViewTaskView(Task);
+  if not Assigned(View) then
+    Exit;
+
+  // Abort if image was not fetched or its width/height is 1px.
+  if not Assigned(Task.Image) or (Task.Image.Width = 1) or (Task.Image.Height = 1) then
+    Exit;
+
+  // Create new OpenGL texture from image data.
+  // Note we create the texture for a view only once.
+  // If for some reason (eg. out-of-memory) the texture creation fails,
+  // the view won't have an associated texture and we won't display its image.
+  glGenTextures(1, @TextureName);
+  glBindTexture(GL_TEXTURE_2D, TextureName);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D(
+    GL_TEXTURE_2D,
+    0,
+    GL_RGBA,
+    Task.Image.Width,
+    Task.Image.Height,
+    0,
+    GL_BGRA,
+    GL_UNSIGNED_BYTE,
+    Task.Image.RawImage.Data);
+
+  View.TextureName := TextureName;
+
+  // Repaint the whole view layout.
+  // This will happen each time a new view image is fetched.
+  Invalidate;
+end;
+
+initialization
+  CapturableWidgets := TStringList.Create;
+  with CapturableWidgets do
+  begin
+    Sorted := True;
+    CaseSensitive := True;
+    Add('android.inputmethodservice.ExtractEditText');
+    Add('android.support.design.widget.FloatingActionButton');
+    Add('android.support.design.widget.TextInputEditText');
+    Add('android.support.v4.widget.ContentLoadingProgressBar');
+    Add('android.support.v7.widget.AppCompatAutoCompleteTextView');
+    Add('android.support.v7.widget.AppCompatButton');
+    Add('android.support.v7.widget.AppCompatCheckBox');
+    Add('android.support.v7.widget.AppCompatCheckedTextView');
+    Add('android.support.v7.widget.AppCompatEditText');
+    Add('android.support.v7.widget.AppCompatImageButton');
+    Add('android.support.v7.widget.AppCompatImageView');
+    Add('android.support.v7.widget.AppCompatMultiAutoCompleteTextView');
+    Add('android.support.v7.widget.AppCompatRadioButton');
+    Add('android.support.v7.widget.AppCompatRatingBar');
+    Add('android.support.v7.widget.AppCompatSeekBar');
+    Add('android.support.v7.widget.AppCompatSpinner');
+    Add('android.support.v7.widget.AppCompatTextView');
+    Add('android.support.v7.widget.AppCompatTextView');
+    Add('android.support.v7.widget.SwitchCompat');
+    Add('android.widget.AutoCompleteTextView');
+    Add('android.widget.Button');
+    Add('android.widget.Checkbox');
+    Add('android.widget.CheckedTextView');
+    Add('android.widget.Chronometer');
+    Add('android.widget.DigitalClock');
+    Add('android.widget.EditText');
+    Add('android.widget.ImageButton');
+    Add('android.widget.ImageView');
+    Add('android.widget.MultiAutoCompleteTextView');
+    Add('android.widget.ProgressBar');
+    Add('android.widget.QuickContactBadge');
+    Add('android.widget.RadioButton');
+    Add('android.widget.RatingBar');
+    Add('android.widget.SeekBar');
+    Add('android.widget.Switch');
+    Add('android.widget.TextClock');
+    Add('android.widget.TextView');
+    Add('android.widget.Toast');
+    Add('android.widget.ToggleButton');
+    Add('android.widget.ZoomButton');
+  end;
+
+finalization
+  CapturableWidgets.Free;
 
 end.

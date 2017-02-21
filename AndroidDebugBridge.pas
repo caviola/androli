@@ -5,7 +5,7 @@ unit AndroidDebugBridge;
 interface
 
 uses
-  Classes, SysUtils, TaskRunner, View3DTypes, blcksock;
+  Classes, SysUtils, TaskRunner, View3DTypes, blcksock, Graphics;
 
 const
   RequestTimeout = 30000; // 30 seconds
@@ -30,6 +30,7 @@ type
     function GetDeviceSerial: string;
     function GetWindowList(Timeout: integer = -1): TWindowManagerEntryArray;
     function DumpWindow(const WindowHash: string; var Canceled: boolean): TView3D;
+    function CaptureView(const WindowHash, ViewClass, ViewHash: string): TRasterImage;
   end;
 
   TAdbDeviceEntry = record
@@ -194,7 +195,7 @@ function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
 implementation
 
 uses
-  Math;
+  Math, LazLogger;
 
 const
   AdbServerPort = 5037;
@@ -221,11 +222,69 @@ type
     function GetDeviceSerial: string;
     function GetWindowList(Timeout: integer = -1): TWindowManagerEntryArray;
     function DumpWindow(const WindowHash: string; var Canceled: boolean): TView3D;
+    function CaptureView(const WindowHash, ViewClass, ViewHash: string): TRasterImage;
+  end;
+
+  { TViewServerCaptureViewTask }
+
+  TViewServerCaptureViewTask = class(TCaptureViewTask)
+  private
+    FDeviceSerial: string;
+    FWindowHash: string;
+    FViewClass: string;
+    FViewHash: string;
+  protected
+    procedure Run; override;
+  public
+    constructor Create(const ADeviceSerial, AWindowHash, AViewClass, AViewHash: string);
+  end;
+
+  { TViewServerCaptureViewTaskFactory }
+
+  TViewServerCaptureViewTaskFactory = class(TInterfacedObject, ICaptureViewTaskFactory)
+  private
+    FDeviceSerial: string;
+    FWindowHash: string;
+  public
+    constructor Create(const DeviceSerial, WindowHash: string);
+    function CreateTask(View: TView3D): TCaptureViewTask;
   end;
 
 function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
 begin
   Result := TViewServerClient.Create(DeviceSerial);
+end;
+
+{ TViewServerCaptureViewTaskFactory }
+
+constructor TViewServerCaptureViewTaskFactory.Create(
+  const DeviceSerial, WindowHash: string);
+begin
+  FDeviceSerial := DeviceSerial;
+  FWindowHash := WindowHash;
+end;
+
+function TViewServerCaptureViewTaskFactory.CreateTask(View: TView3D): TCaptureViewTask;
+begin
+  Result := TViewServerCaptureViewTask.Create(FDeviceSerial, FWindowHash,
+    View.QualifiedClassName, View.HashCode);
+end;
+
+{ TViewServerCaptureViewTask }
+
+procedure TViewServerCaptureViewTask.Run;
+begin
+  FImage := CreateViewServerClient(FDeviceSerial).CaptureView(FWindowHash,
+    FViewClass, FViewHash);
+end;
+
+constructor TViewServerCaptureViewTask.Create(
+  const ADeviceSerial, AWindowHash, AViewClass, AViewHash: string);
+begin
+  FDeviceSerial := ADeviceSerial;
+  FWindowHash := AWindowHash;
+  FViewClass := AViewClass;
+  FViewHash := AViewHash;
 end;
 
 { TViewServerConnection }
@@ -458,7 +517,11 @@ var
   CurrentDepth: integer = -1;
   Depth: integer;
   Line: PChar;
+  TaskFactory: ICaptureViewTaskFactory;
 begin
+  TaskFactory := TViewServerCaptureViewTaskFactory.Create(
+    FAdbDeviceConnection.DeviceSerial, WindowHash);
+
   FAdbDeviceConnection.ConnectTcp(ViewServerPort);
   try
     FAdbDeviceConnection.Socket.SendString('DUMP ' + WindowHash + #10);
@@ -486,6 +549,7 @@ begin
         end;
 
         CurrentView := CreateView(CurrentView, Line, Depth);
+        CurrentView.CaptureViewTaskFactory := TaskFactory;
         CurrentDepth := Depth;
       until False;
     except
@@ -502,6 +566,47 @@ begin
     end;
 
     Result := CurrentView;
+  finally
+    FAdbDeviceConnection.Disconnect;
+  end;
+end;
+
+function TViewServerClient.CaptureView(
+  const WindowHash, ViewClass, ViewHash: string): TRasterImage;
+
+  function GetImageDataStream: TStream;
+  begin
+    Result := TMemoryStream.Create;
+    try
+      FAdbDeviceConnection.Socket.RecvStreamRaw(Result, 5000);
+    except
+      // TODO: how to determine the cross-platform error code for "connection reset by peer"?
+      on E: ESynapseError do
+        if E.ErrorCode <> 104 then
+          raise;
+    end;
+    Result.Seek(0, soBeginning);
+  end;
+
+var
+  Stream: TStream;
+begin
+  FAdbDeviceConnection.ConnectTcp(ViewServerPort);
+  try
+    FAdbDeviceConnection.Socket.SendString('CAPTURE ' + WindowHash +
+      ' ' + ViewClass + '@' + ViewHash + #10);
+    Stream := GetImageDataStream;
+    try
+      Result := TPortableNetworkGraphic.Create;
+      try
+        Result.LoadFromStream(Stream);
+      except
+        Result.Free;
+        raise;
+      end;
+    finally
+      Stream.Free;
+    end;
   finally
     FAdbDeviceConnection.Disconnect;
   end;
