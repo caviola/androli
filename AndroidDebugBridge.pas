@@ -99,7 +99,7 @@ type
     FOnDeviceListComplete: TDeviceListCompleteEvent;
     FOnDeviceListError: TNotifyEvent;
   protected
-    procedure DeviceListTaskComplete(Sender: TObject);
+    procedure DeviceListTaskSuccess(Sender: TObject);
     procedure DeviceListTaskError(Sender: TObject);
   public
     destructor Destroy; override;
@@ -162,9 +162,9 @@ type
     FOnWindowDumpError: TNotifyEvent;
     FOnWindowDumpProgress: TWindowDumpProgressEvent;
   protected
-    procedure DumpWindowTaskComplete(Sender: TObject);
+    procedure DumpWindowTaskSuccess(Sender: TObject);
     procedure DumpWindowTaskError(Sender: TObject);
-    procedure WindowListTaskComplete(Sender: TObject);
+    procedure WindowListTaskSuccess(Sender: TObject);
     procedure WindowListTaskError(Sender: TObject);
   public
     constructor Create(const ADevice: string);
@@ -662,7 +662,7 @@ end;
 
 { TDeviceInterface }
 
-procedure TDeviceInterface.DumpWindowTaskComplete(Sender: TObject);
+procedure TDeviceInterface.DumpWindowTaskSuccess(Sender: TObject);
 begin
   if Assigned(OnWindowDumpComplete) then
     OnWindowDumpComplete(Self, TDumpWindowTask(Sender).RootView);
@@ -678,7 +678,7 @@ begin
   FDumpWindowTask := nil;
 end;
 
-procedure TDeviceInterface.WindowListTaskComplete(Sender: TObject);
+procedure TDeviceInterface.WindowListTaskSuccess(Sender: TObject);
 begin
   if Assigned(OnWindowListComplete) then
     OnWindowListComplete(Self, TWindowListTask(Sender).WindowList);
@@ -734,7 +734,7 @@ begin
   // OnComplete/OnError have returned.
 
   FDumpWindowTask := TDumpWindowTask.Create(SerialNumber, HashCode);
-  FDumpWindowTask.OnComplete := @DumpWindowTaskComplete;
+  FDumpWindowTask.OnSuccess := @DumpWindowTaskSuccess;
   FDumpWindowTask.OnError := @DumpWindowTaskError;
 
   StartTask(FDumpWindowTask);
@@ -762,7 +762,7 @@ begin
     Exit; // another operation in progress
 
   FWindowListTask := TWindowListTask.Create(SerialNumber);
-  FWindowListTask.OnComplete := @WindowListTaskComplete;
+  FWindowListTask.OnSuccess := @WindowListTaskSuccess;
   FWindowListTask.OnError := @WindowListTaskError;
 
   StartTask(FWindowListTask);
@@ -817,7 +817,7 @@ end;
 
 { TAdbInterface }
 
-procedure TAdbInterface.DeviceListTaskComplete(Sender: TObject);
+procedure TAdbInterface.DeviceListTaskSuccess(Sender: TObject);
 begin
   if Assigned(OnDeviceListComplete) then
     OnDeviceListComplete(Self, TDeviceListTask(Sender).DeviceList);
@@ -850,7 +850,7 @@ begin
     Exit; // another operation in progress
 
   FDeviceListTask := TDeviceListTask.Create;
-  FDeviceListTask.OnComplete := @DeviceListTaskComplete;
+  FDeviceListTask.OnSuccess := @DeviceListTaskSuccess;
   FDeviceListTask.OnError := @DeviceListTaskError;
 
   StartTask(FDeviceListTask);

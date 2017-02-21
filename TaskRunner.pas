@@ -14,16 +14,16 @@ type
   TTask = class
   protected
     FCanceled: boolean;
-    FOnComplete: TNotifyEvent;
+    FOnSuccess: TNotifyEvent;
     FOnError: TNotifyEvent;
     procedure Run; virtual; abstract;
-    procedure DoComplete;
+    procedure DoSuccess;
     procedure DoError;
     procedure DoFree;
   public
     procedure Cancel;
     property Canceled: boolean read FCanceled;
-    property OnComplete: TNotifyEvent read FOnComplete write FOnComplete;
+    property OnSuccess: TNotifyEvent read FOnSuccess write FOnSuccess;
     property OnError: TNotifyEvent read FOnError write FOnError;
   end;
 
@@ -129,7 +129,7 @@ begin
         LogDebug('[%s.Execute] [%s.Run %s]', [ClassName, T.ClassName, DbgS(T)]);
         T.Run;
         if not T.Canceled then
-          Queue(@T.DoComplete);
+          Queue(@T.DoSuccess);
       except
         LogDebug('[%s.Execute] [%s.Run %s] ERROR: %s',
           [ClassName, T.ClassName, DbgS(T), Exception(ExceptObject).Message]);
@@ -163,11 +163,11 @@ end;
 
 { TTask }
 
-procedure TTask.DoComplete;
+procedure TTask.DoSuccess;
 begin
   LogDebug('[%s.DoComplete %s]', [ClassName, DbgS(Self)]);
-  if Assigned(OnComplete) then
-    OnComplete(Self);
+  if Assigned(OnSuccess) then
+    OnSuccess(Self);
 end;
 
 procedure TTask.DoError;
@@ -188,7 +188,7 @@ begin
   LogDebug('[%s.Cancel %s]', [ClassName, DbgS(Self)]);
   FCanceled := True;
   // Dequeue these events in case they were queued but not yet executed.
-  TThread.RemoveQueuedEvents(WorkerThread, @DoComplete);
+  TThread.RemoveQueuedEvents(WorkerThread, @DoSuccess);
   TThread.RemoveQueuedEvents(WorkerThread, @DoError);
 end;
 
