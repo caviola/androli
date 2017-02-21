@@ -16,6 +16,7 @@ type
     FCanceled: boolean;
     FOnSuccess: TNotifyEvent;
     FOnError: TNotifyEvent;
+    FOnFree: TNotifyEvent;
     procedure Run; virtual; abstract;
     procedure DoSuccess;
     procedure DoError;
@@ -25,6 +26,7 @@ type
     property Canceled: boolean read FCanceled;
     property OnSuccess: TNotifyEvent read FOnSuccess write FOnSuccess;
     property OnError: TNotifyEvent read FOnError write FOnError;
+    property OnFree: TNotifyEvent read FOnFree write FOnFree;
   end;
 
 procedure StartTask(ATask: TTask);
@@ -180,6 +182,8 @@ end;
 procedure TTask.DoFree;
 begin
   LogDebug('[%s.DoFree %s]', [ClassName, DbgS(Self)]);
+  if Assigned(OnFree) then
+    OnFree(Self);
   Free;
 end;
 
