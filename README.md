@@ -4,13 +4,13 @@ Explore the view layout of Android apps in 3D.
 
 ![Silentcast](media/silentcast.gif)
 
- Androli is a cross-platform, experimental tool written in Object Pascal.
+Androli is a cross-platform, experimental tool written in Object Pascal.
 
 ## Features
 
 - Inspect any active Android window
 - Inspect Device Monitor dump files
-- 3D view
+- 3D view with image of common UI widgets
 - Filterable and customizable tree view
 - Inspect view properties
 - Rotate/scale/pan
@@ -28,8 +28,7 @@ Download the latest release package from the [releases page](../../releases), un
 
 1. Clone this repository
 2. Install [Lazarus 1.6.2](http://www.lazarus-ide.org/)
-3. Install [Graphics32 1.9.1](https://github.com/graphics32/graphics32/archive/Graphics32_1.9.1_Fixes.zip)
-4. Compile
+3. Compile
 
 ## Prerequisites
 
@@ -57,6 +56,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Hire Me!
 
-I'm moving from Italy to Florida, USA in a couple of months. I'm process-oriented, no-silver-bullet, tinkerer kind-of-guy. If you think we may have common values/vision and might be a good fit in your team don't hesitate to drop me a line. This is my [LinkedIn profile](https://www.linkedin.com/in/elmago).
-
-
+I'm based in Pembroke Pines (FL). I'm a process-oriented, no-silver-bullet, tinkerer kind-of-guy. If you think we may have common values/vision and might be a good fit in your team don't hesitate to drop me a line. This is my [LinkedIn profile](https://www.linkedin.com/in/elmago).
