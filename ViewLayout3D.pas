@@ -67,7 +67,7 @@ type
     procedure CaptureViewTaskFreeHandler(Sender: TObject);
     procedure DblClickHandler(Sender: TObject);
 
-    procedure AnimationUpdateHandler(Animator: TAnimator;
+    procedure AnimationUpdateHandler(Sender: TAnimator;
       const InterpolatedFraction: single);
     procedure MenuItemClipBoundsClick(Sender: TObject);
 
@@ -89,7 +89,7 @@ type
     procedure ShowBranch(AView: TView3D);
     procedure ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
-    procedure ZOrderAnimatorUpdateHandler(Animator: TAnimator;
+    procedure ZOrderAnimatorUpdateHandler(Sender: TAnimator;
       const InterpolatedFraction: single);
   public
     constructor Create(AOwner: TComponent); override;
@@ -812,7 +812,7 @@ begin
   SwapBuffers;
 end;
 
-procedure TViewLayout3D.AnimationUpdateHandler(Animator: TAnimator;
+procedure TViewLayout3D.AnimationUpdateHandler(Sender: TAnimator;
   const InterpolatedFraction: single);
 begin
   ScaleZ := IntegerEvaluator(InterpolatedFraction, InitialScaleZ, AnimationEndScaleZ);
@@ -981,7 +981,7 @@ begin
   ScaleZ := Value;
 end;
 
-procedure TViewLayout3D.ZOrderAnimatorUpdateHandler(Animator: TAnimator;
+procedure TViewLayout3D.ZOrderAnimatorUpdateHandler(Sender: TAnimator;
   const InterpolatedFraction: single);
 begin
   Invalidate;

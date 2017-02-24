@@ -13,7 +13,7 @@ const
 type
   TAnimator = class;
 
-  TAnimatorFrameUpdateEvent = procedure(Animator: TAnimator;
+  TAnimatorFrameUpdateEvent = procedure(Sender: TAnimator;
     const InterpolatedFraction: single) of object;
 
   TInterpolatorFunction = function(const Fraction: single): single;
