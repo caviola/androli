@@ -44,8 +44,6 @@ type
     FZoomLevel: single;
     FScaleZ: single;
     FCameraZ: single;
-    FContextMenu: TPopupMenu;
-    FMenuItemShowAll: TMenuItem;
     FOnActiveViewChanged: TNotifyEvent;
     FVisibleBranch: TView3D;
     procedure SetView3DEnabled(V: boolean);
@@ -79,10 +77,6 @@ type
     procedure MouseWheelHandler(Sender: TObject; Shift: TShiftState;
       WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
     //TODO: this is always available, so make it a toolbar button instead of contextual action
-    procedure MenuItemShowAllClick(Sender: TObject);
-    procedure ContextMenuPopup(Sender: TObject);
-
-    procedure DoActionShowAll;
 
     procedure DoActiveViewChanged;
     function HitTest(X, Y: integer): TView3D;
@@ -247,21 +241,6 @@ end;
 { TViewLayout3D }
 
 constructor TViewLayout3D.Create(AOwner: TComponent);
-
-  procedure CreateContextMenu;
-  begin
-    FContextMenu := TPopupMenu.Create(Self);
-    with FContextMenu do
-    begin
-      Parent := Self;
-      OnPopup := @ContextMenuPopup;
-      FMenuItemShowAll := NewItem('Show all', 0, False, True,
-        @MenuItemShowAllClick, 0, '');
-
-      Items.Add(FMenuItemShowAll);
-    end;
-  end;
-
 begin
   inherited;
 
@@ -287,8 +266,6 @@ begin
 
   FCaptureViewTaskViewMap := TCaptureViewTaskViewMap.Create;
   FCaptureViewTaskViewMap.Sorted := True;
-
-  CreateContextMenu;
 end;
 
 destructor TViewLayout3D.Destroy;
@@ -399,7 +376,6 @@ begin
     OnMouseMove := @MouseMoveHandler;
     OnMouseWheel := @MouseWheelHandler;
     OnDblClick := @DblClickHandler;
-    PopupMenu := FContextMenu;
 
     if View3DEnabled then
     begin
@@ -949,21 +925,6 @@ begin
     Zoom(WheelDelta);
     Handled := True;
   end;
-end;
-
-procedure TViewLayout3D.MenuItemShowAllClick(Sender: TObject);
-begin
-  DoActionShowAll;
-end;
-
-procedure TViewLayout3D.ContextMenuPopup(Sender: TObject);
-begin
-  //TODO:
-end;
-
-procedure TViewLayout3D.DoActionShowAll;
-begin
-  VisibleBranch := FRootView;
 end;
 
 procedure TViewLayout3D.DoActiveViewChanged;
