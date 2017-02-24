@@ -46,7 +46,6 @@ type
     FCameraZ: single;
     FContextMenu: TPopupMenu;
     FMenuItemShowAll: TMenuItem;
-    FMenuItemClipBounds: TMenuItem;
     FOnActiveViewChanged: TNotifyEvent;
     FVisibleBranch: TView3D;
     procedure SetView3DEnabled(V: boolean);
@@ -71,7 +70,6 @@ type
 
     procedure ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
       const InterpolatedFraction: single);
-    procedure MenuItemClipBoundsClick(Sender: TObject);
 
     procedure MouseDownHandler(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: integer);
@@ -257,13 +255,9 @@ constructor TViewLayout3D.Create(AOwner: TComponent);
     begin
       Parent := Self;
       OnPopup := @ContextMenuPopup;
-      FMenuItemClipBounds :=
-        NewItem('Clip Bounds', 0, False, True, @MenuItemClipBoundsClick, 0, '');
       FMenuItemShowAll := NewItem('Show all', 0, False, True,
         @MenuItemShowAllClick, 0, '');
 
-      Items.Add(FMenuItemClipBounds);
-      Items.Add(NewLine);
       Items.Add(FMenuItemShowAll);
     end;
   end;
@@ -878,12 +872,6 @@ begin
     A.ScateZEndValue);
   RotationY := FloatEvaluator(InterpolatedFraction, A.RotationYStartValue,
     A.RotationYEndValue);
-end;
-
-procedure TViewLayout3D.MenuItemClipBoundsClick(Sender: TObject);
-begin
-  FMenuItemClipBounds.Checked := not FMenuItemClipBounds.Checked;
-  ClipBounds := FMenuItemClipBounds.Checked;
 end;
 
 procedure TViewLayout3D.MouseDownHandler(Sender: TObject; Button: TMouseButton;

@@ -206,6 +206,10 @@ object MainForm: TMainForm
         Caption = 'Enable 3D View'
         OnClick = MenuItemToggleView3DClick
       end
+      object MenuItemClipToParent: TMenuItem
+        Caption = 'Clip Bounds to Parent'
+        OnClick = MenuItemClipToParentClick
+      end
     end
     object MenuItemHelp: TMenuItem
       Caption = '&Help'

@@ -19,6 +19,7 @@ type
     MainMenu: TMainMenu;
     MenuItem1: TMenuItem;
     MenuItem2: TMenuItem;
+    MenuItemClipToParent: TMenuItem;
     MenuItemToggleView3D: TMenuItem;
     MenuItemClose: TMenuItem;
     MenuItem3: TMenuItem;
@@ -41,6 +42,7 @@ type
     TreeView: TTreeView;
     ValueListEditor: TValueListEditor;
     procedure MenuItemAboutClick(Sender: TObject);
+    procedure MenuItemClipToParentClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
     procedure MenuItemToggleView3DClick(Sender: TObject);
     procedure MenuItemQuitClick(Sender: TObject);
@@ -101,6 +103,7 @@ begin
     OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
     OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
     MenuItemToggleView3D.Checked := View3DEnabled;
+    MenuItemClipToParent.Checked := ClipBounds;
   end;
   SetControlIndex(FViewLayout3D, 0);
 end;
@@ -309,6 +312,14 @@ end;
 procedure TMainForm.MenuItemAboutClick(Sender: TObject);
 begin
   //TODO:
+end;
+
+procedure TMainForm.MenuItemClipToParentClick(Sender: TObject);
+var
+  MenuItem: TMenuItem absolute Sender;
+begin
+  MenuItem.Checked := not MenuItem.Checked;
+  FViewLayout3D.ClipBounds := MenuItem.Checked;
 end;
 
 procedure TMainForm.MenuItemCloseClick(Sender: TObject);
