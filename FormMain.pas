@@ -18,6 +18,8 @@ type
     DialogOpenFile: TOpenDialog;
     MainMenu: TMainMenu;
     MenuItem1: TMenuItem;
+    MenuItem2: TMenuItem;
+    MenuItemToggleView3D: TMenuItem;
     MenuItemClose: TMenuItem;
     MenuItem3: TMenuItem;
     MenuItemNormalSize: TMenuItem;
@@ -40,6 +42,7 @@ type
     ValueListEditor: TValueListEditor;
     procedure MenuItemAboutClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
+    procedure MenuItemToggleView3DClick(Sender: TObject);
     procedure MenuItemQuitClick(Sender: TObject);
     procedure MenuItemOpenFileClick(Sender: TObject);
     procedure MenuItemOpenWindowClick(Sender: TObject);
@@ -94,10 +97,10 @@ begin
     RootView := RV;
     UpdateTreeView(RV);
     UpdatePropertyInspector;
-    RotationY := 30;
     {$ENDIF}
     OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
     OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
+    MenuItemToggleView3D.Checked := View3DEnabled;
   end;
   SetControlIndex(FViewLayout3D, 0);
 end;
@@ -316,6 +319,14 @@ begin
   MenuItemClose.Enabled := False;
   MenuItemZoomIn.Enabled := False;
   MenuItemZoomOut.Enabled := False;
+end;
+
+procedure TMainForm.MenuItemToggleView3DClick(Sender: TObject);
+var
+  MenuItem: TMenuItem absolute Sender;
+begin
+  MenuItem.Checked := not MenuItem.Checked;
+  FViewLayout3D.View3DEnabled := MenuItem.Checked;
 end;
 
 procedure TMainForm.MenuItemOpenWindowClick(Sender: TObject);

@@ -11,6 +11,7 @@ uses
 type
 
   TZOrderAnimator = class;
+  TToggleView3DAnimator = class;
   // TODO: use better map class
   TCaptureViewTaskViewMap = specialize TFPGMap<pointer, TView3D>;
 
@@ -18,14 +19,14 @@ type
 
   TViewLayout3D = class(TOpenGLControl)
   private
+    FView3DEnabled: boolean;
     FCaptureViewTaskViewMap: TCaptureViewTaskViewMap;
     FRootView: TView3D;
     FClipBounds: boolean;
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
-    FAnimationEnabled: boolean;
     FZOrderAnimator: TZOrderAnimator;
-    FAnimation: TAnimator;
+    FToggleView3DAnimator: TToggleView3DAnimator;
     FOnVisibleBranchChanged: TNotifyEvent;
     FScaleZAnimator: TFloatAnimator;
     FZoomLevelAnimator: TFloatAnimator;
@@ -48,6 +49,7 @@ type
     FMenuItemClipBounds: TMenuItem;
     FOnActiveViewChanged: TNotifyEvent;
     FVisibleBranch: TView3D;
+    procedure SetView3DEnabled(V: boolean);
     procedure SetVisibleBranch(V: TView3D);
     procedure SetActiveView(V: TView3D);
     procedure SetClipBounds(V: boolean);
@@ -67,7 +69,7 @@ type
     procedure CaptureViewTaskFreeHandler(Sender: TObject);
     procedure DblClickHandler(Sender: TObject);
 
-    procedure AnimationUpdateHandler(Sender: TAnimator;
+    procedure ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
       const InterpolatedFraction: single);
     procedure MenuItemClipBoundsClick(Sender: TObject);
 
@@ -108,13 +110,13 @@ type
     property OriginY: single read FOriginY write SetOriginY;
     property ActiveView: TView3D read FActiveView write SetActiveView;
     property HighlightedView: TView3D read FHighlightedView write SetHighlightedView;
-    property AnimationEnabled: boolean read FAnimationEnabled write FAnimationEnabled;
     property OnActiveViewChanged: TNotifyEvent
       read FOnActiveViewChanged write FOnActiveViewChanged;
     property ClipBounds: boolean read FClipBounds write SetClipBounds;
     property VisibleBranch: TView3D read FVisibleBranch write SetVisibleBranch;
     property OnVisibleBranchChanged: TNotifyEvent
       read FOnVisibleBranchChanged write FOnVisibleBranchChanged;
+    property View3DEnabled: boolean read FView3DEnabled write SetView3DEnabled;
   end;
 
 
@@ -136,6 +138,23 @@ type
     procedure AddTarget(View: TView3D; const StartValue, EndValue: single);
   end;
 
+  { TToggleView3DAnimator }
+
+  TToggleView3DAnimator = class(TAnimator)
+  private
+    FRotationYStartValue: single;
+    FRotationYEndValue: single;
+    FScaleZStartValue: single;
+    FScateZEndValue: single;
+  public
+    procedure SetRotationYInterval(const StartValue, EndValue: single);
+    procedure SetScaleZInterval(const StartValue, EndValue: single);
+    property RotationYStartValue: single read FRotationYStartValue;
+    property RotationYEndValue: single read FRotationYEndValue;
+    property ScaleZStartValue: single read FScaleZStartValue;
+    property ScateZEndValue: single read FScateZEndValue;
+  end;
+
 implementation
 
 uses
@@ -155,9 +174,10 @@ const
   clContentColor32 = TColorABGR($70FF824A);
 
   InitialZoomLevel = 1;
-  InitialScaleZ = 20;
-  InitialRotationX = 0;
-  InitialRotationY = 0;
+
+  View3DScaleZ = 20;
+  View3DRotationX = 0;
+  View3DRotationY = 30;
 
   StepZoomLevel = 0.1;
   StepScaleZ = 20;
@@ -176,15 +196,26 @@ const
 
   CameraDistance = 1500;
 
-  AnimationDuration = 700;
-  AnimationEndScaleZ = 30;
-  AnimationEndRotationY = 30;
-
   CanvasPaddingVertical = 50;
   CanvasPaddingHorizontal = 50;
 
 var
   CapturableWidgets: TStringList;
+
+{ TToggleView3DAnimator }
+
+procedure TToggleView3DAnimator.SetRotationYInterval(
+  const StartValue, EndValue: single);
+begin
+  FRotationYStartValue := StartValue;
+  FRotationYEndValue := EndValue;
+end;
+
+procedure TToggleView3DAnimator.SetScaleZInterval(const StartValue, EndValue: single);
+begin
+  FScaleZStartValue := StartValue;
+  FScateZEndValue := EndValue;
+end;
 
 { TZOrderAnimator }
 
@@ -246,9 +277,10 @@ begin
   glShadeModel(GL_SMOOTH);
   glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-  FAnimation := TAnimator.Create;
-  FAnimation.Duration := AnimationDuration;
-  FAnimation.OnUpdate := @AnimationUpdateHandler;
+  FView3DEnabled := True;
+  FToggleView3DAnimator := TToggleView3DAnimator.Create;
+  FToggleView3DAnimator.Duration := 500;
+  FToggleView3DAnimator.OnUpdate := @ToggleView3DAnimatorUpdateHandler;
 
   FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
   FScaleZAnimator.Duration := 200;
@@ -272,7 +304,7 @@ begin
   FZOrderAnimator.Free;
   FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
-  FAnimation.Free;
+  FToggleView3DAnimator.Free;
   inherited Destroy;
 end;
 
@@ -352,10 +384,10 @@ begin
 
   CancelCaptureView;
 
-  FRotationY := InitialRotationY;
-  FRotationX := InitialRotationX;
+  FRotationY := 0;
+  FRotationX := 0;
   FZoomLevel := InitialZoomLevel;
-  FScaleZ := InitialScaleZ;
+  FScaleZ := 0;
 
   FRootView := V;
   VisibleBranch := V;
@@ -375,10 +407,14 @@ begin
     OnDblClick := @DblClickHandler;
     PopupMenu := FContextMenu;
 
-    if AnimationEnabled then
+    if View3DEnabled then
+    begin
       // No need to Invalidate here because the animation starts right away
       // and will take care of it.
-      FAnimation.Restart
+      FToggleView3DAnimator.SetRotationYInterval(0, 0);
+      FToggleView3DAnimator.SetScaleZInterval(0, View3DScaleZ);
+      FToggleView3DAnimator.Restart;
+    end
     else
       Invalidate;
 
@@ -495,6 +531,27 @@ begin
     if Assigned(FOnVisibleBranchChanged) then
       FOnVisibleBranchChanged(Self);
   end;
+end;
+
+procedure TViewLayout3D.SetView3DEnabled(V: boolean);
+begin
+  if FView3DEnabled = V then
+    Exit;
+
+  FView3DEnabled := V;
+  if FView3DEnabled then
+  begin
+    // Don't RotateY.
+    FToggleView3DAnimator.SetRotationYInterval(0, 0);
+    FToggleView3DAnimator.SetScaleZInterval(0, View3DScaleZ);
+  end
+  else
+  begin
+    FToggleView3DAnimator.SetRotationYInterval(RotationY, 0);
+    FToggleView3DAnimator.SetScaleZInterval(ScaleZ, 0);
+  end;
+
+  FToggleView3DAnimator.Restart;
 end;
 
 procedure TViewLayout3D.SetClipBounds(V: boolean);
@@ -812,12 +869,15 @@ begin
   SwapBuffers;
 end;
 
-procedure TViewLayout3D.AnimationUpdateHandler(Sender: TAnimator;
+procedure TViewLayout3D.ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
   const InterpolatedFraction: single);
+var
+  A: TToggleView3DAnimator absolute Sender;
 begin
-  ScaleZ := IntegerEvaluator(InterpolatedFraction, InitialScaleZ, AnimationEndScaleZ);
-  RotationY := FloatEvaluator(InterpolatedFraction, InitialRotationY,
-    AnimationEndRotationY);
+  ScaleZ := FloatEvaluator(InterpolatedFraction, A.ScaleZStartValue,
+    A.ScateZEndValue);
+  RotationY := FloatEvaluator(InterpolatedFraction, A.RotationYStartValue,
+    A.RotationYEndValue);
 end;
 
 procedure TViewLayout3D.MenuItemClipBoundsClick(Sender: TObject);
@@ -862,6 +922,7 @@ begin
       OriginY := OriginY - (Y - FLastMouseY);
     end
     else
+    if View3DEnabled then
     begin
       // Constrain X/Y rotation to predefined min/max angles.
       RotationX := EnsureRange(RotationX - Y - FLastMouseY, MinRotationX,
@@ -880,23 +941,26 @@ end;
 procedure TViewLayout3D.MouseWheelHandler(Sender: TObject; Shift: TShiftState;
   WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
 begin
-  if not FDragging then
-  begin
-    WheelDelta := Sign(WheelDelta);
-    // Constrain XY/Z scaling to predefined min/max values.
-    if ssCtrl in Shift then
-    begin
-      FScaleZAnimator.SetValueInterval(ScaleZ, EnsureRange(FScaleZ +
-        WheelDelta * StepScaleZ, MinScaleZ, MaxScaleZ));
-      FScaleZAnimator.Restart;
-    end
-    else
-      Zoom(WheelDelta);
+  if FDragging or FToggleView3DAnimator.IsRunning then
+    Exit;
 
-    Handled := True;
+  WheelDelta := Sign(WheelDelta);
+  if ssCtrl in Shift then
+  begin
+    if View3DEnabled then
+    begin
+      // Constrain Z scaling to predefined min/max values.
+      FScaleZAnimator.SetValueInterval(ScaleZ,
+        EnsureRange(FScaleZ + WheelDelta * StepScaleZ, MinScaleZ, MaxScaleZ));
+      FScaleZAnimator.Restart;
+      Handled := True;
+    end;
   end
   else
-    Handled := False;
+  begin
+    Zoom(WheelDelta);
+    Handled := True;
+  end;
 end;
 
 procedure TViewLayout3D.MenuItemShowAllClick(Sender: TObject);

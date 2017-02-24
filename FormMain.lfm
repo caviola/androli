@@ -1,7 +1,7 @@
 object MainForm: TMainForm
-  Left = 1468
+  Left = 533
   Height = 689
-  Top = 218
+  Top = 175
   Width = 1148
   HorzScrollBar.Visible = False
   VertScrollBar.Visible = False
@@ -30,7 +30,7 @@ object MainForm: TMainForm
     TabOrder = 3
     object TreeFilterEdit: TTreeFilterEdit
       Left = 7
-      Height = 27
+      Height = 33
       Top = 9
       Width = 268
       OnAfterFilter = TreeFilterEditAfterFilter
@@ -49,13 +49,14 @@ object MainForm: TMainForm
       AnchorSideTop.Control = TreeFilterEdit
       AnchorSideTop.Side = asrBottom
       Left = 0
-      Height = 532
-      Top = 43
+      Height = 526
+      Top = 49
       Width = 275
       Anchors = [akTop, akLeft, akRight, akBottom]
       BorderSpacing.Top = 7
       BorderSpacing.Bottom = 14
       BackgroundColor = clDefault
+      DefaultItemHeight = 26
       HideSelection = False
       ReadOnly = True
       RightClickSelect = True
@@ -72,9 +73,9 @@ object MainForm: TMainForm
       AnchorSideTop.Control = TreeView
       AnchorSideTop.Side = asrBottom
       Left = 7
-      Height = 24
+      Height = 27
       Top = 589
-      Width = 126
+      Width = 159
       Caption = 'Show View IDs'
       Enabled = False
       OnChange = UpdateTreeViewLabels
@@ -84,9 +85,9 @@ object MainForm: TMainForm
       AnchorSideTop.Control = CheckBoxShowViewIDs
       AnchorSideTop.Side = asrBottom
       Left = 7
-      Height = 24
-      Top = 613
-      Width = 180
+      Height = 27
+      Top = 616
+      Width = 230
       Caption = 'Show Full Class Names'
       Enabled = False
       OnChange = UpdateTreeViewLabels
@@ -197,6 +198,13 @@ object MainForm: TMainForm
         Caption = 'Normal Size'
         Enabled = False
         ShortCut = 16432
+      end
+      object MenuItem2: TMenuItem
+        Caption = '-'
+      end
+      object MenuItemToggleView3D: TMenuItem
+        Caption = 'Enable 3D View'
+        OnClick = MenuItemToggleView3DClick
       end
     end
     object MenuItemHelp: TMenuItem
