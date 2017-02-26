@@ -10,7 +10,8 @@ Androli is a cross-platform, experimental tool written in Object Pascal.
 
 - Inspect any active Android window
 - Inspect Device Monitor dump files
-- 3D view with image of common UI widgets
+- Switch between 2D and 3D layout modes
+- Snapshot of common UI widgets
 - Filterable and customizable tree view
 - Inspect view properties
 - Rotate/scale/pan
