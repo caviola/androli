@@ -1,36 +1,35 @@
 object MainForm: TMainForm
-  Left = 533
+  Left = 92
   Height = 689
-  Top = 175
+  Top = 0
   Width = 1148
   HorzScrollBar.Visible = False
   VertScrollBar.Visible = False
   Anchors = [akLeft]
   Caption = 'Androli'
-  ClientHeight = 689
+  ClientHeight = 669
   ClientWidth = 1148
   Constraints.MinHeight = 500
   Constraints.MinWidth = 900
   Menu = MainMenu
   OnCreate = FormCreate
   Position = poDefault
-  LCLVersion = '1.6.0.4'
+  LCLVersion = '1.6.4.0'
   object PanelTreeView: TPanel
     Left = 0
-    Height = 689
+    Height = 669
     Top = 0
     Width = 275
     Align = alLeft
     Alignment = taLeftJustify
     BevelOuter = bvNone
-    ClientHeight = 689
+    ClientHeight = 669
     ClientWidth = 275
-    Color = clBackground
     ParentColor = False
     TabOrder = 3
     object TreeFilterEdit: TTreeFilterEdit
       Left = 7
-      Height = 33
+      Height = 23
       Top = 9
       Width = 268
       OnAfterFilter = TreeFilterEditAfterFilter
@@ -49,14 +48,14 @@ object MainForm: TMainForm
       AnchorSideTop.Control = TreeFilterEdit
       AnchorSideTop.Side = asrBottom
       Left = 0
-      Height = 526
-      Top = 49
+      Height = 516
+      Top = 39
       Width = 275
       Anchors = [akTop, akLeft, akRight, akBottom]
       BorderSpacing.Top = 7
       BorderSpacing.Bottom = 14
       BackgroundColor = clDefault
-      DefaultItemHeight = 26
+      DefaultItemHeight = 18
       HideSelection = False
       ReadOnly = True
       RightClickSelect = True
@@ -73,9 +72,9 @@ object MainForm: TMainForm
       AnchorSideTop.Control = TreeView
       AnchorSideTop.Side = asrBottom
       Left = 7
-      Height = 27
-      Top = 589
-      Width = 159
+      Height = 19
+      Top = 569
+      Width = 96
       Caption = 'Show View IDs'
       Enabled = False
       OnChange = UpdateTreeViewLabels
@@ -85,9 +84,9 @@ object MainForm: TMainForm
       AnchorSideTop.Control = CheckBoxShowViewIDs
       AnchorSideTop.Side = asrBottom
       Left = 7
-      Height = 27
-      Top = 616
-      Width = 230
+      Height = 19
+      Top = 588
+      Width = 141
       Caption = 'Show Full Class Names'
       Enabled = False
       OnChange = UpdateTreeViewLabels
@@ -97,14 +96,14 @@ object MainForm: TMainForm
   object SplitterLeft: TSplitter
     AnchorSideLeft.Control = PanelTreeView
     Left = 275
-    Height = 689
+    Height = 669
     Top = 0
     Width = 5
   end
   object SplitterRight: TSplitter
     AnchorSideRight.Control = ValueListEditor
     Left = 869
-    Height = 689
+    Height = 669
     Top = 0
     Width = 5
     Align = alRight
@@ -112,7 +111,7 @@ object MainForm: TMainForm
   end
   object ValueListEditor: TValueListEditor
     Left = 874
-    Height = 689
+    Height = 669
     Top = 0
     Width = 274
     Align = alRight
@@ -131,7 +130,7 @@ object MainForm: TMainForm
     )
     ColWidths = (
       131
-      141
+      139
     )
   end
   object DialogOpenFile: TOpenDialog
