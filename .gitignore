@@ -1,5 +1,6 @@
 *.bak
 *.lps
 lib
-Androli
+androli
+androli.exe
 Log*

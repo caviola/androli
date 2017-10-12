@@ -18,6 +18,7 @@ Androli is a cross-platform, experimental tool written in Object Pascal.
 - Hide/show/collapse/expand layout sections
 - Clip views to parent
 - Easy installation, just copy/launch a binary
+- Pre-compiled binaries for Windows and Linux (64 bits)
 
 ## Installing
 
@@ -28,7 +29,7 @@ Download the latest release package from the [releases page](../../releases), un
 ### From source
 
 1. Clone this repository
-2. Install [Lazarus 1.6.2](http://www.lazarus-ide.org/)
+2. Install [Lazarus 1.6.4](http://www.lazarus-ide.org/)
 3. Compile
 
 ## Prerequisites
