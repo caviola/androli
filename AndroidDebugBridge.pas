@@ -195,7 +195,7 @@ function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
 implementation
 
 uses
-  Math, LazLogger;
+  Math, LazLogger, synsock;
 
 const
   AdbServerPort = 5037;
@@ -580,9 +580,8 @@ function TViewServerClient.CaptureView(
     try
       FAdbDeviceConnection.Socket.RecvStreamRaw(Result, 5000);
     except
-      // TODO: how to determine the cross-platform error code for "connection reset by peer"?
       on E: ESynapseError do
-        if E.ErrorCode <> 104 then
+        if E.ErrorCode <> WSAECONNRESET then
           raise;
     end;
     Result.Seek(0, soBeginning);
@@ -744,9 +743,8 @@ begin
       while True do
         Result := Result + Socket.RecvString(5000);
     except
-      // TODO: how to determine the cross-platform error code for connection reset by peer?
       on E: ESynapseError do
-        if E.ErrorCode <> 104 then
+        if E.ErrorCode <> WSAECONNRESET then
           raise;
     end;
   finally
