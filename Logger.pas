@@ -5,6 +5,7 @@ unit Logger;
 interface
 
 procedure LogDebug(const Fmt: string; const Args: array of const);
+procedure LogDebug(const Msg: string);
 
 implementation
 
@@ -18,6 +19,13 @@ procedure LogDebug(const Fmt: string; const Args: array of const);
 begin
   {$IFDEF DEBUG}
   DebugLnThreadLog(Format(Fmt, Args));
+  {$ENDIF}
+end;
+
+procedure LogDebug(const Msg: string);
+begin
+  {$IFDEF DEBUG}
+  DebugLnThreadLog(Msg);
   {$ENDIF}
 end;
 

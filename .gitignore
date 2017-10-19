@@ -2,5 +2,5 @@
 *.lps
 lib
 androli
-androli.exe
+androli-*.exe
 Log*

@@ -9,18 +9,29 @@ uses
 
 type
 
-  TView3DFlags = set of (vfExpanding, vfCollapsing, vfExpanded);
-
   TView3D = class;
+
+  { ICaptureViewTask }
+
+  ICaptureViewTask = interface(ITask)
+    ['{61FCD982-73FE-4B2D-A4E9-6C380FD1183A}']
+    // Can be called only once and caller is responsible for freeing the result.
+    function GetResult: TRasterImage;
+    function GetAssociatedView: TView3D;
+    property AssociatedView: TView3D read GetAssociatedView;
+  end;
 
   { TCaptureViewTask }
 
-  TCaptureViewTask = class(TTask)
+  TCaptureViewTask = class(TTask, ICaptureViewTask)
   protected
-    FImage: TRasterImage;
+    FAssociatedView: TView3D;
+    FResult: TRasterImage;
   public
+    constructor Create(AView: TView3D);
     destructor Destroy; override;
-    property Image: TRasterImage read FImage;
+    function GetResult: TRasterImage;
+    function GetAssociatedView: TView3D;
   end;
 
   { ICaptureViewTaskFactory }
@@ -32,6 +43,7 @@ type
   TView3DList = specialize TFPGList<TView3D>;
 
   TViewVisibility = (vvVisible, vvInvisible, vvGone);
+  TView3DFlags = set of (vfExpanding, vfCollapsing, vfExpanded);
 
   { TView3D }
 
@@ -41,11 +53,13 @@ type
     FProperties: TStringList;
     FChildren: TView3DList;
     FTextureName: cardinal;
+    FInflightCaptureViewTask: ICaptureViewTask;
     function GetExpanded: boolean;
     function GetSimpleClassName: string;
     function GetChildren(I: integer): TView3D;
     function GetChildrenCount: integer; inline;
     procedure SetExpanded(AValue: boolean);
+    procedure SetInflightCaptureViewTask(AValue: ICaptureViewTask);
   public
     Parent: TView3D;
     Next: TView3D;
@@ -101,12 +115,13 @@ type
     function GetHeight: single; inline;
     function GetClippedWidth: single; inline;
     function GetClippedHeight: single; inline;
-    function CreateCaptureViewTask: TCaptureViewTask;
     property ChildrenCount: integer read GetChildrenCount;
     property Children[I: integer]: TView3D read GetChildren;
     property SimpleClassName: string read GetSimpleClassName;
     property Expanded: boolean read GetExpanded write SetExpanded;
     property TextureName: cardinal read FTextureName write FTextureName;
+    property InflightCaptureViewTask: ICaptureViewTask
+      read FInflightCaptureViewTask write SetInflightCaptureViewTask;
   end;
 
 
@@ -160,10 +175,32 @@ end;
 
 { TCaptureViewTask }
 
+constructor TCaptureViewTask.Create(AView: TView3D);
+begin
+  FAssociatedView := AView;
+  FAssociatedView.InflightCaptureViewTask := Self;
+end;
+
 destructor TCaptureViewTask.Destroy;
 begin
-  FImage.Free;
-  inherited Destroy;
+  if Assigned(FResult) then
+    FResult.Free;
+  inherited;
+end;
+
+function TCaptureViewTask.GetResult: TRasterImage;
+begin
+  if not Assigned(FResult) then
+    raise Exception.CreateFmt(
+      '%s.GetResult can be called only once and caller must free it.', [ClassName]);
+
+  Result := FResult;
+  FResult := nil;
+end;
+
+function TCaptureViewTask.GetAssociatedView: TView3D;
+begin
+  Result := FAssociatedView;
 end;
 
 { TView3D }
@@ -218,6 +255,13 @@ begin
     Exclude(FFlags, vfExpanded);
 end;
 
+procedure TView3D.SetInflightCaptureViewTask(AValue: ICaptureViewTask);
+begin
+  if Assigned(FInflightCaptureViewTask) then
+    FInflightCaptureViewTask.Cancel;
+  FInflightCaptureViewTask := AValue;
+end;
+
 constructor TView3D.Create;
 begin
   Visible := True;
@@ -239,6 +283,12 @@ begin
     Children[I].Free;
   FChildren.Free;
   CaptureViewTaskFactory := nil;
+
+  if Assigned(FInflightCaptureViewTask) then
+  begin
+    FInflightCaptureViewTask.Cancel;
+    FInflightCaptureViewTask := nil;
+  end;
   inherited;
 end;
 
@@ -384,14 +434,5 @@ function TView3D.GetClippedHeight: single;
 begin
   Result := ClippedBottom - ClippedTop;
 end;
-
-function TView3D.CreateCaptureViewTask: TCaptureViewTask;
-begin
-  if Assigned(CaptureViewTaskFactory) then
-    Result := CaptureViewTaskFactory.CreateTask(Self)
-  else
-    Result := nil;
-end;
-
 
 end.

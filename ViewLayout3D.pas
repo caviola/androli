@@ -5,22 +5,19 @@ unit ViewLayout3D;
 interface
 
 uses
-  Classes, Controls, Graphics, Menus, fgl, View3DTypes, Animators,
-  OpenGLContext, TaskRunner;
+  Classes, Controls, Graphics, Menus, View3DTypes, Animators, OpenGLContext,
+  TaskRunner;
 
 type
 
   TZOrderAnimator = class;
   TToggleView3DAnimator = class;
-  // TODO: use better map class
-  TCaptureViewTaskViewMap = specialize TFPGMap<pointer, TView3D>;
 
   { TViewLayout3D }
 
   TViewLayout3D = class(TOpenGLControl)
   private
     FView3DEnabled: boolean;
-    FCaptureViewTaskViewMap: TCaptureViewTaskViewMap;
     FRootView: TView3D;
     FClipBounds: boolean;
     FHierarchyWidth: integer;
@@ -59,11 +56,8 @@ type
     procedure SetOriginY(V: single);
     procedure SetRootView(V: TView3D);
     procedure StartCaptureView;
-    procedure CancelCaptureView;
-    function GetCaptureViewTaskView(Task: TCaptureViewTask): TView3D;
   protected
-    procedure CaptureViewTaskSuccessHandler(Sender: TObject);
-    procedure CaptureViewTaskFreeHandler(Sender: TObject);
+    procedure CaptureViewTaskSuccessHandler(const Task: ITask);
     procedure DblClickHandler(Sender: TObject);
 
     procedure ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
@@ -263,15 +257,10 @@ begin
   FZOrderAnimator := TZOrderAnimator.Create;
   FZOrderAnimator.Duration := 200;
   FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
-
-  FCaptureViewTaskViewMap := TCaptureViewTaskViewMap.Create;
-  FCaptureViewTaskViewMap.Sorted := True;
 end;
 
 destructor TViewLayout3D.Destroy;
 begin
-  CancelCaptureView;
-  FCaptureViewTaskViewMap.Free;
   FZOrderAnimator.Free;
   FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
@@ -353,8 +342,6 @@ procedure TViewLayout3D.SetRootView(V: TView3D);
 begin
   // TODO: center fit initially
 
-  CancelCaptureView;
-
   FRotationY := 0;
   FRotationX := 0;
   FZoomLevel := InitialZoomLevel;
@@ -406,51 +393,20 @@ end;
 procedure TViewLayout3D.StartCaptureView;
 var
   View: TView3D;
-  Task: TTask;
+  TaskFactory: ICaptureViewTaskFactory;
 begin
   View := FRootView;
   repeat
-    if CapturableWidgets.IndexOf(View.QualifiedClassName) <> -1 then
-    begin
-      Task := View.CreateCaptureViewTask;
-      if Assigned(Task) then
+    TaskFactory := View.CaptureViewTaskFactory;
+    if (CapturableWidgets.IndexOf(View.QualifiedClassName) <> -1) and
+      Assigned(TaskFactory) then
+      with TaskFactory.CreateTask(View) do
       begin
-        Task.OnSuccess := @CaptureViewTaskSuccessHandler;
-        Task.OnFree := @CaptureViewTaskFreeHandler;
-        StartTask(Task);
-        FCaptureViewTaskViewMap.Add(Task, View);
+        OnSuccess := @CaptureViewTaskSuccessHandler;
+        Start;
       end;
-    end;
     View := View.Next;
   until View = FRootView;
-end;
-
-procedure TViewLayout3D.CancelCaptureView;
-var
-  I: integer;
-begin
-  // Cancel all pending tasks and remove them from the map.
-  // If by any chance a task successfully completes after this call,
-  // it will be ignored because there will be no associated view in the map.
-  for I := 0 to FCaptureViewTaskViewMap.Count - 1 do
-    TCaptureViewTask(FCaptureViewTaskViewMap.Keys[I]).Cancel;
-  FCaptureViewTaskViewMap.Clear;
-end;
-
-function TViewLayout3D.GetCaptureViewTaskView(Task: TCaptureViewTask): TView3D;
-var
-  I: integer;
-begin
-  if FCaptureViewTaskViewMap.Find(Task, I) then
-    Result := FCaptureViewTaskViewMap.Data[I]
-  else
-    Result := nil;
-end;
-
-procedure TViewLayout3D.CaptureViewTaskFreeHandler(Sender: TObject);
-begin
-  // Remove the task from the map as it's about to be freed.
-  FCaptureViewTaskViewMap.Remove(Sender);
 end;
 
 procedure TViewLayout3D.DblClickHandler(Sender: TObject);
@@ -1000,43 +956,43 @@ begin
   Invalidate;
 end;
 
-procedure TViewLayout3D.CaptureViewTaskSuccessHandler(Sender: TObject);
+procedure TViewLayout3D.CaptureViewTaskSuccessHandler(const Task: ITask);
 var
   TextureName: GLint = 0;
-  Task: TCaptureViewTask absolute Sender;
   View: TView3D;
+  Image: TRasterImage;
+  CaptureViewTask: ICaptureViewTask;
 begin
-  // Ignore this task if we don't find its associated view.
-  // We don't keep the view reference in the task object because the view
-  // may be destroyed before the task completes.
-  // This can happen, for instance, when the layout is closed or another layout
-  // is loaded.
-  View := GetCaptureViewTaskView(Task);
-  if not Assigned(View) then
-    Exit;
+  CaptureViewTask := Task as ICaptureViewTask;
+  View := CaptureViewTask.AssociatedView;
+  Assert(Assigned(View), 'CaptureViewTask.AssociatedView is nil');
+  Image := CaptureViewTask.GetResult;
+  try
+    // Abort if image was not fetched or its width/height is 1px.
+    if not Assigned(Image) or (Image.Width = 1) or (Image.Height = 1) then
+      Exit;
 
-  // Abort if image was not fetched or its width/height is 1px.
-  if not Assigned(Task.Image) or (Task.Image.Width = 1) or (Task.Image.Height = 1) then
-    Exit;
-
-  // Create new OpenGL texture from image data.
-  // Note we create the texture for a view only once.
-  // If for some reason (eg. out-of-memory) the texture creation fails,
-  // the view won't have an associated texture and we won't display its image.
-  glGenTextures(1, @TextureName);
-  glBindTexture(GL_TEXTURE_2D, TextureName);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D(
-    GL_TEXTURE_2D,
-    0,
-    GL_RGBA,
-    Task.Image.Width,
-    Task.Image.Height,
-    0,
-    GL_BGRA,
-    GL_UNSIGNED_BYTE,
-    Task.Image.RawImage.Data);
+    // Create new OpenGL texture from image data.
+    // Note we create the texture for a view only once.
+    // If for some reason (eg. out-of-memory) the texture creation fails,
+    // the view won't have an associated texture and we won't display its image.
+    glGenTextures(1, @TextureName);
+    glBindTexture(GL_TEXTURE_2D, TextureName);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(
+      GL_TEXTURE_2D,
+      0,
+      GL_RGBA,
+      Image.Width,
+      Image.Height,
+      0,
+      GL_BGRA,
+      GL_UNSIGNED_BYTE,
+      Image.RawImage.Data);
+  finally
+    Image.Free;
+  end;
 
   View.TextureName := TextureName;
 

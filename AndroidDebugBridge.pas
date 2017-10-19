@@ -78,15 +78,19 @@ type
     property DeviceSerial: string read FDevice;
   end;
 
+  IDeviceListTask = interface(ITask)
+    ['{762266BE-3445-4FF0-A87E-43279F0765DE}']
+    function GetResult: TAdbDeviceEntryArray;
+  end;
+
   { TDeviceListTask }
 
-  TDeviceListTask = class(TTask)
+  TDeviceListTask = class(TTask, IDeviceListTask)
   private
     FDeviceList: TAdbDeviceEntryArray;
   protected
     procedure Run; override;
-  public
-    property DeviceList: TAdbDeviceEntryArray read FDeviceList;
+    function GetResult: TAdbDeviceEntryArray;
   end;
 
   TDeviceListCompleteEvent = procedure(Sender: TObject;
@@ -96,12 +100,12 @@ type
 
   TAdbInterface = class
   private
-    FDeviceListTask: TDeviceListTask;
+    FDeviceListTask: IDeviceListTask;
     FOnDeviceListComplete: TDeviceListCompleteEvent;
     FOnDeviceListError: TNotifyEvent;
   protected
-    procedure DeviceListTaskSuccess(Sender: TObject);
-    procedure DeviceListTaskError(Sender: TObject);
+    procedure DeviceListSuccess(const Task: ITask);
+    procedure DeviceListError(const Task: ITask; Error: Exception);
   public
     destructor Destroy; override;
     procedure GetDeviceList;
@@ -122,39 +126,53 @@ type
   TWindowDumpProgressEvent = procedure(Sender: TDeviceInterface;
     Progress: integer) of object;
 
+  { IDumpWindowTask }
+
+  IDumpWindowTask = interface(ITask)
+    ['{7659148D-74A5-46C8-8854-D13F45C56D5B}']
+    // Can be called only once and caller is responsible for freeing the result.
+    function GetResult: TView3D;
+  end;
+
   { TDumpWindowTask }
 
-  TDumpWindowTask = class(TTask)
+  TDumpWindowTask = class(TTask, IDumpWindowTask)
   private
-    FRootView: TView3D;
+    FResult: TView3D;
     FWindowHash: string;
     FDeviceSerial: string;
   protected
     procedure Run; override;
   public
     constructor Create(const DeviceSerial, WindowHash: string);
-    property RootView: TView3D read FRootView;
+    destructor Destroy; override;
+    function GetResult: TView3D;
+  end;
+
+  IWindowListTask = interface(ITask)
+    ['{3079A8C2-5DCF-4371-BCF6-761B5106488B}']
+    function GetResult: TWindowManagerEntryArray;
   end;
 
   { TWindowListTask }
 
-  TWindowListTask = class(TTask)
+  TWindowListTask = class(TTask, IWindowListTask)
   private
     FDeviceSerial: string;
-    FWindowList: TWindowManagerEntryArray;
+    FResult: TWindowManagerEntryArray;
   protected
     procedure Run; override;
   public
     constructor Create(const DeviceSerial: string);
-    property WindowList: TWindowManagerEntryArray read FWindowList;
+    function GetResult: TWindowManagerEntryArray;
   end;
 
   { TDeviceInterface }
 
   TDeviceInterface = class
   private
-    FDumpWindowTask: TDumpWindowTask;
-    FWindowListTask: TWindowListTask;
+    FDumpWindowTask: IDumpWindowTask;
+    FWindowListTask: IWindowListTask;
     FOnWindowDumpCancel: TNotifyEvent;
     FOnWindowListComplete: TWindowListCompleteEvent;
     FOnWindowListError: TNotifyEvent;
@@ -163,10 +181,10 @@ type
     FOnWindowDumpError: TNotifyEvent;
     FOnWindowDumpProgress: TWindowDumpProgressEvent;
   protected
-    procedure DumpWindowTaskSuccess(Sender: TObject);
-    procedure DumpWindowTaskError(Sender: TObject);
-    procedure WindowListTaskSuccess(Sender: TObject);
-    procedure WindowListTaskError(Sender: TObject);
+    procedure DumpWindowTaskSuccess(const Task: ITask);
+    procedure DumpWindowTaskError(const Task: ITask; Error: Exception);
+    procedure WindowListTaskSuccess(const Task: ITask);
+    procedure WindowListTaskError(const Task: ITask; Error: Exception);
   public
     constructor Create(const ADevice: string);
     destructor Destroy; override;
@@ -231,12 +249,10 @@ type
   private
     FDeviceSerial: string;
     FWindowHash: string;
-    FViewClass: string;
-    FViewHash: string;
   protected
     procedure Run; override;
   public
-    constructor Create(const ADeviceSerial, AWindowHash, AViewClass, AViewHash: string);
+    constructor Create(const ADeviceSerial, AWindowHash: string; AView: TView3D);
   end;
 
   { TViewServerCaptureViewTaskFactory }
@@ -266,25 +282,26 @@ end;
 
 function TViewServerCaptureViewTaskFactory.CreateTask(View: TView3D): TCaptureViewTask;
 begin
-  Result := TViewServerCaptureViewTask.Create(FDeviceSerial, FWindowHash,
-    View.QualifiedClassName, View.HashCode);
+  Result := TViewServerCaptureViewTask.Create(FDeviceSerial, FWindowHash, View);
 end;
 
 { TViewServerCaptureViewTask }
 
 procedure TViewServerCaptureViewTask.Run;
+var
+  View: TView3D;
 begin
-  FImage := CreateViewServerClient(FDeviceSerial).CaptureView(FWindowHash,
-    FViewClass, FViewHash);
+  View := GetAssociatedView;
+  FResult := CreateViewServerClient(FDeviceSerial).CaptureView(FWindowHash,
+    View.QualifiedClassName, View.HashCode);
 end;
 
-constructor TViewServerCaptureViewTask.Create(
-  const ADeviceSerial, AWindowHash, AViewClass, AViewHash: string);
+constructor TViewServerCaptureViewTask.Create(const ADeviceSerial, AWindowHash: string;
+  AView: TView3D);
 begin
+  inherited Create(AView);
   FDeviceSerial := ADeviceSerial;
   FWindowHash := AWindowHash;
-  FViewClass := AViewClass;
-  FViewHash := AViewHash;
 end;
 
 { TViewServerConnection }
@@ -623,7 +640,17 @@ begin
     end;
 end;
 
+function TDeviceListTask.GetResult: TAdbDeviceEntryArray;
+begin
+  Result := FDeviceList;
+end;
+
 { TWindowListTask }
+
+constructor TWindowListTask.Create(const DeviceSerial: string);
+begin
+  FDeviceSerial := DeviceSerial;
+end;
 
 procedure TWindowListTask.Run;
 begin
@@ -632,26 +659,46 @@ begin
     if not IsServerRunning and not StartServer then
       Exit;
 
-    FWindowList := GetWindowList(2000);
+    FResult := GetWindowList(2000);
   end;
 end;
 
-constructor TWindowListTask.Create(const DeviceSerial: string);
+function TWindowListTask.GetResult: TWindowManagerEntryArray;
 begin
-  FDeviceSerial := DeviceSerial;
+  Result := FResult;
 end;
 
 { TDumpWindowTask }
-
-procedure TDumpWindowTask.Run;
-begin
-  FRootView := CreateViewServerClient(FDeviceSerial).DumpWindow(FWindowHash, FCanceled);
-end;
 
 constructor TDumpWindowTask.Create(const DeviceSerial, WindowHash: string);
 begin
   FWindowHash := WindowHash;
   FDeviceSerial := DeviceSerial;
+end;
+
+destructor TDumpWindowTask.Destroy;
+begin
+  if Assigned(FResult) then
+    FResult.Free;
+  inherited;
+end;
+
+procedure TDumpWindowTask.Run;
+//TODO:
+var
+  FCanceled: boolean = False;
+begin
+  FResult := CreateViewServerClient(FDeviceSerial).DumpWindow(FWindowHash, FCanceled);
+end;
+
+function TDumpWindowTask.GetResult: TView3D;
+begin
+  if not Assigned(FResult) then
+    raise Exception.CreateFmt(
+      '%s.GetResult can be called only once and caller must free it.', [ClassName]);
+
+  Result := FResult;
+  FResult := nil;
 end;
 
 { TAdbHostConnection }
@@ -765,15 +812,21 @@ end;
 
 { TDeviceInterface }
 
-procedure TDeviceInterface.DumpWindowTaskSuccess(Sender: TObject);
+constructor TDeviceInterface.Create(const ADevice: string);
+begin
+  inherited Create;
+  FSerialNumber := ADevice;
+end;
+
+procedure TDeviceInterface.DumpWindowTaskSuccess(const Task: ITask);
 begin
   if Assigned(OnWindowDumpComplete) then
-    OnWindowDumpComplete(Self, TDumpWindowTask(Sender).RootView);
+    OnWindowDumpComplete(Self, (Task as IDumpWindowTask).GetResult);
 
   FDumpWindowTask := nil;
 end;
 
-procedure TDeviceInterface.DumpWindowTaskError(Sender: TObject);
+procedure TDeviceInterface.DumpWindowTaskError(const Task: ITask; Error: Exception);
 begin
   if Assigned(OnWindowDumpError) then
     OnWindowDumpError(Self);
@@ -781,15 +834,15 @@ begin
   FDumpWindowTask := nil;
 end;
 
-procedure TDeviceInterface.WindowListTaskSuccess(Sender: TObject);
+procedure TDeviceInterface.WindowListTaskSuccess(const Task: ITask);
 begin
   if Assigned(OnWindowListComplete) then
-    OnWindowListComplete(Self, TWindowListTask(Sender).WindowList);
+    OnWindowListComplete(Self, (Task as IWindowListTask).GetResult);
 
   FWindowListTask := nil;
 end;
 
-procedure TDeviceInterface.WindowListTaskError(Sender: TObject);
+procedure TDeviceInterface.WindowListTaskError(const Task: ITask; Error: Exception);
 begin
   if Assigned(OnWindowListError) then
     OnWindowListError(Self);
@@ -797,26 +850,10 @@ begin
   FWindowListTask := nil;
 end;
 
-constructor TDeviceInterface.Create(const ADevice: string);
-begin
-  inherited Create;
-  FSerialNumber := ADevice;
-end;
-
 destructor TDeviceInterface.Destroy;
 begin
-  if Assigned(FWindowListTask) then
-  begin
-    FWindowListTask.Cancel;
-    FWindowListTask := nil;
-  end;
-
-  if Assigned(FDumpWindowTask) then
-  begin
-    FDumpWindowTask.Cancel;
-    FDumpWindowTask := nil;
-  end;
-
+  FWindowListTask := nil;
+  FDumpWindowTask := nil;
   inherited;
 end;
 
@@ -827,20 +864,14 @@ begin
       'OnWindowDumpComplete must be set before calling DumpWindow');
 
   if Assigned(FDumpWindowTask) then
-    Exit; // another dump operation in progress
+    FDumpWindowTask.Cancel;
 
-  // IMPORTANT!
-  // Note that we create a new task here but never free it ourselves.
-  // The task will be freed automatically for us after it completes
-  // either successfully, with error or when explicitly canceled.
-  // Hence that we should consider any task reference invalid after
-  // OnComplete/OnError have returned.
-
-  FDumpWindowTask := TDumpWindowTask.Create(SerialNumber, HashCode);
-  FDumpWindowTask.OnSuccess := @DumpWindowTaskSuccess;
-  FDumpWindowTask.OnError := @DumpWindowTaskError;
-
-  StartTask(FDumpWindowTask);
+  with TDumpWindowTask.Create(SerialNumber, HashCode) do
+  begin
+    OnSuccess := @DumpWindowTaskSuccess;
+    OnError := @DumpWindowTaskError;
+    FDumpWindowTask := Start as IDumpWindowTask;
+  end;
 end;
 
 function TDeviceInterface.CancelDumpWindow: boolean;
@@ -862,13 +893,14 @@ end;
 procedure TDeviceInterface.GetWindowList;
 begin
   if Assigned(FWindowListTask) then
-    Exit; // another operation in progress
+    FWindowListTask.Cancel;
 
-  FWindowListTask := TWindowListTask.Create(SerialNumber);
-  FWindowListTask.OnSuccess := @WindowListTaskSuccess;
-  FWindowListTask.OnError := @WindowListTaskError;
-
-  StartTask(FWindowListTask);
+  with TWindowListTask.Create(SerialNumber) do
+  begin
+    OnSuccess := @WindowListTaskSuccess;
+    OnError := @WindowListTaskError;
+    FWindowListTask := Start as IWindowListTask;
+  end;
 end;
 
 { TAdbConnection }
@@ -920,44 +952,36 @@ end;
 
 { TAdbInterface }
 
-procedure TAdbInterface.DeviceListTaskSuccess(Sender: TObject);
+procedure TAdbInterface.DeviceListSuccess(const Task: ITask);
 begin
   if Assigned(OnDeviceListComplete) then
-    OnDeviceListComplete(Self, TDeviceListTask(Sender).DeviceList);
-
-  FDeviceListTask := nil;
+    OnDeviceListComplete(Self, (Task as IDeviceListTask).GetResult);
 end;
 
-procedure TAdbInterface.DeviceListTaskError(Sender: TObject);
+procedure TAdbInterface.DeviceListError(const Task: ITask; Error: Exception);
 begin
   if Assigned(OnDeviceListError) then
     OnDeviceListError(Self);
-
-  FDeviceListTask := nil;
 end;
 
 destructor TAdbInterface.Destroy;
 begin
-  if Assigned(FDeviceListTask) then
-  begin
-    FDeviceListTask.Cancel;
-    FDeviceListTask := nil;
-  end;
-
+  FDeviceListTask.Cancel;
+  FDeviceListTask := nil;
   inherited;
 end;
 
 procedure TAdbInterface.GetDeviceList;
 begin
   if Assigned(FDeviceListTask) then
-    Exit; // another operation in progress
+    FDeviceListTask.Cancel;
 
-  FDeviceListTask := TDeviceListTask.Create;
-  FDeviceListTask.OnSuccess := @DeviceListTaskSuccess;
-  FDeviceListTask.OnError := @DeviceListTaskError;
-
-  StartTask(FDeviceListTask);
+  with TDeviceListTask.Create do
+  begin
+    OnSuccess := @DeviceListSuccess;
+    OnError := @DeviceListError;
+    FDeviceListTask := Start as IDeviceListTask;
+  end;
 end;
-
 
 end.
