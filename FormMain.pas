@@ -41,6 +41,7 @@ type
     SplitterRight: TSplitter;
     TreeView: TTreeView;
     ValueListEditor: TValueListEditor;
+    procedure FormDestroy(Sender: TObject);
     procedure MenuItemAboutClick(Sender: TObject);
     procedure MenuItemClipToParentClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
@@ -59,13 +60,16 @@ type
     procedure TreeViewMouseMove(Sender: TObject; Shift: TShiftState; X, Y: integer);
     procedure TreeViewSelectionChanged(Sender: TObject);
   private
+    FRootView: TView3D;
     FViewLayout3D: TViewLayout3D;
     function GetTreeNodeText(View: TView3D): string;
+    procedure SetRootView(AValue: TView3D);
   protected
     procedure ViewLayout3DActiveViewChanged(Sender: TObject);
     procedure ViewLayout3DVisibleBranchChanged(Sender: TObject);
     procedure UpdateTreeView(RootView: TView3D = nil);
     procedure UpdatePropertyInspector(View: TView3D = nil);
+    property RootView: TView3D read FRootView write SetRootView;
   end;
 
 var
@@ -86,25 +90,17 @@ const
 { TMainForm }
 
 procedure TMainForm.FormCreate(Sender: TObject);
-var
-  RV: TView3D;
 begin
   FViewLayout3D := TViewLayout3D.Create(Self);
-  with FViewLayout3D do
-  begin
-    Parent := Self;
-    Align := alClient;
-    {$IFDEF DEBUG}
-    RV := LoadDeviceMonitorDump('dumps/dump3.uix');
-    RootView := RV;
-    UpdateTreeView(RV);
-    UpdatePropertyInspector;
-    {$ENDIF}
-    OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
-    OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
-    MenuItemToggleView3D.Checked := View3DEnabled;
-    MenuItemClipToParent.Checked := ClipBounds;
-  end;
+  FViewLayout3D.Parent := Self;
+  FViewLayout3D.Align := alClient;
+  {$IFDEF DEBUG}
+  RootView := LoadDeviceMonitorDump('dumps/dump3.uix');
+  {$ENDIF}
+  FViewLayout3D.OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
+  FViewLayout3D.OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
+  MenuItemToggleView3D.Checked := FViewLayout3D.View3DEnabled;
+  MenuItemClipToParent.Checked := FViewLayout3D.ClipBounds;
   SetControlIndex(FViewLayout3D, 0);
 end;
 
@@ -199,6 +195,21 @@ begin
   end;
 end;
 
+procedure TMainForm.SetRootView(AValue: TView3D);
+var
+  OldRootView: TView3D;
+begin
+  OldRootView := FRootView;
+  FRootView := AValue;
+
+  FViewLayout3D.RootView := FRootView;
+  UpdateTreeView(FRootView);
+  UpdatePropertyInspector;
+
+  if Assigned(OldRootView) then
+    OldRootView.Free;
+end;
+
 procedure TMainForm.ViewLayout3DActiveViewChanged(Sender: TObject);
 var
   View: TView3D;
@@ -288,15 +299,10 @@ begin
 end;
 
 procedure TMainForm.MenuItemOpenFileClick(Sender: TObject);
-var
-  RootView: TView3D;
 begin
   if DialogOpenFile.Execute then
   begin
     RootView := LoadDeviceMonitorDump(DialogOpenFile.FileName);
-    FViewLayout3D.RootView := RootView;
-    UpdateTreeView(RootView);
-    UpdatePropertyInspector;
     Caption := Format(FormFileCaptionFormat, [DialogOpenFile.FileName]);
     MenuItemClose.Enabled := True;
     MenuItemZoomIn.Enabled := True;
@@ -314,6 +320,12 @@ begin
   //TODO:
 end;
 
+procedure TMainForm.FormDestroy(Sender: TObject);
+begin
+  if Assigned(FRootView) then
+    FRootView.Free;
+end;
+
 procedure TMainForm.MenuItemClipToParentClick(Sender: TObject);
 var
   MenuItem: TMenuItem absolute Sender;
@@ -324,8 +336,7 @@ end;
 
 procedure TMainForm.MenuItemCloseClick(Sender: TObject);
 begin
-  FViewLayout3D.RootView := nil;
-  UpdateTreeView;
+  RootView := nil;
   Caption := AppName;
   MenuItemClose.Enabled := False;
   MenuItemZoomIn.Enabled := False;
@@ -341,24 +352,23 @@ begin
 end;
 
 procedure TMainForm.MenuItemOpenWindowClick(Sender: TObject);
+var
+  Dialog: TOpenWindowForm;
 begin
-  with TOpenWindowForm.Create(nil) do
-    try
-      if ShowModal = mrOk then
-      begin
-        //TODO: free RootView when loading a new one.
-        FViewLayout3D.RootView := RootView;
-        UpdateTreeView(RootView);
-        UpdatePropertyInspector;
-        Self.Caption := Format(FormWindowCaptionFormat,
-          [SelectedDeviceSerial, SelectedWindowTitle]);
-        MenuItemClose.Enabled := True;
-        MenuItemZoomIn.Enabled := True;
-        MenuItemZoomOut.Enabled := True;
-      end;
-    finally
-      Free;
+  Dialog := TOpenWindowForm.Create(nil);
+  try
+    if Dialog.ShowModal = mrOk then
+    begin
+      RootView := Dialog.RootView;
+      Self.Caption := Format(FormWindowCaptionFormat,
+        [Dialog.SelectedDeviceSerial, Dialog.SelectedWindowTitle]);
+      MenuItemClose.Enabled := True;
+      MenuItemZoomIn.Enabled := True;
+      MenuItemZoomOut.Enabled := True;
     end;
+  finally
+    Dialog.Free;
+  end;
 end;
 
 procedure TMainForm.MenuItemZoomInClick(Sender: TObject);

@@ -13,6 +13,7 @@ object MainForm: TMainForm
   Constraints.MinWidth = 900
   Menu = MainMenu
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   Position = poDefault
   LCLVersion = '1.6.4.0'
   object PanelTreeView: TPanel
