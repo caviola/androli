@@ -6,7 +6,7 @@ interface
 
 uses
   Forms, Controls, StdCtrls, Dialogs, ComCtrls, ValEdit, ExtCtrls, Menus,
-  TreeFilterEdit, View3DTypes, ViewLayout3D, Classes;
+  TreeFilterEdit, View3DTypes, ViewLayout3D, TaskRunner, Classes, SysUtils;
 
 type
 
@@ -62,6 +62,8 @@ type
   private
     FRootView: TView3D;
     FViewLayout3D: TViewLayout3D;
+    FScreenCursor: TCursor;
+    FViewLoadTask: IViewLoadTask;
     function GetTreeNodeText(View: TView3D): string;
     procedure SetRootView(AValue: TView3D);
   protected
@@ -69,6 +71,10 @@ type
     procedure ViewLayout3DVisibleBranchChanged(Sender: TObject);
     procedure UpdateTreeView(RootView: TView3D = nil);
     procedure UpdatePropertyInspector(View: TView3D = nil);
+    procedure ViewLoadTaskError(const Task: ITask; Error: Exception);
+    procedure ViewLoadTaskStarted(const Task: ITask);
+    procedure ViewLoadTaskStopped(const Task: ITask);
+    procedure ViewLoadTaskSuccess(const Task: ITask);
     property RootView: TView3D read FRootView write SetRootView;
   end;
 
@@ -78,7 +84,7 @@ var
 implementation
 
 uses
-  SysUtils, FormOpenWindow, LazUTF8, DumpFileLoader;
+  FormOpenWindow, LazUTF8, DumpFileLoader;
 
 const
   AppName = 'Androli';
@@ -95,7 +101,7 @@ begin
   FViewLayout3D.Parent := Self;
   FViewLayout3D.Align := alClient;
   {$IFDEF DEBUG}
-  RootView := LoadDeviceMonitorDump('dumps/dump3.uix');
+  //TODO: RootView := LoadDeviceMonitorDump('dumps/dump3.uix');
   {$ENDIF}
   FViewLayout3D.OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
   FViewLayout3D.OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
@@ -293,6 +299,31 @@ begin
   end;
 end;
 
+procedure TMainForm.ViewLoadTaskError(const Task: ITask; Error: Exception);
+begin
+  //TODO:
+end;
+
+procedure TMainForm.ViewLoadTaskStarted(const Task: ITask);
+begin
+  FScreenCursor := Screen.Cursor;
+  Screen.Cursor := crHourGlass;
+end;
+
+procedure TMainForm.ViewLoadTaskStopped(const Task: ITask);
+begin
+  Screen.Cursor := FScreenCursor;
+end;
+
+procedure TMainForm.ViewLoadTaskSuccess(const Task: ITask);
+begin
+  RootView := FViewLoadTask.GetResult;
+  Caption := Format(FormFileCaptionFormat, [FViewLoadTask.Title]);
+  MenuItemClose.Enabled := True;
+  MenuItemZoomIn.Enabled := True;
+  MenuItemZoomOut.Enabled := True;
+end;
+
 procedure TMainForm.ViewLayout3DVisibleBranchChanged(Sender: TObject);
 begin
   UpdateTreeView(TViewLayout3D(Sender).VisibleBranch);
@@ -302,11 +333,17 @@ procedure TMainForm.MenuItemOpenFileClick(Sender: TObject);
 begin
   if DialogOpenFile.Execute then
   begin
-    RootView := LoadDeviceMonitorDump(DialogOpenFile.FileName);
-    Caption := Format(FormFileCaptionFormat, [DialogOpenFile.FileName]);
-    MenuItemClose.Enabled := True;
-    MenuItemZoomIn.Enabled := True;
-    MenuItemZoomOut.Enabled := True;
+    if Assigned(FViewLoadTask) then
+      FViewLoadTask.Cancel;
+
+    with CreateDeviceDumpLoadTask(DialogOpenFile.FileName) do
+    begin
+      OnStarted := @ViewLoadTaskStarted;
+      OnSuccess := @ViewLoadTaskSuccess;
+      OnError := @ViewLoadTaskError;
+      OnStopped := @ViewLoadTaskStopped;
+      FViewLoadTask := Start as IViewLoadTask;
+    end;
   end;
 end;
 
@@ -324,6 +361,12 @@ procedure TMainForm.FormDestroy(Sender: TObject);
 begin
   if Assigned(FRootView) then
     FRootView.Free;
+
+  if Assigned(FViewLoadTask) then
+  begin
+    FViewLoadTask.Cancel;
+    FViewLoadTask := nil;
+  end;
 end;
 
 procedure TMainForm.MenuItemClipToParentClick(Sender: TObject);

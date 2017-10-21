@@ -7,14 +7,34 @@ interface
 uses
   View3DTypes;
 
-function LoadDeviceMonitorDump(const Filepath: string): TView3D;
+function CreateDeviceDumpLoadTask(const FilePath: string): TViewLoadTask;
 
 implementation
 
 uses
   SysUtils, LazLogger, LazUTF8, laz2_XMLRead, laz2_DOM;
 
-function LoadDeviceMonitorDump(const Filepath: string): TView3D;
+type
+  { TDeviceMonitorDumpLoadTask }
+
+  TDeviceMonitorDumpLoadTask = class(TViewLoadTask)
+  private
+    FFilePath: string;
+  protected
+    procedure Run; override;
+  public
+    constructor Create(const AFilePath: string);
+    function GetTitle: string; override;
+  end;
+
+{ TDeviceMonitorDumpLoadTask }
+
+constructor TDeviceMonitorDumpLoadTask.Create(const AFilePath: string);
+begin
+  FFilePath := AFilePath;
+end;
+
+procedure TDeviceMonitorDumpLoadTask.Run;
 
   function GetAttribute(Node: TDOMNode; const Name: string): string;
   begin
@@ -31,6 +51,8 @@ function LoadDeviceMonitorDump(const Filepath: string): TView3D;
     S: string;
     ChildNode: TDOMNode;
   begin
+    CheckCanceled;
+
     SScanf(GetAttribute(Node, 'bounds'), '[%d,%d][%d,%d]',
       [@Left, @Top, @Right, @Bottom]);
 
@@ -65,7 +87,7 @@ var
   Document: TXMLDocument;
   Node: TDOMNode;
 begin
-  ReadXMLFile(Document, Filepath);
+  ReadXMLFile(Document, FFilePath);
   try
     Node := Document.FirstChild;
     while Assigned(Node) and (Node.NodeType = COMMENT_NODE) do
@@ -83,11 +105,20 @@ begin
 
     // Since we already checked for the presence of at least the root node,
     // we'll always return at least one view.
-    Result := Flatten(CreateView(Node));
+    SetResult(Flatten(CreateView(Node)));
   finally
     Document.Free;
   end;
 end;
 
-end.
+function TDeviceMonitorDumpLoadTask.GetTitle: string;
+begin
+  Result := FFilePath;
+end;
 
+function CreateDeviceDumpLoadTask(const FilePath: string): TViewLoadTask;
+begin
+  Result := TDeviceMonitorDumpLoadTask.Create(FilePath);
+end;
+
+end.

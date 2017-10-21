@@ -40,6 +40,29 @@ type
     function CreateTask(View: TView3D): TCaptureViewTask;
   end;
 
+  { IViewLoadTask }
+
+  IViewLoadTask = interface(ITask)
+    ['{F1CC2749-77DC-4AC4-A183-19ECDB4E3924}']
+    // This method can be called only once if the task succeeds
+    // and will pass ownership of the result to the caller.
+    function GetResult: TView3D;
+    function GetTitle: string;
+    property Title: string read GetTitle;
+  end;
+
+  { TViewLoadTask }
+
+  TViewLoadTask = class(TTask, IViewLoadTask)
+  private
+    FResult: TView3D;
+  public
+    destructor Destroy; override;
+    function GetResult: TView3D;
+    function GetTitle: string; virtual; abstract;
+    procedure SetResult(AValue: TView3D);
+  end;
+
   TView3DList = specialize TFPGList<TView3D>;
 
   TViewVisibility = (vvVisible, vvInvisible, vvGone);
@@ -171,6 +194,31 @@ begin
   RootView.Previous := PreviousView;
 
   Result := RootView;
+end;
+
+{ TViewLoadTask }
+
+destructor TViewLoadTask.Destroy;
+begin
+  if Assigned(FResult) then
+    FResult.Free;
+  inherited;
+end;
+
+function TViewLoadTask.GetResult: TView3D;
+begin
+  if not Assigned(FResult) then
+    raise Exception.CreateFmt(
+      '%s.GetResult can be called only once and caller must free the result.',
+      [ClassName]);
+
+  Result := FResult;
+  FResult := nil;
+end;
+
+procedure TViewLoadTask.SetResult(AValue: TView3D);
+begin
+  FResult := AValue;
 end;
 
 { TCaptureViewTask }
