@@ -126,17 +126,9 @@ type
   TWindowDumpProgressEvent = procedure(Sender: TDeviceInterface;
     Progress: integer) of object;
 
-  { IDumpWindowTask }
-
-  IDumpWindowTask = interface(ITask)
-    ['{7659148D-74A5-46C8-8854-D13F45C56D5B}']
-    // Can be called only once and caller is responsible for freeing the result.
-    function GetResult: TView3D;
-  end;
-
   { TDumpWindowTask }
 
-  TDumpWindowTask = class(TTask, IDumpWindowTask)
+  TDumpWindowTask = class(TTask, IViewProviderTask)
   private
     FResult: TView3D;
     FWindowHash: string;
@@ -171,7 +163,7 @@ type
 
   TDeviceInterface = class
   private
-    FDumpWindowTask: IDumpWindowTask;
+    FDumpWindowTask: IViewProviderTask;
     FWindowListTask: IWindowListTask;
     FOnWindowDumpCancel: TNotifyEvent;
     FOnWindowListComplete: TWindowListCompleteEvent;
@@ -821,7 +813,7 @@ end;
 procedure TDeviceInterface.DumpWindowTaskSuccess(const Task: ITask);
 begin
   if Assigned(OnWindowDumpComplete) then
-    OnWindowDumpComplete(Self, (Task as IDumpWindowTask).GetResult);
+    OnWindowDumpComplete(Self, (Task as IViewProviderTask).GetResult);
 
   FDumpWindowTask := nil;
 end;
@@ -870,7 +862,7 @@ begin
   begin
     OnSuccess := @DumpWindowTaskSuccess;
     OnError := @DumpWindowTaskError;
-    FDumpWindowTask := Start as IDumpWindowTask;
+    FDumpWindowTask := Start as IViewProviderTask;
   end;
 end;
 

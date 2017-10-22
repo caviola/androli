@@ -63,7 +63,7 @@ type
     FRootView: TView3D;
     FViewLayout3D: TViewLayout3D;
     FScreenCursor: TCursor;
-    FViewLoadTask: IViewLoadTask;
+    FLayoutOpenTask: ILayoutOpenTask;
     function GetTreeNodeText(View: TView3D): string;
     procedure SetRootView(AValue: TView3D);
   protected
@@ -71,10 +71,10 @@ type
     procedure ViewLayout3DVisibleBranchChanged(Sender: TObject);
     procedure UpdateTreeView(RootView: TView3D = nil);
     procedure UpdatePropertyInspector(View: TView3D = nil);
-    procedure ViewLoadTaskError(const Task: ITask; Error: Exception);
-    procedure ViewLoadTaskStarted(const Task: ITask);
-    procedure ViewLoadTaskStopped(const Task: ITask);
-    procedure ViewLoadTaskSuccess(const Task: ITask);
+    procedure LayoutOpenTaskError(const Task: ITask; Error: Exception);
+    procedure LayoutOpenTaskStarted(const Task: ITask);
+    procedure LayoutOpenTaskStopped(const Task: ITask);
+    procedure LayoutOpenTaskSuccess(const Task: ITask);
     property RootView: TView3D read FRootView write SetRootView;
   end;
 
@@ -299,26 +299,26 @@ begin
   end;
 end;
 
-procedure TMainForm.ViewLoadTaskError(const Task: ITask; Error: Exception);
+procedure TMainForm.LayoutOpenTaskError(const Task: ITask; Error: Exception);
 begin
   //TODO:
 end;
 
-procedure TMainForm.ViewLoadTaskStarted(const Task: ITask);
+procedure TMainForm.LayoutOpenTaskStarted(const Task: ITask);
 begin
   FScreenCursor := Screen.Cursor;
   Screen.Cursor := crHourGlass;
 end;
 
-procedure TMainForm.ViewLoadTaskStopped(const Task: ITask);
+procedure TMainForm.LayoutOpenTaskStopped(const Task: ITask);
 begin
   Screen.Cursor := FScreenCursor;
 end;
 
-procedure TMainForm.ViewLoadTaskSuccess(const Task: ITask);
+procedure TMainForm.LayoutOpenTaskSuccess(const Task: ITask);
 begin
-  RootView := FViewLoadTask.GetResult;
-  Caption := Format(FormFileCaptionFormat, [FViewLoadTask.Title]);
+  RootView := FLayoutOpenTask.GetResult;
+  Caption := Format(FormFileCaptionFormat, [FLayoutOpenTask.DisplayName]);
   MenuItemClose.Enabled := True;
   MenuItemZoomIn.Enabled := True;
   MenuItemZoomOut.Enabled := True;
@@ -333,16 +333,16 @@ procedure TMainForm.MenuItemOpenFileClick(Sender: TObject);
 begin
   if DialogOpenFile.Execute then
   begin
-    if Assigned(FViewLoadTask) then
-      FViewLoadTask.Cancel;
+    if Assigned(FLayoutOpenTask) then
+      FLayoutOpenTask.Cancel;
 
-    with CreateDeviceDumpLoadTask(DialogOpenFile.FileName) do
+    with CreateDumpFileOpenTask(DialogOpenFile.FileName) do
     begin
-      OnStarted := @ViewLoadTaskStarted;
-      OnSuccess := @ViewLoadTaskSuccess;
-      OnError := @ViewLoadTaskError;
-      OnStopped := @ViewLoadTaskStopped;
-      FViewLoadTask := Start as IViewLoadTask;
+      OnStarted := @LayoutOpenTaskStarted;
+      OnSuccess := @LayoutOpenTaskSuccess;
+      OnError := @LayoutOpenTaskError;
+      OnStopped := @LayoutOpenTaskStopped;
+      FLayoutOpenTask := Start as ILayoutOpenTask;
     end;
   end;
 end;
@@ -362,10 +362,10 @@ begin
   if Assigned(FRootView) then
     FRootView.Free;
 
-  if Assigned(FViewLoadTask) then
+  if Assigned(FLayoutOpenTask) then
   begin
-    FViewLoadTask.Cancel;
-    FViewLoadTask := nil;
+    FLayoutOpenTask.Cancel;
+    FLayoutOpenTask := nil;
   end;
 end;
 

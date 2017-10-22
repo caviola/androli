@@ -11,6 +11,14 @@ type
 
   TView3D = class;
 
+  { IViewProviderTask }
+
+  IViewProviderTask = interface(ITask)
+    ['{66E57A29-772A-4C95-B7AA-FE9926B6E041}']
+    // Can be called only once and caller is responsible for freeing the result.
+    function GetResult: TView3D;
+  end;
+
   { ICaptureViewTask }
 
   ICaptureViewTask = interface(ITask)
@@ -40,26 +48,23 @@ type
     function CreateTask(View: TView3D): TCaptureViewTask;
   end;
 
-  { IViewLoadTask }
+  { ILayoutOpenTask }
 
-  IViewLoadTask = interface(ITask)
+  ILayoutOpenTask = interface(IViewProviderTask)
     ['{F1CC2749-77DC-4AC4-A183-19ECDB4E3924}']
-    // This method can be called only once if the task succeeds
-    // and will pass ownership of the result to the caller.
-    function GetResult: TView3D;
-    function GetTitle: string;
-    property Title: string read GetTitle;
+    function GetDisplayName: string;
+    property DisplayName: string read GetDisplayName;
   end;
 
-  { TViewLoadTask }
+  { TLayoutOpenTask }
 
-  TViewLoadTask = class(TTask, IViewLoadTask)
+  TLayoutOpenTask = class(TTask, ILayoutOpenTask)
   private
     FResult: TView3D;
   public
     destructor Destroy; override;
     function GetResult: TView3D;
-    function GetTitle: string; virtual; abstract;
+    function GetDisplayName: string; virtual; abstract;
     procedure SetResult(AValue: TView3D);
   end;
 
@@ -196,16 +201,16 @@ begin
   Result := RootView;
 end;
 
-{ TViewLoadTask }
+{ TLayoutOpenTask }
 
-destructor TViewLoadTask.Destroy;
+destructor TLayoutOpenTask.Destroy;
 begin
   if Assigned(FResult) then
     FResult.Free;
   inherited;
 end;
 
-function TViewLoadTask.GetResult: TView3D;
+function TLayoutOpenTask.GetResult: TView3D;
 begin
   if not Assigned(FResult) then
     raise Exception.CreateFmt(
@@ -216,7 +221,7 @@ begin
   FResult := nil;
 end;
 
-procedure TViewLoadTask.SetResult(AValue: TView3D);
+procedure TLayoutOpenTask.SetResult(AValue: TView3D);
 begin
   FResult := AValue;
 end;

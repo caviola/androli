@@ -7,7 +7,7 @@ interface
 uses
   View3DTypes;
 
-function CreateDeviceDumpLoadTask(const FilePath: string): TViewLoadTask;
+function CreateDumpFileOpenTask(const FilePath: string): TLayoutOpenTask;
 
 implementation
 
@@ -15,26 +15,26 @@ uses
   SysUtils, LazLogger, LazUTF8, laz2_XMLRead, laz2_DOM;
 
 type
-  { TDeviceMonitorDumpLoadTask }
+  { TDeviceMonitorDumpOpenTask }
 
-  TDeviceMonitorDumpLoadTask = class(TViewLoadTask)
+  TDeviceMonitorDumpOpenTask = class(TLayoutOpenTask)
   private
     FFilePath: string;
   protected
     procedure Run; override;
   public
     constructor Create(const AFilePath: string);
-    function GetTitle: string; override;
+    function GetDisplayName: string; override;
   end;
 
 { TDeviceMonitorDumpLoadTask }
 
-constructor TDeviceMonitorDumpLoadTask.Create(const AFilePath: string);
+constructor TDeviceMonitorDumpOpenTask.Create(const AFilePath: string);
 begin
   FFilePath := AFilePath;
 end;
 
-procedure TDeviceMonitorDumpLoadTask.Run;
+procedure TDeviceMonitorDumpOpenTask.Run;
 
   function GetAttribute(Node: TDOMNode; const Name: string): string;
   begin
@@ -111,14 +111,14 @@ begin
   end;
 end;
 
-function TDeviceMonitorDumpLoadTask.GetTitle: string;
+function TDeviceMonitorDumpOpenTask.GetDisplayName: string;
 begin
   Result := FFilePath;
 end;
 
-function CreateDeviceDumpLoadTask(const FilePath: string): TViewLoadTask;
+function CreateDumpFileOpenTask(const FilePath: string): TLayoutOpenTask;
 begin
-  Result := TDeviceMonitorDumpLoadTask.Create(FilePath);
+  Result := TDeviceMonitorDumpOpenTask.Create(FilePath);
 end;
 
 end.
