@@ -9,6 +9,8 @@ uses
 
 type
 
+  TObjectProcedure = procedure of object;
+
   ITask = interface;
 
   TTaskNotifyEvent = procedure(const Task: ITask) of object;

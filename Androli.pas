@@ -17,7 +17,8 @@ uses {$IFDEF UNIX}
   TaskRunner,
   DumpFileLoader,
   Logger,
-  lazopenglcontext;
+  lazopenglcontext,
+  DeviceWindowLoader;
 
 {$R *.res}
 

@@ -42,6 +42,7 @@ type
     TreeView: TTreeView;
     ValueListEditor: TValueListEditor;
     procedure FormDestroy(Sender: TObject);
+    procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure MenuItemAboutClick(Sender: TObject);
     procedure MenuItemClipToParentClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
@@ -84,12 +85,11 @@ var
 implementation
 
 uses
-  FormOpenWindow, LazUTF8, DumpFileLoader;
+  LCLType, FormOpenWindow, LazUTF8, DumpFileLoader, DeviceWindowLoader;
 
 const
   AppName = 'Androli';
   FormFileCaptionFormat = '%s - ' + AppName;
-  FormWindowCaptionFormat = '%s:%s - ' + AppName;
 
 {$R *.lfm}
 
@@ -97,6 +97,7 @@ const
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
+  KeyPreview := True;
   FViewLayout3D := TViewLayout3D.Create(Self);
   FViewLayout3D.Parent := Self;
   FViewLayout3D.Align := alClient;
@@ -313,6 +314,7 @@ end;
 procedure TMainForm.LayoutOpenTaskStopped(const Task: ITask);
 begin
   Screen.Cursor := FScreenCursor;
+  FLayoutOpenTask := nil;
 end;
 
 procedure TMainForm.LayoutOpenTaskSuccess(const Task: ITask);
@@ -363,10 +365,13 @@ begin
     FRootView.Free;
 
   if Assigned(FLayoutOpenTask) then
-  begin
     FLayoutOpenTask.Cancel;
-    FLayoutOpenTask := nil;
-  end;
+end;
+
+procedure TMainForm.FormKeyPress(Sender: TObject; var Key: char);
+begin
+  if (Ord(Key) = VK_ESCAPE) and Assigned(FLayoutOpenTask) then
+    FLayoutOpenTask.Cancel;
 end;
 
 procedure TMainForm.MenuItemClipToParentClick(Sender: TObject);
@@ -402,12 +407,18 @@ begin
   try
     if Dialog.ShowModal = mrOk then
     begin
-      RootView := Dialog.RootView;
-      Self.Caption := Format(FormWindowCaptionFormat,
-        [Dialog.SelectedDeviceSerial, Dialog.SelectedWindowTitle]);
-      MenuItemClose.Enabled := True;
-      MenuItemZoomIn.Enabled := True;
-      MenuItemZoomOut.Enabled := True;
+      if Assigned(FLayoutOpenTask) then
+        FLayoutOpenTask.Cancel;
+
+      with CreateDeviceWindowOpenTask(Dialog.SelectedDeviceSerial,
+          Dialog.SelectedWindowTitle, Dialog.SelectedWindowHash) do
+      begin
+        OnStarted := @LayoutOpenTaskStarted;
+        OnSuccess := @LayoutOpenTaskSuccess;
+        OnError := @LayoutOpenTaskError;
+        OnStopped := @LayoutOpenTaskStopped;
+        FLayoutOpenTask := Start as ILayoutOpenTask;
+      end;
     end;
   finally
     Dialog.Free;

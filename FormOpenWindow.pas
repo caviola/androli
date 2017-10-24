@@ -5,8 +5,8 @@ unit FormOpenWindow;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  StdCtrls, AndroidDebugBridge, View3DTypes;
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
+  StdCtrls, AndroidDebugBridge;
 
 type
 
@@ -21,8 +21,6 @@ type
     Label2: TLabel;
     ListBoxDevices: TListBox;
     ListBoxWindows: TListBox;
-    procedure ButtonCancelClick(Sender: TObject);
-    procedure ButtonOpenClick(Sender: TObject);
     procedure ButtonRefreshDevicesClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -31,10 +29,8 @@ type
     procedure ListBoxWindowsDblClick(Sender: TObject);
     procedure ListBoxWindowsSelectionChange(Sender: TObject; User: boolean);
   private
-    FRootView: TView3D;
     FAdbInterface: TAdbInterface;
     FSelectedDevice: TDeviceInterface;
-    FDumpWindowDevice: TDeviceInterface;
     FWindowHashes: array of string;
     function GetSelectedDeviceSerial: string;
     function GetSelectedWindowHash: string;
@@ -45,8 +41,6 @@ type
     procedure AdbDeviceListComplete(Sender: TObject;
       const DeviceList: TAdbDeviceEntryArray);
     procedure AdbDeviceListError(Sender: TObject);
-    procedure DeviceWindowDumpCancel(Sender: TObject);
-    procedure DeviceWindowDumpComplete(Sender: TDeviceInterface; RootView: TView3D);
 
     procedure DeviceWindowListComplete(Sender: TDeviceInterface;
       const WindowList: TWindowManagerEntryArray);
@@ -54,20 +48,15 @@ type
     property SelectedDevice: TDeviceInterface
       read FSelectedDevice write SetSelectedDevice;
     property WindowList: TWindowManagerEntryArray write SetWindowList;
-    property SelectedWindowHash: string read GetSelectedWindowHash;
   public
-    property RootView: TView3D read FRootView;
     property SelectedWindowTitle: string read GetSelectedWindowTitle;
     property SelectedDeviceSerial: string read GetSelectedDeviceSerial;
+    property SelectedWindowHash: string read GetSelectedWindowHash;
   end;
 
 implementation
 
 {$R *.lfm}
-
-const
-  sClose = '&Close';
-  sCancel = '&Cancel';
 
 procedure FreeListBoxObjects(ListBox: TCustomListBox); inline;
 var
@@ -89,29 +78,10 @@ begin
   ButtonRefreshDevices.Enabled := False;
 end;
 
-procedure TOpenWindowForm.ButtonOpenClick(Sender: TObject);
-begin
-  FDumpWindowDevice := SelectedDevice;
-  FDumpWindowDevice.DumpWindow(SelectedWindowHash);
-  ButtonOpen.Enabled := False;
-  ButtonCancel.Caption := sCancel;
-end;
-
 procedure TOpenWindowForm.ButtonRefreshDevicesClick(Sender: TObject);
 begin
   ButtonRefreshDevices.Enabled := False;
   FAdbInterface.GetDeviceList;
-end;
-
-procedure TOpenWindowForm.ButtonCancelClick(Sender: TObject);
-begin
-  if Assigned(FDumpWindowDevice) then
-  begin
-    FDumpWindowDevice.CancelDumpWindow;
-    ButtonCancel.Enabled := False;
-  end
-  else
-    Close;
 end;
 
 procedure TOpenWindowForm.FormDestroy(Sender: TObject);
@@ -123,12 +93,7 @@ end;
 procedure TOpenWindowForm.FormKeyPress(Sender: TObject; var Key: char);
 begin
   if Key = #27 then
-  begin
-    if Assigned(FDumpWindowDevice) then
-      FDumpWindowDevice.CancelDumpWindow
-    else
-      Close;
-  end;
+    ModalResult := mrCancel;
 end;
 
 procedure TOpenWindowForm.ListBoxDevicesSelectionChange(Sender: TObject; User: boolean);
@@ -209,9 +174,6 @@ begin
     DeviceInterface := TDeviceInterface.Create(E.SerialNumber);
     DeviceInterface.OnWindowListComplete := @DeviceWindowListComplete;
     DeviceInterface.OnWindowListError := @DeviceWindowListError;
-    DeviceInterface.OnWindowDumpComplete := @DeviceWindowDumpComplete;
-    DeviceInterface.OnWindowDumpCancel := @DeviceWindowDumpCancel;
-    DeviceInterface.OnWindowDumpError := @DeviceWindowDumpCancel;
     ListBoxDevices.AddItem(E.SerialNumber, DeviceInterface);
   end;
 
@@ -261,21 +223,6 @@ begin
     Result := ListBoxWindows.Items[I]
   else
     Result := EmptyStr;
-end;
-
-procedure TOpenWindowForm.DeviceWindowDumpCancel(Sender: TObject);
-begin
-  FDumpWindowDevice := nil;
-  ButtonOpen.Enabled := True;
-  ButtonCancel.Enabled := True;
-  ButtonCancel.Caption := sClose;
-end;
-
-procedure TOpenWindowForm.DeviceWindowDumpComplete(Sender: TDeviceInterface;
-  RootView: TView3D);
-begin
-  FRootView := RootView;
-  ModalResult := mrOk;
 end;
 
 procedure TOpenWindowForm.DeviceWindowListComplete(Sender: TDeviceInterface;

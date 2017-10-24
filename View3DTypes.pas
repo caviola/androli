@@ -61,11 +61,12 @@ type
   TLayoutOpenTask = class(TTask, ILayoutOpenTask)
   private
     FResult: TView3D;
+  protected
+    procedure SetResult(AValue: TView3D);
   public
     destructor Destroy; override;
     function GetResult: TView3D;
     function GetDisplayName: string; virtual; abstract;
-    procedure SetResult(AValue: TView3D);
   end;
 
   TView3DList = specialize TFPGList<TView3D>;
