@@ -76,6 +76,9 @@ type
     procedure LayoutOpenTaskStarted(const Task: ITask);
     procedure LayoutOpenTaskStopped(const Task: ITask);
     procedure LayoutOpenTaskSuccess(const Task: ITask);
+    procedure StartOpenLayout(const Task: TLayoutOpenTask);
+    procedure CloseLayout;
+    procedure CancelOpenLayout;
     property RootView: TView3D read FRootView write SetRootView;
   end;
 
@@ -102,7 +105,7 @@ begin
   FViewLayout3D.Parent := Self;
   FViewLayout3D.Align := alClient;
   {$IFDEF DEBUG}
-  //TODO: RootView := LoadDeviceMonitorDump('dumps/dump3.uix');
+  StartOpenLayout(CreateDumpFileOpenTask('dumps/dump3.uix'));
   {$ENDIF}
   FViewLayout3D.OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
   FViewLayout3D.OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
@@ -206,6 +209,9 @@ procedure TMainForm.SetRootView(AValue: TView3D);
 var
   OldRootView: TView3D;
 begin
+  if AValue = FRootView then
+    Exit;
+
   OldRootView := FRootView;
   FRootView := AValue;
 
@@ -326,6 +332,39 @@ begin
   MenuItemZoomOut.Enabled := True;
 end;
 
+procedure TMainForm.StartOpenLayout(const Task: TLayoutOpenTask);
+begin
+  if Assigned(FLayoutOpenTask) then
+    FLayoutOpenTask.Cancel;
+
+  with Task do
+  begin
+    OnStarted := @LayoutOpenTaskStarted;
+    OnSuccess := @LayoutOpenTaskSuccess;
+    OnError := @LayoutOpenTaskError;
+    OnStopped := @LayoutOpenTaskStopped;
+    FLayoutOpenTask := Start as ILayoutOpenTask;
+  end;
+end;
+
+procedure TMainForm.CloseLayout;
+begin
+  RootView := nil;
+  Caption := AppName;
+  MenuItemClose.Enabled := False;
+  MenuItemZoomIn.Enabled := False;
+  MenuItemZoomOut.Enabled := False;
+end;
+
+procedure TMainForm.CancelOpenLayout;
+begin
+  if Assigned(FLayoutOpenTask) then
+  begin
+    FLayoutOpenTask.Cancel;
+    FLayoutOpenTask := nil;
+  end;
+end;
+
 procedure TMainForm.ViewLayout3DVisibleBranchChanged(Sender: TObject);
 begin
   UpdateTreeView(TViewLayout3D(Sender).VisibleBranch);
@@ -334,19 +373,7 @@ end;
 procedure TMainForm.MenuItemOpenFileClick(Sender: TObject);
 begin
   if DialogOpenFile.Execute then
-  begin
-    if Assigned(FLayoutOpenTask) then
-      FLayoutOpenTask.Cancel;
-
-    with CreateDumpFileOpenTask(DialogOpenFile.FileName) do
-    begin
-      OnStarted := @LayoutOpenTaskStarted;
-      OnSuccess := @LayoutOpenTaskSuccess;
-      OnError := @LayoutOpenTaskError;
-      OnStopped := @LayoutOpenTaskStopped;
-      FLayoutOpenTask := Start as ILayoutOpenTask;
-    end;
-  end;
+    StartOpenLayout(CreateDumpFileOpenTask(DialogOpenFile.FileName));
 end;
 
 procedure TMainForm.MenuItemQuitClick(Sender: TObject);
@@ -370,8 +397,8 @@ end;
 
 procedure TMainForm.FormKeyPress(Sender: TObject; var Key: char);
 begin
-  if (Ord(Key) = VK_ESCAPE) and Assigned(FLayoutOpenTask) then
-    FLayoutOpenTask.Cancel;
+  if (Ord(Key) = VK_ESCAPE) then
+    CancelOpenLayout;
 end;
 
 procedure TMainForm.MenuItemClipToParentClick(Sender: TObject);
@@ -384,11 +411,7 @@ end;
 
 procedure TMainForm.MenuItemCloseClick(Sender: TObject);
 begin
-  RootView := nil;
-  Caption := AppName;
-  MenuItemClose.Enabled := False;
-  MenuItemZoomIn.Enabled := False;
-  MenuItemZoomOut.Enabled := False;
+  CloseLayout;
 end;
 
 procedure TMainForm.MenuItemToggleView3DClick(Sender: TObject);
@@ -400,29 +423,15 @@ begin
 end;
 
 procedure TMainForm.MenuItemOpenWindowClick(Sender: TObject);
-var
-  Dialog: TOpenWindowForm;
 begin
-  Dialog := TOpenWindowForm.Create(nil);
-  try
-    if Dialog.ShowModal = mrOk then
-    begin
-      if Assigned(FLayoutOpenTask) then
-        FLayoutOpenTask.Cancel;
-
-      with CreateDeviceWindowOpenTask(Dialog.SelectedDeviceSerial,
-          Dialog.SelectedWindowTitle, Dialog.SelectedWindowHash) do
-      begin
-        OnStarted := @LayoutOpenTaskStarted;
-        OnSuccess := @LayoutOpenTaskSuccess;
-        OnError := @LayoutOpenTaskError;
-        OnStopped := @LayoutOpenTaskStopped;
-        FLayoutOpenTask := Start as ILayoutOpenTask;
-      end;
+  with TOpenWindowForm.Create(nil) do
+    try
+      if ShowModal = mrOk then
+        StartOpenLayout(CreateDeviceWindowOpenTask(SelectedDeviceSerial,
+          SelectedWindowTitle, SelectedWindowHash));
+    finally
+      Free;
     end;
-  finally
-    Dialog.Free;
-  end;
 end;
 
 procedure TMainForm.MenuItemZoomInClick(Sender: TObject);
