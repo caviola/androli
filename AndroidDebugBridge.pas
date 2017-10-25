@@ -559,8 +559,8 @@ begin
   end;
 end;
 
-function TViewServerClient.CaptureView(const WindowHash, ViewClass, ViewHash: string):
-TRasterImage;
+function TViewServerClient.CaptureView(
+  const WindowHash, ViewClass, ViewHash: string): TRasterImage;
 
   function GetImageDataStream: TStream;
   begin
@@ -570,7 +570,10 @@ TRasterImage;
     except
       on E: ESynapseError do
         if E.ErrorCode <> WSAECONNRESET then
+        begin
+          Result.Free;
           raise;
+        end;
     end;
     Result.Seek(0, soBeginning);
   end;
