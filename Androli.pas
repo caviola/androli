@@ -18,7 +18,8 @@ uses {$IFDEF UNIX}
   DumpFileLoader,
   Logger,
   lazopenglcontext,
-  DeviceWindowLoader;
+  DeviceWindowLoader,
+  Bookmarks;
 
 {$R *.res}
 
@@ -28,4 +29,5 @@ begin
   Application.CreateForm(TMainForm, MainForm);
   Application.Run;
 end.
+
 

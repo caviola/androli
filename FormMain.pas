@@ -6,19 +6,60 @@ interface
 
 uses
   Forms, Controls, StdCtrls, Dialogs, ComCtrls, ValEdit, ExtCtrls, Menus,
-  TreeFilterEdit, View3DTypes, ViewLayout3D, TaskRunner, Classes, SysUtils;
+  TreeFilterEdit, View3DTypes, ViewLayout3D, TaskRunner, Classes, SysUtils, Bookmarks;
 
 type
 
+  { TBookmark }
+
+  TBookmark = class
+    ActiveView: TView3D;
+    ActiveBranch: TView3D;
+    OriginX: single;
+    OriginY: single;
+    RotationX: single;
+    RotationY: single;
+    ScaleZ: single;
+    ZoomLevel: single;
+    TreeFilter: string;
+  end;
+
   { TMainForm }
 
-  TMainForm = class(TForm)
+  TMainForm = class(TForm, IIndexedBookmarkListener)
     CheckBoxShowFullClassNames: TCheckBox;
     CheckBoxShowViewIDs: TCheckBox;
     DialogOpenFile: TOpenDialog;
     MainMenu: TMainMenu;
     MenuItem1: TMenuItem;
+    MenuItemToggleBookmark4: TMenuItem;
+    MenuItemToggleBookmark5: TMenuItem;
+    MenuItemToggleBookmark6: TMenuItem;
+    MenuItemToggleBookmark7: TMenuItem;
+    MenuItemToggleBookmark8: TMenuItem;
+    MenuItemToggleBookmark9: TMenuItem;
+    MenuItemClearBookmarks: TMenuItem;
+    MenuItemSetBookmark: TMenuItem;
+    MenuItem5: TMenuItem;
+    MenuItemToggleBookmark0: TMenuItem;
+    MenuItemToggleBookmark1: TMenuItem;
+    MenuItemToggleBookmark2: TMenuItem;
+    MenuItemToggleBookmark3: TMenuItem;
+    MenuItemGotoNextBookmark: TMenuItem;
+    MenuItemGotoPreviousBookmark: TMenuItem;
+    MenuItemGotoBookmark5: TMenuItem;
+    MenuItemGotoBookmark6: TMenuItem;
+    MenuItemGotoBookmark7: TMenuItem;
+    MenuItemGotoBookmark8: TMenuItem;
+    MenuItemGotoBookmark9: TMenuItem;
     MenuItem2: TMenuItem;
+    MenuItemGotoBookmark0: TMenuItem;
+    MenuItemGotoBookmark1: TMenuItem;
+    MenuItemGotoBookmark2: TMenuItem;
+    MenuItemGotoBookmark3: TMenuItem;
+    MenuItemGotoBookmark4: TMenuItem;
+    MenuItemGotoBookmark: TMenuItem;
+    MenuItemSearch: TMenuItem;
     MenuItemClipToParent: TMenuItem;
     MenuItemToggleView3D: TMenuItem;
     MenuItemClose: TMenuItem;
@@ -44,8 +85,12 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure MenuItemAboutClick(Sender: TObject);
+    procedure MenuItemClearBookmarksClick(Sender: TObject);
     procedure MenuItemClipToParentClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
+    procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
+    procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
+    procedure MenuItemSetBookmarkClick(Sender: TObject);
     procedure MenuItemToggleView3DClick(Sender: TObject);
     procedure MenuItemQuitClick(Sender: TObject);
     procedure MenuItemOpenFileClick(Sender: TObject);
@@ -66,12 +111,15 @@ type
     FViewLayout3D: TViewLayout3D;
     FScreenCursor: TCursor;
     FLayoutOpenTask: ILayoutOpenTask;
+    FIndexedBookmarkManager: TIndexedBookmarkManager;
     function GetTreeNodeText(View: TView3D): string;
     procedure SetRootView(AValue: TView3D);
   protected
+    procedure GotoBookmarkHandler(Sender: TObject);
+    procedure ToggleBookmarkHandler(Sender: TObject);
     procedure ViewLayout3DActiveViewChanged(Sender: TObject);
     procedure ViewLayout3DActiveBranchChanged(Sender: TObject);
-    procedure UpdateTreeView(RootView: TView3D = nil);
+    procedure UpdateTreeView(ARootView: TView3D = nil);
     procedure UpdatePropertyInspector(View: TView3D = nil);
     procedure LayoutOpenTaskError(const Task: ITask; Error: Exception);
     procedure LayoutOpenTaskStarted(const Task: ITask);
@@ -81,6 +129,12 @@ type
     procedure CloseLayout;
     procedure CancelOpenLayout;
     property RootView: TView3D read FRootView write SetRootView;
+
+    // IIndexedBookmarkListener
+    procedure OnBookmarkSet(I: integer);
+    procedure OnBookmarkUnset(I: integer);
+    function SaveBookmark: TObject;
+    procedure RestoreBookmark(Which: TObject);
   end;
 
 var
@@ -115,6 +169,30 @@ begin
   MenuItemClipToParent.Checked := FViewLayout3D.ClipBounds;
 
   KeyPreview := True;
+
+  FIndexedBookmarkManager := TIndexedBookmarkManager.Create(10, Self);
+
+  MenuItemToggleBookmark0.OnClick := @ToggleBookmarkHandler;
+  MenuItemToggleBookmark1.OnClick := @ToggleBookmarkHandler;
+  MenuItemToggleBookmark2.OnClick := @ToggleBookmarkHandler;
+  MenuItemToggleBookmark3.OnClick := @ToggleBookmarkHandler;
+  MenuItemToggleBookmark4.OnClick := @ToggleBookmarkHandler;
+  MenuItemToggleBookmark5.OnClick := @ToggleBookmarkHandler;
+  MenuItemToggleBookmark6.OnClick := @ToggleBookmarkHandler;
+  MenuItemToggleBookmark7.OnClick := @ToggleBookmarkHandler;
+  MenuItemToggleBookmark8.OnClick := @ToggleBookmarkHandler;
+  MenuItemToggleBookmark9.OnClick := @ToggleBookmarkHandler;
+
+  MenuItemGotoBookmark0.OnClick := @GotoBookmarkHandler;
+  MenuItemGotoBookmark1.OnClick := @GotoBookmarkHandler;
+  MenuItemGotoBookmark2.OnClick := @GotoBookmarkHandler;
+  MenuItemGotoBookmark3.OnClick := @GotoBookmarkHandler;
+  MenuItemGotoBookmark4.OnClick := @GotoBookmarkHandler;
+  MenuItemGotoBookmark5.OnClick := @GotoBookmarkHandler;
+  MenuItemGotoBookmark6.OnClick := @GotoBookmarkHandler;
+  MenuItemGotoBookmark7.OnClick := @GotoBookmarkHandler;
+  MenuItemGotoBookmark8.OnClick := @GotoBookmarkHandler;
+  MenuItemGotoBookmark9.OnClick := @GotoBookmarkHandler;
 end;
 
 procedure TMainForm.TreeFilterEditAfterFilter(Sender: TObject);
@@ -226,6 +304,16 @@ begin
     OldRootView.Free;
 end;
 
+procedure TMainForm.GotoBookmarkHandler(Sender: TObject);
+begin
+  FIndexedBookmarkManager.Go(TMenuItem(Sender).Tag);
+end;
+
+procedure TMainForm.ToggleBookmarkHandler(Sender: TObject);
+begin
+  FIndexedBookmarkManager.Toggle(TMenuItem(Sender).Tag);
+end;
+
 procedure TMainForm.ViewLayout3DActiveViewChanged(Sender: TObject);
 var
   View: TView3D;
@@ -250,7 +338,7 @@ begin
     TreeView.ClearSelection(False);
 end;
 
-procedure TMainForm.UpdateTreeView(RootView: TView3D);
+procedure TMainForm.UpdateTreeView(ARootView: TView3D);
 
   procedure AddView(View: TView3D; Parent: TTreeNode = nil);
   var
@@ -265,26 +353,36 @@ procedure TMainForm.UpdateTreeView(RootView: TView3D);
   end;
 
 begin
-  TreeFilterEdit.Clear;
-
-  if Assigned(RootView) then
+  if Assigned(ARootView) then
   begin
     TreeView.BeginUpdate;
     try
       TreeView.Items.Clear;
-      AddView(RootView);
+      AddView(ARootView);
+      TreeFilterEdit.Enabled := True;
+      // Filter TreeView immediately.
+      TreeFilterEdit.ForceFilter(EmptyStr);
+      TreeFilterEdit.Text := EmptyStr;
     finally
       TreeView.EndUpdate;
     end;
 
-    TreeFilterEdit.Enabled := True;
     CheckBoxShowViewIDs.Enabled := True;
     CheckBoxShowFullClassNames.Enabled := True;
   end
   else
   begin
-    TreeView.Items.Clear;
-    TreeFilterEdit.Enabled := False;
+    TreeView.BeginUpdate;
+    try
+      TreeView.Items.Clear;
+      // Filter TreeView immediately.
+      TreeFilterEdit.ForceFilter(EmptyStr);
+      TreeFilterEdit.Text := EmptyStr;
+      TreeFilterEdit.Enabled := False;
+    finally
+      TreeView.EndUpdate;
+    end;
+
     CheckBoxShowViewIDs.Enabled := False;
     CheckBoxShowFullClassNames.Enabled := False;
   end;
@@ -333,6 +431,7 @@ begin
   MenuItemClose.Enabled := True;
   MenuItemZoomIn.Enabled := True;
   MenuItemZoomOut.Enabled := True;
+  FIndexedBookmarkManager.Clear;
 end;
 
 procedure TMainForm.StartOpenLayout(const Task: TLayoutOpenTask);
@@ -350,6 +449,38 @@ begin
   end;
 end;
 
+procedure TMainForm.OnBookmarkSet(I: integer);
+begin
+  case I of
+    0: MenuItemGotoBookmark0.Enabled := True;
+    1: MenuItemGotoBookmark1.Enabled := True;
+    2: MenuItemGotoBookmark2.Enabled := True;
+    3: MenuItemGotoBookmark3.Enabled := True;
+    4: MenuItemGotoBookmark4.Enabled := True;
+    5: MenuItemGotoBookmark5.Enabled := True;
+    6: MenuItemGotoBookmark6.Enabled := True;
+    7: MenuItemGotoBookmark7.Enabled := True;
+    8: MenuItemGotoBookmark8.Enabled := True;
+    9: MenuItemGotoBookmark9.Enabled := True;
+  end;
+end;
+
+procedure TMainForm.OnBookmarkUnset(I: integer);
+begin
+  case I of
+    0: MenuItemGotoBookmark0.Enabled := False;
+    1: MenuItemGotoBookmark1.Enabled := False;
+    2: MenuItemGotoBookmark2.Enabled := False;
+    3: MenuItemGotoBookmark3.Enabled := False;
+    4: MenuItemGotoBookmark4.Enabled := False;
+    5: MenuItemGotoBookmark5.Enabled := False;
+    6: MenuItemGotoBookmark6.Enabled := False;
+    7: MenuItemGotoBookmark7.Enabled := False;
+    8: MenuItemGotoBookmark8.Enabled := False;
+    9: MenuItemGotoBookmark9.Enabled := False;
+  end;
+end;
+
 procedure TMainForm.CloseLayout;
 begin
   RootView := nil;
@@ -357,6 +488,7 @@ begin
   MenuItemClose.Enabled := False;
   MenuItemZoomIn.Enabled := False;
   MenuItemZoomOut.Enabled := False;
+  FIndexedBookmarkManager.Clear;
 end;
 
 procedure TMainForm.CancelOpenLayout;
@@ -365,6 +497,54 @@ begin
   begin
     FLayoutOpenTask.Cancel;
     FLayoutOpenTask := nil;
+  end;
+end;
+
+function TMainForm.SaveBookmark: TObject;
+begin
+  Result := TBookmark.Create;
+  with TBookmark(Result) do
+  begin
+    ActiveView := FViewLayout3D.ActiveView;
+    ActiveBranch := FViewLayout3D.ActiveBranch;
+    OriginX := FViewLayout3D.OriginX;
+    OriginY := FViewLayout3D.OriginY;
+    RotationX := FViewLayout3D.RotationX;
+    RotationY := FViewLayout3D.RotationY;
+    ScaleZ := FViewLayout3D.ScaleZ;
+    ZoomLevel := FViewLayout3D.ZoomLevel;
+    TreeFilter := TreeFilterEdit.Text;
+  end;
+end;
+
+procedure TMainForm.RestoreBookmark(Which: TObject);
+begin
+  with TBookmark(Which) do
+  begin
+    // The following properties are updated in a BeginUpdate/EndUpdate block
+    // because they all affect TreeView.
+    TreeView.BeginUpdate;
+    try
+      FViewLayout3D.ActiveBranch := ActiveBranch;
+      // We first use ForceFilter so that TreeView is filtered immediately.
+      // Otherwise we'll have flickering because filtering by default
+      // is done in a TApplication.OnIdle handler.
+      TreeFilterEdit.ForceFilter(TreeFilter);
+      // This won't have any effect on filtering because Text
+      // will be equal to the filter set above.
+      TreeFilterEdit.Text := TreeFilter;
+    finally
+      TreeView.EndUpdate;
+    end;
+
+    FViewLayout3D.ActiveView := ActiveView;
+    FViewLayout3D.HighlightedView := nil;
+    FViewLayout3D.OriginX := OriginX;
+    FViewLayout3D.OriginY := OriginY;
+    FViewLayout3D.RotationX := RotationX;
+    FViewLayout3D.RotationY := RotationY;
+    FViewLayout3D.ScaleZ := ScaleZ;
+    FViewLayout3D.ZoomLevel := ZoomLevel;
   end;
 end;
 
@@ -389,8 +569,15 @@ begin
   //TODO:
 end;
 
+procedure TMainForm.MenuItemClearBookmarksClick(Sender: TObject);
+begin
+  FIndexedBookmarkManager.Clear;
+end;
+
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
+  FIndexedBookmarkManager.Free;
+
   if Assigned(FRootView) then
     FRootView.Free;
 
@@ -415,6 +602,21 @@ end;
 procedure TMainForm.MenuItemCloseClick(Sender: TObject);
 begin
   CloseLayout;
+end;
+
+procedure TMainForm.MenuItemGotoNextBookmarkClick(Sender: TObject);
+begin
+  FIndexedBookmarkManager.GoNext;
+end;
+
+procedure TMainForm.MenuItemGotoPreviousBookmarkClick(Sender: TObject);
+begin
+  FIndexedBookmarkManager.GoPrevious;
+end;
+
+procedure TMainForm.MenuItemSetBookmarkClick(Sender: TObject);
+begin
+  FIndexedBookmarkManager.SetFree;
 end;
 
 procedure TMainForm.MenuItemToggleView3DClick(Sender: TObject);
