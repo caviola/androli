@@ -54,6 +54,7 @@ type
     procedure MenuItemZoomOutClick(Sender: TObject);
     procedure TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
     procedure TreeViewExpanded(Sender: TObject; Node: TTreeNode);
+    procedure TreeViewMouseLeave(Sender: TObject);
     procedure UpdateTreeViewLabels(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure TreeFilterEditAfterFilter(Sender: TObject);
@@ -489,6 +490,11 @@ begin
   // slightly different than collapsed ones.
   Visit(Node);
   FViewLayout3D.Expand(Root);
+end;
+
+procedure TMainForm.TreeViewMouseLeave(Sender: TObject);
+begin
+  FViewLayout3D.HighlightedView := nil;
 end;
 
 procedure TMainForm.UpdateTreeViewLabels(Sender: TObject);

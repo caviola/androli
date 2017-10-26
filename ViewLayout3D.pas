@@ -59,6 +59,7 @@ type
   protected
     procedure CaptureViewTaskSuccessHandler(const Task: ITask);
     procedure DblClickHandler(Sender: TObject);
+    procedure MouseLeaveHandler(Sender: TObject);
 
     procedure ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
       const InterpolatedFraction: single);
@@ -363,6 +364,7 @@ begin
     OnMouseMove := @MouseMoveHandler;
     OnMouseWheel := @MouseWheelHandler;
     OnDblClick := @DblClickHandler;
+    OnMouseLeave := @MouseLeaveHandler;
 
     if View3DEnabled then
     begin
@@ -385,6 +387,7 @@ begin
     OnMouseMove := nil;
     OnMouseWheel := nil;
     OnDblClick := nil;
+    OnMouseLeave := nil;
     PopupMenu := nil;
     Invalidate;
   end;
@@ -415,6 +418,11 @@ begin
     VisibleBranch := ActiveView
   else
     VisibleBranch := FRootView;
+end;
+
+procedure TViewLayout3D.MouseLeaveHandler(Sender: TObject);
+begin
+  HighlightedView := nil;
 end;
 
 procedure TViewLayout3D.SetRotationX(Deg: single);

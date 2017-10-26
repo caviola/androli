@@ -66,6 +66,7 @@ object MainForm: TMainForm
       TabOrder = 0
       OnCollapsed = TreeViewCollapsed
       OnExpanded = TreeViewExpanded
+      OnMouseLeave = TreeViewMouseLeave
       OnMouseMove = TreeViewMouseMove
       OnSelectionChanged = TreeViewSelectionChanged
       Options = [tvoAutoItemHeight, tvoKeepCollapsedNodes, tvoReadOnly, tvoRightClickSelect, tvoRowSelect, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips, tvoThemedDraw]
