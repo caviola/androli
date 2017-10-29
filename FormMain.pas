@@ -101,18 +101,20 @@ const
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
-  KeyPreview := True;
   FViewLayout3D := TViewLayout3D.Create(Self);
   FViewLayout3D.Parent := Self;
   FViewLayout3D.Align := alClient;
+  FViewLayout3D.OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
+  FViewLayout3D.OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
   {$IFDEF DEBUG}
   StartOpenLayout(CreateDumpFileOpenTask('dumps/dump3.uix'));
   {$ENDIF}
-  FViewLayout3D.OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
-  FViewLayout3D.OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
+  SetControlIndex(FViewLayout3D, 0);
+
   MenuItemToggleView3D.Checked := FViewLayout3D.View3DEnabled;
   MenuItemClipToParent.Checked := FViewLayout3D.ClipBounds;
-  SetControlIndex(FViewLayout3D, 0);
+
+  KeyPreview := True;
 end;
 
 procedure TMainForm.TreeFilterEditAfterFilter(Sender: TObject);

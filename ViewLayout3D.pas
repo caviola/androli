@@ -5,10 +5,12 @@ unit ViewLayout3D;
 interface
 
 uses
-  Classes, Controls, Graphics, Menus, View3DTypes, Animators, OpenGLContext,
+  Classes, Controls, Graphics, Menus, ExtCtrls, View3DTypes, Animators, OpenGLContext,
   TaskRunner;
 
 type
+
+  TMouseState = (msNone, msDown, msDragging);
 
   TZOrderAnimator = class;
   TToggleView3DAnimator = class;
@@ -32,8 +34,7 @@ type
     FOriginZ: single;
     FActiveView: TView3D;
     FHighlightedView: TView3D;
-    FMouseDown: boolean;
-    FDragging: boolean;
+    FMouseState: TMouseState;
     FLastMouseX: integer;
     FLastMouseY: integer;
     FRotationX: single; // degrees
@@ -43,22 +44,23 @@ type
     FCameraZ: single;
     FOnActiveViewChanged: TNotifyEvent;
     FVisibleBranch: TView3D;
-    procedure SetView3DEnabled(V: boolean);
-    procedure SetVisibleBranch(V: TView3D);
-    procedure SetActiveView(V: TView3D);
-    procedure SetClipBounds(V: boolean);
-    procedure SetHighlightedView(V: TView3D);
-    procedure SetRotationX(Deg: single);
-    procedure SetRotationY(Deg: single);
-    procedure SetZoomLevel(V: single);
-    procedure SetScaleZ(V: single);
-    procedure SetOriginX(V: single);
-    procedure SetOriginY(V: single);
-    procedure SetRootView(V: TView3D);
+    FActiveViewChangedTimer: TTimer;
+    procedure SetView3DEnabled(AValue: boolean);
+    procedure SetVisibleBranch(AValue: TView3D);
+    procedure SetActiveView(AValue: TView3D);
+    procedure SetClipBounds(AValue: boolean);
+    procedure SetHighlightedView(AValue: TView3D);
+    procedure SetRotationX(Degres: single);
+    procedure SetRotationY(Degres: single);
+    procedure SetZoomLevel(AValue: single);
+    procedure SetScaleZ(AValue: single);
+    procedure SetOriginX(AValue: single);
+    procedure SetOriginY(AValue: single);
+    procedure SetRootView(AValue: TView3D);
     procedure StartCaptureView;
   protected
+    procedure ActiveViewChangedTimerTimer(Sender: TObject);
     procedure CaptureViewTaskSuccessHandler(const Task: ITask);
-    procedure DblClickHandler(Sender: TObject);
     procedure MouseLeaveHandler(Sender: TObject);
 
     procedure ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
@@ -66,14 +68,15 @@ type
 
     procedure MouseDownHandler(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: integer);
+    procedure MouseClickHandler(Sender: TObject);
+    procedure MouseDblClickHandler(Sender: TObject);
     procedure MouseUpHandler(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: integer);
     procedure MouseMoveHandler(Sender: TObject; Shift: TShiftState; X, Y: integer);
     procedure MouseWheelHandler(Sender: TObject; Shift: TShiftState;
       WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
-    //TODO: this is always available, so make it a toolbar button instead of contextual action
 
-    procedure DoActiveViewChanged;
+    procedure DoActiveViewChanged; inline;
     function HitTest(X, Y: integer): TView3D;
     procedure ShowBranch(AView: TView3D);
     procedure ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
@@ -145,7 +148,7 @@ type
 implementation
 
 uses
-  SysUtils, Math, GLext, gl, glu, LazLogger;
+  SysUtils, LCLIntf, Math, GLext, gl, glu, LazLogger;
 
 type
   TColorABGR = cardinal;
@@ -238,6 +241,13 @@ end;
 constructor TViewLayout3D.Create(AOwner: TComponent);
 begin
   inherited;
+
+  FMouseState := msNone;
+
+  FActiveViewChangedTimer := TTimer.Create(Self);
+  FActiveViewChangedTimer.Enabled := False;
+  FActiveViewChangedTimer.Interval := GetDoubleClickTime;
+  FActiveViewChangedTimer.OnTimer := @ActiveViewChangedTimerTimer;
 
   MultiSampling := 4;
   AutoResizeViewport := True;
@@ -339,8 +349,10 @@ begin
   FZOrderAnimator.Start;
 end;
 
-procedure TViewLayout3D.SetRootView(V: TView3D);
+procedure TViewLayout3D.SetRootView(AValue: TView3D);
 begin
+  if FRootView = AValue then
+    Exit;
   // TODO: center fit initially
 
   FRotationY := 0;
@@ -348,8 +360,9 @@ begin
   FZoomLevel := InitialZoomLevel;
   FScaleZ := 0;
 
-  FRootView := V;
-  VisibleBranch := V;
+  FRootView := AValue;
+  FVisibleBranch := AValue;
+  FActiveView := nil;
 
   if Assigned(FRootView) then
   begin
@@ -363,8 +376,9 @@ begin
     OnMouseUp := @MouseUpHandler;
     OnMouseMove := @MouseMoveHandler;
     OnMouseWheel := @MouseWheelHandler;
-    OnDblClick := @DblClickHandler;
     OnMouseLeave := @MouseLeaveHandler;
+    OnClick := @MouseClickHandler;
+    OnDblClick := @MouseDblClickHandler;
 
     if View3DEnabled then
     begin
@@ -386,8 +400,9 @@ begin
     OnMouseUp := nil;
     OnMouseMove := nil;
     OnMouseWheel := nil;
-    OnDblClick := nil;
     OnMouseLeave := nil;
+    OnClick := nil;
+    OnDblClick := nil;
     PopupMenu := nil;
     Invalidate;
   end;
@@ -412,12 +427,10 @@ begin
   until View = FRootView;
 end;
 
-procedure TViewLayout3D.DblClickHandler(Sender: TObject);
+procedure TViewLayout3D.ActiveViewChangedTimerTimer(Sender: TObject);
 begin
-  if Assigned(ActiveView) then
-    VisibleBranch := ActiveView
-  else
-    VisibleBranch := FRootView;
+  FActiveViewChangedTimer.Enabled := False;
+  DoActiveViewChanged;
 end;
 
 procedure TViewLayout3D.MouseLeaveHandler(Sender: TObject);
@@ -425,54 +438,57 @@ begin
   HighlightedView := nil;
 end;
 
-procedure TViewLayout3D.SetRotationX(Deg: single);
+procedure TViewLayout3D.SetRotationX(Degres: single);
 begin
-  if FRotationX <> Deg then
+  if FRotationX <> Degres then
   begin
-    FRotationX := Deg;
+    FRotationX := Degres;
     Invalidate;
   end;
 end;
 
-procedure TViewLayout3D.SetActiveView(V: TView3D);
+procedure TViewLayout3D.SetActiveView(AValue: TView3D);
 begin
-  if FActiveView <> V then
-  begin
-    {$IFDEF DEBUG}
-    if Assigned(V) then
-      DebugLn(
-        'TViewLayout3D.SetActiveView: Class=%s, Bounds=[%f, %f, %f, %f], TransformScaleX=%f, TransformScaleY=%f',
-        [V.QualifiedClassName, V.Left, V.Top, V.Right, V.Bottom,
-        V.TransformScaleX, V.TransformScaleY]);
-    {$ENDIF}
-    FActiveView := V;
-    DoActiveViewChanged;
-    Invalidate;
-  end;
-end;
-
-procedure TViewLayout3D.SetVisibleBranch(V: TView3D);
-begin
-  if FVisibleBranch <> V then
-  begin
-    FVisibleBranch := V;
-    if Assigned(V) then
-    begin
-      ShowBranch(V);
-      Invalidate;
-    end;
-
-    if Assigned(FOnVisibleBranchChanged) then
-      FOnVisibleBranchChanged(Self);
-  end;
-end;
-
-procedure TViewLayout3D.SetView3DEnabled(V: boolean);
-begin
-  if FView3DEnabled = V then
+  if FActiveView = AValue then
     Exit;
 
-  FView3DEnabled := V;
+  {$IFDEF DEBUG}
+  if Assigned(AValue) then
+    DebugLn(
+      'TViewLayout3D.SetActiveView: Class=%s, Bounds=[%f, %f, %f, %f], TransformScaleX=%f, TransformScaleY=%f',
+      [AValue.QualifiedClassName, AValue.Left, AValue.Top, AValue.Right,
+      AValue.Bottom, AValue.TransformScaleX, AValue.TransformScaleY]);
+  {$ENDIF}
+  FActiveView := AValue;
+  DoActiveViewChanged;
+  Invalidate;
+end;
+
+procedure TViewLayout3D.SetVisibleBranch(AValue: TView3D);
+begin
+  // Activate root view if requested branch is nil.
+  if not Assigned(AValue) then
+    AValue := FRootView;
+
+  if FVisibleBranch = AValue then
+    Exit;
+
+  FVisibleBranch := AValue;
+  if Assigned(FVisibleBranch) then // something to show?
+  begin
+    ShowBranch(FVisibleBranch);
+    if Assigned(FOnVisibleBranchChanged) then
+      FOnVisibleBranchChanged(Self);
+    Invalidate;
+  end;
+end;
+
+procedure TViewLayout3D.SetView3DEnabled(AValue: boolean);
+begin
+  if FView3DEnabled = AValue then
+    Exit;
+
+  FView3DEnabled := AValue;
   if FView3DEnabled then
   begin
     // Don't RotateY.
@@ -488,62 +504,65 @@ begin
   FToggleView3DAnimator.Restart;
 end;
 
-procedure TViewLayout3D.SetClipBounds(V: boolean);
+procedure TViewLayout3D.SetClipBounds(AValue: boolean);
 begin
-  if FClipBounds <> V then
+  if FClipBounds <> AValue then
   begin
-    FClipBounds := V;
+    FClipBounds := AValue;
     Invalidate;
   end;
 end;
 
-procedure TViewLayout3D.SetHighlightedView(V: TView3D);
+procedure TViewLayout3D.SetHighlightedView(AValue: TView3D);
 begin
-  if FHighlightedView <> V then
+  if FHighlightedView <> AValue then
   begin
-    FHighlightedView := V;
+    FHighlightedView := AValue;
     Invalidate;
   end;
 end;
 
-procedure TViewLayout3D.SetRotationY(Deg: single);
+procedure TViewLayout3D.SetRotationY(Degres: single);
 begin
-  if FRotationY <> Deg then
+  if FRotationY <> Degres then
   begin
-    FRotationY := Deg;
+    FRotationY := Degres;
     Invalidate;
   end;
 end;
 
-procedure TViewLayout3D.SetZoomLevel(V: single);
+procedure TViewLayout3D.SetZoomLevel(AValue: single);
 begin
-  if FZoomLevel <> V then
+  if FZoomLevel <> AValue then
   begin
-    FZoomLevel := V;
+    FZoomLevel := AValue;
     Invalidate;
   end;
 end;
 
-procedure TViewLayout3D.SetScaleZ(V: single);
+procedure TViewLayout3D.SetScaleZ(AValue: single);
 begin
-  FScaleZ := V;
-  Invalidate;
-end;
-
-procedure TViewLayout3D.SetOriginX(V: single);
-begin
-  if FOriginX <> V then
+  if FScaleZ <> AValue then
   begin
-    FOriginX := V;
+    FScaleZ := AValue;
     Invalidate;
   end;
 end;
 
-procedure TViewLayout3D.SetOriginY(V: single);
+procedure TViewLayout3D.SetOriginX(AValue: single);
 begin
-  if FOriginY <> V then
+  if FOriginX <> AValue then
   begin
-    FOriginY := V;
+    FOriginX := AValue;
+    Invalidate;
+  end;
+end;
+
+procedure TViewLayout3D.SetOriginY(AValue: single);
+begin
+  if FOriginY <> AValue then
+  begin
+    FOriginY := AValue;
     Invalidate;
   end;
 end;
@@ -689,7 +708,7 @@ procedure TViewLayout3D.DoOnPaint;
     if V.TextureName <> 0 then
       DrawTexture(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, V.TextureName);
 
-    if ActiveView = V then
+    if FActiveView = V then
     begin
       DrawMargin(V);
       DrawPadding(V);
@@ -817,33 +836,61 @@ end;
 procedure TViewLayout3D.MouseDownHandler(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: integer);
 begin
-  // Initiate dragging only with left click because right click
-  // is used to show context menu.
-  if Button = mbLeft then
+  if (Button = mbLeft) and not (ssDouble in Shift) then
   begin
-    FMouseDown := True;
+    FMouseState := msDown;
     FLastMouseX := X;
     FLastMouseY := Y;
   end;
 end;
 
+procedure TViewLayout3D.MouseClickHandler(Sender: TObject);
+var
+  NewActiveView: TView3D;
+begin
+  if FMouseState <> msDragging then
+  begin
+    // We're here because the user performed a click without dragging.
+    // When the user double-clicks we also receive an OnClick
+    // followed by OnDblClick.
+    // UX-wise, we use click to change ActiveView and double-click to change
+    // both VisibleBranch and ActiveView.
+    // Give that at this point we don't know if OnDblClick will ever come, and
+    // to avoid flickering, for now update the active view without firing
+    // OnActiveViewChanged and wait a little bit to see if OnDblClick is called.
+    // OnActiveViewChanged will be fired later, either in our OnTimer or
+    // or OnDblClick handler, whichever comes first.
+    NewActiveView := HitTest(FLastMouseX, FLastMouseY);
+    if NewActiveView <> FActiveView then
+    begin
+      FActiveView := NewActiveView;
+      FActiveViewChangedTimer.Enabled := True;
+      Invalidate;
+    end;
+  end;
+end;
+
+procedure TViewLayout3D.MouseDblClickHandler(Sender: TObject);
+begin
+  FActiveViewChangedTimer.Enabled := False;
+  VisibleBranch := ActiveView;
+  DoActiveViewChanged;
+end;
+
 procedure TViewLayout3D.MouseUpHandler(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: integer);
 begin
-  if not FDragging then
-    ActiveView := HitTest(X, Y)
-  else
-    FDragging := False;
-
-  FMouseDown := False;
+  FMouseState := msNone;
 end;
 
 procedure TViewLayout3D.MouseMoveHandler(Sender: TObject; Shift: TShiftState;
   X, Y: integer);
 begin
-  if FMouseDown then
+  if FMouseState = msDown then
+    FMouseState := msDragging;
+
+  if FMouseState = msDragging then
   begin
-    FDragging := True;
     if ssShift in Shift then
     begin
       OriginX := OriginX - (X - FLastMouseX);
@@ -869,7 +916,7 @@ end;
 procedure TViewLayout3D.MouseWheelHandler(Sender: TObject; Shift: TShiftState;
   WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
 begin
-  if FDragging or FToggleView3DAnimator.IsRunning then
+  if (FMouseState = msDragging) or FToggleView3DAnimator.IsRunning then
     Exit;
 
   WheelDelta := Sign(WheelDelta);
