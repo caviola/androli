@@ -26,7 +26,7 @@ type
     FHierarchyHeight: integer;
     FZOrderAnimator: TZOrderAnimator;
     FToggleView3DAnimator: TToggleView3DAnimator;
-    FOnVisibleBranchChanged: TNotifyEvent;
+    FOnActiveBranchChanged: TNotifyEvent;
     FScaleZAnimator: TFloatAnimator;
     FZoomLevelAnimator: TFloatAnimator;
     FOriginX: single;
@@ -43,10 +43,10 @@ type
     FScaleZ: single;
     FCameraZ: single;
     FOnActiveViewChanged: TNotifyEvent;
-    FVisibleBranch: TView3D;
+    FActiveBranch: TView3D;
     FActiveViewChangedTimer: TTimer;
     procedure SetView3DEnabled(AValue: boolean);
-    procedure SetVisibleBranch(AValue: TView3D);
+    procedure SetActiveBranch(AValue: TView3D);
     procedure SetActiveView(AValue: TView3D);
     procedure SetClipBounds(AValue: boolean);
     procedure SetHighlightedView(AValue: TView3D);
@@ -103,9 +103,9 @@ type
     property OnActiveViewChanged: TNotifyEvent
       read FOnActiveViewChanged write FOnActiveViewChanged;
     property ClipBounds: boolean read FClipBounds write SetClipBounds;
-    property VisibleBranch: TView3D read FVisibleBranch write SetVisibleBranch;
-    property OnVisibleBranchChanged: TNotifyEvent
-      read FOnVisibleBranchChanged write FOnVisibleBranchChanged;
+    property ActiveBranch: TView3D read FActiveBranch write SetActiveBranch;
+    property OnActiveBranchChanged: TNotifyEvent
+      read FOnActiveBranchChanged write FOnActiveBranchChanged;
     property View3DEnabled: boolean read FView3DEnabled write SetView3DEnabled;
   end;
 
@@ -361,7 +361,7 @@ begin
   FScaleZ := 0;
 
   FRootView := AValue;
-  FVisibleBranch := AValue;
+  FActiveBranch := AValue;
   FActiveView := nil;
 
   if Assigned(FRootView) then
@@ -464,21 +464,21 @@ begin
   Invalidate;
 end;
 
-procedure TViewLayout3D.SetVisibleBranch(AValue: TView3D);
+procedure TViewLayout3D.SetActiveBranch(AValue: TView3D);
 begin
   // Activate root view if requested branch is nil.
   if not Assigned(AValue) then
     AValue := FRootView;
 
-  if FVisibleBranch = AValue then
+  if FActiveBranch = AValue then
     Exit;
 
-  FVisibleBranch := AValue;
-  if Assigned(FVisibleBranch) then // something to show?
+  FActiveBranch := AValue;
+  if Assigned(FActiveBranch) then // something to show?
   begin
-    ShowBranch(FVisibleBranch);
-    if Assigned(FOnVisibleBranchChanged) then
-      FOnVisibleBranchChanged(Self);
+    ShowBranch(FActiveBranch);
+    if Assigned(FOnActiveBranchChanged) then
+      FOnActiveBranchChanged(Self);
     Invalidate;
   end;
 end;
@@ -854,7 +854,7 @@ begin
     // When the user double-clicks we also receive an OnClick
     // followed by OnDblClick.
     // UX-wise, we use click to change ActiveView and double-click to change
-    // both VisibleBranch and ActiveView.
+    // both ActiveBranch and ActiveView.
     // Give that at this point we don't know if OnDblClick will ever come, and
     // to avoid flickering, for now update the active view without firing
     // OnActiveViewChanged and wait a little bit to see if OnDblClick is called.
@@ -873,7 +873,7 @@ end;
 procedure TViewLayout3D.MouseDblClickHandler(Sender: TObject);
 begin
   FActiveViewChangedTimer.Enabled := False;
-  VisibleBranch := ActiveView;
+  ActiveBranch := ActiveView;
   DoActiveViewChanged;
 end;
 

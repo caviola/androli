@@ -70,7 +70,7 @@ type
     procedure SetRootView(AValue: TView3D);
   protected
     procedure ViewLayout3DActiveViewChanged(Sender: TObject);
-    procedure ViewLayout3DVisibleBranchChanged(Sender: TObject);
+    procedure ViewLayout3DActiveBranchChanged(Sender: TObject);
     procedure UpdateTreeView(RootView: TView3D = nil);
     procedure UpdatePropertyInspector(View: TView3D = nil);
     procedure LayoutOpenTaskError(const Task: ITask; Error: Exception);
@@ -105,7 +105,7 @@ begin
   FViewLayout3D.Parent := Self;
   FViewLayout3D.Align := alClient;
   FViewLayout3D.OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
-  FViewLayout3D.OnVisibleBranchChanged := @ViewLayout3DVisibleBranchChanged;
+  FViewLayout3D.OnActiveBranchChanged := @ViewLayout3DActiveBranchChanged;
   {$IFDEF DEBUG}
   StartOpenLayout(CreateDumpFileOpenTask('dumps/dump3.uix'));
   {$ENDIF}
@@ -368,9 +368,9 @@ begin
   end;
 end;
 
-procedure TMainForm.ViewLayout3DVisibleBranchChanged(Sender: TObject);
+procedure TMainForm.ViewLayout3DActiveBranchChanged(Sender: TObject);
 begin
-  UpdateTreeView(TViewLayout3D(Sender).VisibleBranch);
+  UpdateTreeView(TViewLayout3D(Sender).ActiveBranch);
 end;
 
 procedure TMainForm.MenuItemOpenFileClick(Sender: TObject);
