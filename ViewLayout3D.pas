@@ -148,7 +148,7 @@ type
 implementation
 
 uses
-  SysUtils, LCLIntf, Math, GLext, gl, glu, LazLogger;
+  SysUtils, LCLIntf, LCLProc, Math, GLext, gl, glu, Logging;
 
 type
   TColorABGR = cardinal;
@@ -281,6 +281,7 @@ end;
 
 procedure TViewLayout3D.Changed;
 begin
+  Log('TViewLayout3D.Changed');
   Invalidate;
 end;
 
@@ -313,6 +314,8 @@ procedure TViewLayout3D.Collapse(Root: TView3D);
   end;
 
 begin
+  Log('TViewLayout3D.Collapse %s', [DbgS(Root)]);
+
   FZOrderAnimator.Finish;
   FZOrderAnimator.ClearTargets;
   Visit(Root);
@@ -343,6 +346,8 @@ procedure TViewLayout3D.Expand(Root: TView3D);
   end;
 
 begin
+  Log('TViewLayout3D.Expand %s', [DbgS(Root)]);
+
   FZOrderAnimator.Finish;
   FZOrderAnimator.ClearTargets;
   Visit(Root, Root);
@@ -351,6 +356,8 @@ end;
 
 procedure TViewLayout3D.SetRootView(AValue: TView3D);
 begin
+  Log('TViewLayout3D.SetRootView %s', [DbgS(AValue)]);
+
   if FRootView = AValue then
     Exit;
   // TODO: center fit initially
@@ -413,6 +420,8 @@ var
   View: TView3D;
   TaskFactory: ICaptureViewTaskFactory;
 begin
+  Log('TViewLayout3D.StartCaptureView');
+
   View := FRootView;
   repeat
     TaskFactory := View.CaptureViewTaskFactory;
@@ -429,8 +438,12 @@ end;
 
 procedure TViewLayout3D.ActiveViewChangedTimerTimer(Sender: TObject);
 begin
+  LogEnterMethod('TViewLayout3D.ActiveViewChangedTimerTimer');
+
   FActiveViewChangedTimer.Enabled := False;
   DoActiveViewChanged;
+
+  LogExitMethod('TViewLayout3D.ActiveViewChangedTimerTimer');
 end;
 
 procedure TViewLayout3D.MouseLeaveHandler(Sender: TObject);
@@ -452,14 +465,9 @@ begin
   if FActiveView = AValue then
     Exit;
 
-  {$IFDEF DEBUG}
-  if Assigned(AValue) then
-    DebugLn(
-      'TViewLayout3D.SetActiveView: Class=%s, Bounds=[%f, %f, %f, %f], TransformScaleX=%f, TransformScaleY=%f',
-      [AValue.QualifiedClassName, AValue.Left, AValue.Top, AValue.Right,
-      AValue.Bottom, AValue.TransformScaleX, AValue.TransformScaleY]);
-  {$ENDIF}
   FActiveView := AValue;
+  Log('TViewLayout3D.SetActiveView: FActiveView=%s', [DbgS(FActiveView)]);
+
   DoActiveViewChanged;
   Invalidate;
 end;
@@ -474,11 +482,19 @@ begin
     Exit;
 
   FActiveBranch := AValue;
+  Log('TViewLayout3D.SetActiveBranch: FActiveBranch=%s', [DbgS(FActiveBranch)]);
+
   if Assigned(FActiveBranch) then // something to show?
   begin
     ShowBranch(FActiveBranch);
+
     if Assigned(FOnActiveBranchChanged) then
+    begin
+      LogEnterMethod('TViewLayout3D.OnActiveBranchChanged');
       FOnActiveBranchChanged(Self);
+      LogExitMethod('TViewLayout3D.OnActiveBranchChanged');
+    end;
+
     Invalidate;
   end;
 end;
@@ -773,8 +789,6 @@ procedure TViewLayout3D.DoOnPaint;
 var
   View: TView3D;
 begin
-  DebugLn('TViewLayout3D.DoOnPaint');
-
   glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
   glEnable(GL_BLEND);
@@ -861,9 +875,14 @@ begin
     // OnActiveViewChanged will be fired later, either in our OnTimer or
     // or OnDblClick handler, whichever comes first.
     NewActiveView := HitTest(FLastMouseX, FLastMouseY);
+
+    Log('TViewLayout3D.MouseClickHandler: HitTest(%d,%d)=%s',
+      [FLastMouseX, FLastMouseY, DbgS(NewActiveView)]);
+
     if NewActiveView <> FActiveView then
     begin
       FActiveView := NewActiveView;
+      Log('TViewLayout3D.MouseClickHandler: FActiveView=%s', [DbgS(FActiveView)]);
       FActiveViewChangedTimer.Enabled := True;
       Invalidate;
     end;
@@ -872,9 +891,13 @@ end;
 
 procedure TViewLayout3D.MouseDblClickHandler(Sender: TObject);
 begin
+  LogEnterMethod('TViewLayout3D.MouseDblClickHandler');
+
   FActiveViewChangedTimer.Enabled := False;
   ActiveBranch := ActiveView;
   DoActiveViewChanged;
+
+  LogExitMethod('TViewLayout3D.MouseDblClickHandler');
 end;
 
 procedure TViewLayout3D.MouseUpHandler(Sender: TObject; Button: TMouseButton;
@@ -941,7 +964,11 @@ end;
 procedure TViewLayout3D.DoActiveViewChanged;
 begin
   if Assigned(FOnActiveViewChanged) then
+  begin
+    LogEnterMethod('TViewLayout3D.OnActiveViewChanged');
     FOnActiveViewChanged(Self);
+    LogExitMethod('TViewLayout3D.OnActiveViewChanged');
+  end;
 end;
 
 function TViewLayout3D.HitTest(X, Y: integer): TView3D;

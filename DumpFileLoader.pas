@@ -12,7 +12,7 @@ function CreateDumpFileOpenTask(const FilePath: string): TLayoutOpenTask;
 implementation
 
 uses
-  SysUtils, LazLogger, LazUTF8, laz2_XMLRead, laz2_DOM;
+  SysUtils, LazUTF8, laz2_XMLRead, laz2_DOM, Logging;
 
 type
   { TDeviceMonitorDumpOpenTask }
@@ -87,6 +87,8 @@ var
   Document: TXMLDocument;
   Node: TDOMNode;
 begin
+  Log('TDeviceMonitorDumpOpenTask.Run: FileName=''%s''', [FFilePath]);
+
   ReadXMLFile(Document, FFilePath);
   try
     Node := Document.FirstChild;

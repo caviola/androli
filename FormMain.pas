@@ -143,7 +143,7 @@ var
 implementation
 
 uses
-  LCLType, FormOpenWindow, LazUTF8, DumpFileLoader, DeviceWindowLoader;
+  LCLType, FormOpenWindow, LazUTF8, DumpFileLoader, DeviceWindowLoader, LCLProc, Logging;
 
 const
   AppName = 'Androli';
@@ -241,6 +241,8 @@ var
   SelectedTreeNode: TTreeNode;
   SelectedView: TView3D;
 begin
+  LogEnterMethod('TMainForm.TreeViewSelectionChanged');
+
   SelectedTreeNode := TreeView.Selected;
   if Assigned(SelectedTreeNode) then
   begin
@@ -250,6 +252,8 @@ begin
   end
   else
     UpdatePropertyInspector;
+
+  LogExitMethod('TMainForm.TreeViewSelectionChanged');
 end;
 
 function TMainForm.GetTreeNodeText(View: TView3D): string;
@@ -293,6 +297,8 @@ begin
   if AValue = FRootView then
     Exit;
 
+  LogEnterMethod('TMainForm.SetRootView');
+
   OldRootView := FRootView;
   FRootView := AValue;
 
@@ -302,6 +308,8 @@ begin
 
   if Assigned(OldRootView) then
     OldRootView.Free;
+
+  LogExitMethod('TMainForm.SetRootView');
 end;
 
 procedure TMainForm.GotoBookmarkHandler(Sender: TObject);
@@ -353,7 +361,11 @@ procedure TMainForm.UpdateTreeView(ARootView: TView3D);
   end;
 
 begin
-  if Assigned(ARootView) then
+  LogEnterMethod('TMainForm.UpdateTreeView');
+
+  TreeFilterEdit.Clear;
+
+  if Assigned(RootView) then
   begin
     TreeView.BeginUpdate;
     try
@@ -386,6 +398,8 @@ begin
     CheckBoxShowViewIDs.Enabled := False;
     CheckBoxShowFullClassNames.Enabled := False;
   end;
+
+  LogExitMethod('TMainForm.UpdateTreeView');
 end;
 
 procedure TMainForm.UpdatePropertyInspector(View: TView3D);
@@ -393,6 +407,8 @@ var
   I: integer;
   PName, PValue: string;
 begin
+  Log('TMainForm.UpdatePropertyInspector %s', [DbgS(View)]);
+
   ValueListEditor.BeginUpdate;
   try
     ValueListEditor.Clear;
@@ -409,7 +425,7 @@ end;
 
 procedure TMainForm.LayoutOpenTaskError(const Task: ITask; Error: Exception);
 begin
-  //TODO:
+  LogException('TMainForm.LayoutOpenTaskError', Error);
 end;
 
 procedure TMainForm.LayoutOpenTaskStarted(const Task: ITask);
@@ -426,16 +442,22 @@ end;
 
 procedure TMainForm.LayoutOpenTaskSuccess(const Task: ITask);
 begin
+  LogEnterMethod('TMainForm.LayoutOpenTaskSuccess');
+
   RootView := FLayoutOpenTask.GetResult;
   Caption := Format(FormFileCaptionFormat, [FLayoutOpenTask.DisplayName]);
   MenuItemClose.Enabled := True;
   MenuItemZoomIn.Enabled := True;
   MenuItemZoomOut.Enabled := True;
   FIndexedBookmarkManager.Clear;
+
+  LogExitMethod('TMainForm.LayoutOpenTaskSuccess');
 end;
 
 procedure TMainForm.StartOpenLayout(const Task: TLayoutOpenTask);
 begin
+  LogEnterMethod('TMainForm.StartOpenLayout');
+
   if Assigned(FLayoutOpenTask) then
     FLayoutOpenTask.Cancel;
 
@@ -447,6 +469,8 @@ begin
     OnStopped := @LayoutOpenTaskStopped;
     FLayoutOpenTask := Start as ILayoutOpenTask;
   end;
+
+  LogExitMethod('TMainForm.StartOpenLayout');
 end;
 
 procedure TMainForm.OnBookmarkSet(I: integer);
@@ -483,21 +507,29 @@ end;
 
 procedure TMainForm.CloseLayout;
 begin
+  LogEnterMethod('TMainForm.CloseLayout');
+
   RootView := nil;
   Caption := AppName;
   MenuItemClose.Enabled := False;
   MenuItemZoomIn.Enabled := False;
   MenuItemZoomOut.Enabled := False;
   FIndexedBookmarkManager.Clear;
+
+  LogExitMethod('TMainForm.CloseLayout');
 end;
 
 procedure TMainForm.CancelOpenLayout;
 begin
+  LogEnterMethod('TMainForm.CancelOpenLayout');
+
   if Assigned(FLayoutOpenTask) then
   begin
     FLayoutOpenTask.Cancel;
     FLayoutOpenTask := nil;
   end;
+
+  LogExitMethod('TMainForm.CancelOpenLayout');
 end;
 
 function TMainForm.SaveBookmark: TObject;
@@ -515,10 +547,14 @@ begin
     ZoomLevel := FViewLayout3D.ZoomLevel;
     TreeFilter := TreeFilterEdit.Text;
   end;
+
+  Log('TMainForm.SaveBookmark: Result=%s', [DbgS(Result)]);
 end;
 
 procedure TMainForm.RestoreBookmark(Which: TObject);
 begin
+  LogEnterMethod('TMainForm.RestoreBookmark');
+
   with TBookmark(Which) do
   begin
     // The following properties are updated in a BeginUpdate/EndUpdate block
@@ -546,6 +582,8 @@ begin
     FViewLayout3D.ScaleZ := ScaleZ;
     FViewLayout3D.ZoomLevel := ZoomLevel;
   end;
+
+  LogExitMethod('TMainForm.RestoreBookmark');
 end;
 
 procedure TMainForm.ViewLayout3DActiveBranchChanged(Sender: TObject);

@@ -77,7 +77,7 @@ type
 
 implementation
 
-uses syncobjs, LazLogger, Logger, gqueue;
+uses syncobjs, LCLProc, Logging, gqueue;
 
 type
 
@@ -176,7 +176,7 @@ begin
   // in the task queue.
   if not FTask.Canceled then
   begin
-    LogDebug('[TTask.Run %s]', [DbgS(FTask)]);
+    Log('TTaskEntry.DoRun: Task=%s', [DbgS(Pointer(FTask))]);
     FTask.Run;
   end;
 end;
@@ -208,6 +208,8 @@ end;
 
 procedure TWorkerThread.Shutdown;
 begin
+  Log('TWorkerThread.Shutdown');
+
   // Clear the task queue.
   EnterCriticalSection(FQueueLock);
   try
@@ -227,6 +229,7 @@ function TWorkerThread.PushTask(const ATask: ITask): ITask;
 begin
   EnterCriticalSection(FQueueLock);
   try
+    Log('TWorkerThread.PushTask %s', [DbgS(Pointer(ATask))]);
     FQueue.Push(TTaskEntry.Create(ATask));
   finally
     LeaveCriticalSection(FQueueLock);
@@ -240,8 +243,6 @@ procedure TWorkerThread.Execute;
 var
   Entry: ITaskEntry;
 begin
-  LogDebug('[TWorkerThread.Execute] begin');
-
   repeat
     Entry := PopEntry;
     if not Assigned(Entry) then
@@ -251,8 +252,7 @@ begin
       Entry.DoRun;
       Synchronize(@Entry.DoOnSuccess);
     except
-      LogDebug('[TWorkerThread.Execute] exception: %s',
-        [Exception(ExceptObject).Message]);
+      LogException('TWorkerThread.Execute', Exception(ExceptObject));
 
       // Don't report the error if task is canceled.
       // Note that if ETaskCanceled was raised, ITask.Canceled is also true.
@@ -267,8 +267,6 @@ begin
 
     Entry := nil;
   until Terminated;
-
-  LogDebug('[TWorkerThread.Execute] end');
 end;
 
 function TWorkerThread.PopEntry: ITaskEntry;
@@ -302,7 +300,7 @@ end;
 
 destructor TTask.Destroy;
 begin
-  LogDebug('[TTask.Destroy %s]', [DbgS(Self)]);
+  Log('TTask.Destroy %s', [DbgS(Pointer(ITask(Self)))]);
   inherited;
 end;
 
@@ -321,7 +319,7 @@ procedure TTask.DoOnStarted;
 begin
   if Assigned(FOnStarted) then
   begin
-    LogDebug('[TTask.DoOnStarted %s]', [DbgS(Self)]);
+    Log('TTask.DoOnStarted %s', [DbgS(Pointer(ITask(Self)))]);
     FOnStarted(Self);
   end;
 end;
@@ -333,7 +331,7 @@ begin
 
   if Assigned(FOnStopped) then
   begin
-    LogDebug('[TTask.DoOnStopped %s]', [DbgS(Self)]);
+    Log('TTask.DoOnStopped %s', [DbgS(Pointer(ITask(Self)))]);
     FOnStopped(Self);
   end;
 end;
@@ -342,7 +340,7 @@ procedure TTask.DoOnSuccess;
 begin
   if Assigned(FOnSuccess) then
   begin
-    LogDebug('[TTask.DoOnSuccess %s]', [DbgS(Self)]);
+    Log('TTask.DoOnSuccess %s', [DbgS(Pointer(ITask(Self)))]);
     FOnSuccess(Self);
   end;
 end;
@@ -351,7 +349,7 @@ procedure TTask.DoOnError(Error: Exception);
 begin
   if Assigned(FOnError) then
   begin
-    LogDebug('[TTask.DoOnError %s]', [DbgS(Self)]);
+    Log('TTask.DoOnError %s', [DbgS(Pointer(ITask(Self)))]);
     FOnError(Self, Error);
   end;
 end;
@@ -361,7 +359,7 @@ begin
   if FStatus = tsStarted then
   begin
     FStatus := tsCanceled;
-    LogDebug('[TTask.Cancel %s]', [DbgS(Self)]);
+    Log('TTask.Cancel %s', [DbgS(Pointer(ITask(Self)))]);
     DoOnStopped;
   end;
 end;

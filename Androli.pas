@@ -8,6 +8,7 @@ uses {$IFDEF UNIX}
   Interfaces,
   Forms,
   lazcontrols,
+  Logging,
   FormMain,
   View3DTypes,
   ViewLayout3D,
@@ -16,7 +17,6 @@ uses {$IFDEF UNIX}
   FormOpenWindow,
   TaskRunner,
   DumpFileLoader,
-  Logger,
   lazopenglcontext,
   DeviceWindowLoader,
   Bookmarks;
@@ -29,5 +29,4 @@ begin
   Application.CreateForm(TMainForm, MainForm);
   Application.Run;
 end.
-
 

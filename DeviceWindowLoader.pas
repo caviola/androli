@@ -12,7 +12,7 @@ function CreateDeviceWindowOpenTask(
 
 implementation
 
-uses AndroidDebugBridge;
+uses AndroidDebugBridge, Logging;
 
 type
 
@@ -40,6 +40,9 @@ end;
 
 procedure TDeviceWindowOpenTask.Run;
 begin
+  Log('TDeviceWindowOpenTask.Run: Device=''%s'', WindowTitle=''%s'', WindowHash=''%s''',
+    [FDeviceSerial, FWindowTitle, FWindowHash]);
+
   SetResult(CreateViewServerClient(FDeviceSerial).DumpWindow(FWindowHash,
     @CheckCanceled));
 end;
