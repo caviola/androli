@@ -212,8 +212,8 @@ begin
     View.MatchFilter := False;
     Result := True;
   end
-  else if Pos(UTF8LowerCase(TreeFilterEdit.Filter),
-    UTF8LowerCase(View.TreeNodeText)) > 0 then
+  else if Pos(LazUTF8.UTF8LowerCase(TreeFilterEdit.Filter),
+    LazUTF8.UTF8LowerCase(View.TreeNodeText)) > 0 then
   begin
     View.MatchFilter := True;
     Result := True;
