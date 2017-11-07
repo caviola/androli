@@ -77,7 +77,7 @@ type
 
 implementation
 
-uses syncobjs, LCLProc, Logging, gqueue;
+uses syncobjs, LCLProc, Logging, gdeque;
 
 type
 
@@ -112,15 +112,15 @@ type
     destructor Destroy; override;
   end;
 
-  TTaskEntryQueue = specialize TQueue<ITaskEntry>;
+  TTaskEntryDeque = specialize TDeque<ITaskEntry>;
 
   { TWorkerThread }
 
   TWorkerThread = class(TThread)
   private
-    FQueueLock: TRTLCriticalSection;
-    FQueue: TTaskEntryQueue;
-    FDequeueEvent: TEventObject;
+    FDequeLock: TRTLCriticalSection;
+    FDeque: TTaskEntryDeque;
+    FDequeEvent: TEventObject;
   protected
     procedure Execute; override;
     function PopEntry: ITaskEntry;
@@ -191,18 +191,18 @@ end;
 constructor TWorkerThread.Create;
 begin
   inherited Create(True);
-  InitCriticalSection(FQueueLock);
-  FQueue := TTaskEntryQueue.Create;
-  FDequeueEvent := TEventObject.Create(nil, True, False, EmptyStr);
+  InitCriticalSection(FDequeLock);
+  FDeque := TTaskEntryDeque.Create;
+  FDequeEvent := TEventObject.Create(nil, True, False, EmptyStr);
 end;
 
 destructor TWorkerThread.Destroy;
 begin
   Shutdown;
   WaitFor;
-  FDequeueEvent.Free;
-  FQueue.Free;
-  DoneCriticalSection(FQueueLock);
+  FDequeEvent.Free;
+  FDeque.Free;
+  DoneCriticalSection(FDequeLock);
   inherited;
 end;
 
@@ -211,31 +211,34 @@ begin
   Log('TWorkerThread.Shutdown');
 
   // Clear the task queue.
-  EnterCriticalSection(FQueueLock);
+  EnterCriticalSection(FDequeLock);
   try
-    while not FQueue.IsEmpty() do
-      FQueue.Pop;
+    while not FDeque.IsEmpty() do
+    begin
+      FDeque.Items[0] := nil; // release ITaskEntry reference at front
+      FDeque.PopFront;
+    end;
   finally
-    LeaveCriticalSection(FQueueLock);
+    LeaveCriticalSection(FDequeLock);
   end;
 
   Terminate;
   // Task queue is now empty.
   // Setting the event will wake up PopEntry(), which will return nil.
-  FDequeueEvent.SetEvent;
+  FDequeEvent.SetEvent;
 end;
 
 function TWorkerThread.PushTask(const ATask: ITask): ITask;
 begin
-  EnterCriticalSection(FQueueLock);
+  EnterCriticalSection(FDequeLock);
   try
     Log('TWorkerThread.PushTask %s', [DbgS(Pointer(ATask))]);
-    FQueue.Push(TTaskEntry.Create(ATask));
+    FDeque.PushBack(TTaskEntry.Create(ATask));
   finally
-    LeaveCriticalSection(FQueueLock);
+    LeaveCriticalSection(FDequeLock);
   end;
 
-  FDequeueEvent.SetEvent;
+  FDequeEvent.SetEvent;
   Result := ATask;
 end;
 
@@ -273,21 +276,22 @@ function TWorkerThread.PopEntry: ITaskEntry;
 begin
   // Wait until a task is queued or the event is set because
   // the worker thread is shutting down.
-  FDequeueEvent.WaitFor(INFINITE);
-  EnterCriticalSection(FQueueLock);
+  FDequeEvent.WaitFor(INFINITE);
+  EnterCriticalSection(FDequeLock);
   try
-    if not FQueue.IsEmpty then
+    if not FDeque.IsEmpty then
     begin
-      Result := FQueue.Front;
-      FQueue.Pop;
+      Result := FDeque.Items[0];
+      FDeque.Items[0] := nil; // release ITaskEntry reference at front
+      FDeque.PopFront;
     end
     else
       Result := nil; // event was set because Shutdown() was called
 
-    if FQueue.IsEmpty then
-      FDequeueEvent.ResetEvent;
+    if FDeque.IsEmpty then
+      FDequeEvent.ResetEvent;
   finally
-    LeaveCriticalSection(FQueueLock);
+    LeaveCriticalSection(FDequeLock);
   end;
 end;
 
