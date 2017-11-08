@@ -80,19 +80,20 @@ type
   private
     FFlags: TView3DFlags;
     FProperties: TStringList;
-    FChildren: TView3DList;
     FTextureName: cardinal;
     FInflightCaptureViewTask: ICaptureViewTask;
     function GetExpanded: boolean;
     function GetSimpleClassName: string;
-    function GetChildren(I: integer): TView3D;
-    function GetChildrenCount: integer; inline;
+    function GetChildrenCount: integer;
     procedure SetExpanded(AValue: boolean);
     procedure SetInflightCaptureViewTask(AValue: ICaptureViewTask);
   public
     Parent: TView3D;
     Next: TView3D;
     Previous: TView3D;
+    FirstChild: TView3D;
+    NextSibbling: TView3D;
+    PrevSibbling: TView3D;
     HashCode: string;
     QualifiedClassName: string;
     ZOrder: single;
@@ -129,7 +130,7 @@ type
     procedure Translate(const DX, DY, DZ: single);
     function Contains(const X, Y: integer): boolean;
     procedure SetProperty(const Name, Value: string);
-    procedure AddChild(V: TView3D);
+    procedure AddChild(AView: TView3D);
     function HasProp(const Name: string): boolean;
     function GetProp(const Name: string): string;
     function GetIntProp(const Name: string; DefaultValue: integer = 0): integer;
@@ -145,7 +146,6 @@ type
     function GetClippedWidth: single; inline;
     function GetClippedHeight: single; inline;
     property ChildrenCount: integer read GetChildrenCount;
-    property Children[I: integer]: TView3D read GetChildren;
     property SimpleClassName: string read GetSimpleClassName;
     property Expanded: boolean read GetExpanded write SetExpanded;
     property TextureName: cardinal read FTextureName write FTextureName;
@@ -164,10 +164,9 @@ uses
 function Flatten(RootView: TView3D): TView3D;
 var
   Q: TQueue;
-  PreviousView, View: TView3D;
+  PreviousView, View, ViewChild: TView3D;
   ElementsToDepthIncrease: integer = 1;
   NextElementsToDepthIncreate: integer = 0;
-  I: integer;
 begin
   PreviousView := RootView;
   Q := TQueue.Create;
@@ -188,8 +187,12 @@ begin
         NextElementsToDepthIncreate := 0;
       end;
 
-      for I := 0 to View.GetChildrenCount - 1 do
-        Q.Push(View.Children[I]);
+      ViewChild := View.FirstChild;
+      if Assigned(ViewChild) then
+        repeat
+          Q.Push(ViewChild);
+          ViewChild := ViewChild.NextSibbling;
+        until ViewChild = View.FirstChild;
     end;
   finally
     Q.Free;
@@ -259,14 +262,6 @@ end;
 
 { TView3D }
 
-function TView3D.GetChildren(I: integer): TView3D;
-begin
-  if Assigned(FChildren) then
-    Result := FChildren.Items[I]
-  else
-    Result := nil;
-end;
-
 function TView3D.GetSimpleClassName: string;
 var
   P: integer;
@@ -294,11 +289,16 @@ begin
 end;
 
 function TView3D.GetChildrenCount: integer;
+var
+  ViewChild: TView3D;
 begin
-  if Assigned(FChildren) then
-    Result := FChildren.Count
-  else
-    Result := 0;
+  Result := 0;
+  ViewChild := FirstChild;
+  if Assigned(ViewChild) then
+    repeat
+      Inc(Result);
+      ViewChild := ViewChild.NextSibbling;
+    until ViewChild = FirstChild;
 end;
 
 procedure TView3D.SetExpanded(AValue: boolean);
@@ -330,12 +330,19 @@ end;
 
 destructor TView3D.Destroy;
 var
-  I: integer;
+  CurrentChild, NextChild: TView3D;
 begin
   FProperties.Free;
-  for I := 0 to ChildrenCount - 1 do
-    Children[I].Free;
-  FChildren.Free;
+
+  // Free all children.
+  CurrentChild := FirstChild;
+  if Assigned(CurrentChild) then
+    repeat
+      NextChild := CurrentChild.NextSibbling;
+      CurrentChild.Free;
+      CurrentChild := NextChild;
+    until CurrentChild = FirstChild;
+
   CaptureViewTaskFactory := nil;
 
   if Assigned(FInflightCaptureViewTask) then
@@ -343,6 +350,7 @@ begin
     FInflightCaptureViewTask.Cancel;
     FInflightCaptureViewTask := nil;
   end;
+
   inherited;
 end;
 
@@ -413,17 +421,31 @@ begin
     FProperties.Add(Name + '=' + Value);
 end;
 
-procedure TView3D.AddChild(V: TView3D);
+procedure TView3D.AddChild(AView: TView3D);
+var
+  LastChild: TView3D;
 begin
-  if Assigned(V.Parent) then
-    raise EInvalidOperation.CreateFmt('View with HashCode=%s already has a parent.',
-      [V.HashCode]);
+  Assert(not Assigned(AView.Parent), 'AView.Parent must be nil');
+  Assert(not Assigned(AView.NextSibbling), 'AView.NextSibbling must be nil');
+  Assert(not Assigned(AView.PrevSibbling), 'AView.PrevSibbling must be nil');
 
-  if not Assigned(FChildren) then
-    FChildren := TView3DList.Create;
+  AView.Parent := Self;
 
-  V.Parent := Self;
-  FChildren.Add(V);
+  // Add the new child at the end of a circular, double-linked list.
+  if not Assigned(FirstChild) then
+  begin
+    AView.NextSibbling := AView;
+    AView.PrevSibbling := AView;
+    FirstChild := AView;
+  end
+  else
+  begin
+    LastChild := FirstChild.PrevSibbling;
+    LastChild.NextSibbling := AView;
+    AView.PrevSibbling := LastChild;
+    AView.NextSibbling := FirstChild;
+    FirstChild.PrevSibbling := AView;
+  end;
 end;
 
 function TView3D.HasProp(const Name: string): boolean;

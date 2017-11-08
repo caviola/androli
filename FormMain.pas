@@ -350,13 +350,19 @@ procedure TMainForm.UpdateTreeView(ARootView: TView3D);
 
   procedure AddView(View: TView3D; Parent: TTreeNode = nil);
   var
-    I: integer;
+    ViewChild: TView3D;
     NewNode: TTreeNode;
   begin
     View.TreeNodeText := GetTreeNodeText(View);
     NewNode := TreeView.Items.AddChildObject(Parent, View.TreeNodeText, View);
-    for I := 0 to View.ChildrenCount - 1 do
-      AddView(View.Children[I], NewNode);
+
+    ViewChild := View.FirstChild;
+    if Assigned(ViewChild) then
+      repeat
+        AddView(ViewChild, NewNode);
+        ViewChild := ViewChild.NextSibbling;
+      until ViewChild = View.FirstChild;
+
     NewNode.Expanded := View.Expanded;
   end;
 

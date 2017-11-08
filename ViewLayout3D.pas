@@ -296,18 +296,17 @@ procedure TViewLayout3D.Collapse(Root: TView3D);
 
   procedure Visit(View: TView3D);
   var
-    I: integer;
-    Target: TView3D;
+    ViewChild: TView3D;
   begin
-    if View.ChildrenCount > 0 then
+    ViewChild := View.FirstChild;
+    if Assigned(ViewChild) then
     begin
       View.Expanded := False;
-      for I := 0 to View.ChildrenCount - 1 do
-      begin
-        Target := View.Children[I];
-        FZOrderAnimator.AddTarget(Target, Target.ZOrder, Root.ZOrder);
-        Visit(Target);
-      end;
+      repeat
+        FZOrderAnimator.AddTarget(ViewChild, ViewChild.ZOrder, Root.ZOrder);
+        Visit(ViewChild);
+        ViewChild := ViewChild.NextSibbling;
+      until ViewChild = View.FirstChild;
     end
     else
       FZOrderAnimator.AddTarget(View, View.ZOrder, Root.ZOrder);
@@ -326,23 +325,26 @@ procedure TViewLayout3D.Expand(Root: TView3D);
 
   procedure Visit(View, LastVisibleParent: TView3D);
   var
-    I: integer;
-    Target: TView3D;
+    ViewChild: TView3D;
   begin
+    ViewChild := View.FirstChild;
+    if not Assigned(ViewChild) then
+      Exit;
+
     if View.Expanded then
-      for I := 0 to View.ChildrenCount - 1 do
-      begin
-        Target := View.Children[I];
-        FZOrderAnimator.AddTarget(Target, Root.ZOrder, Target.ZOrderOriginal);
-        Visit(Target, Target);
-      end
+      repeat
+        FZOrderAnimator.AddTarget(ViewChild, Root.ZOrder,
+          ViewChild.ZOrderOriginal);
+        Visit(ViewChild, ViewChild);
+        ViewChild := ViewChild.NextSibbling;
+      until ViewChild = View.FirstChild
     else
-      for I := 0 to View.ChildrenCount - 1 do
-      begin
-        Target := View.Children[I];
-        FZOrderAnimator.AddTarget(Target, Root.ZOrder, LastVisibleParent.ZOrderOriginal);
-        Visit(Target, LastVisibleParent);
-      end;
+      repeat
+        FZOrderAnimator.AddTarget(ViewChild, Root.ZOrder,
+          LastVisibleParent.ZOrderOriginal);
+        Visit(ViewChild, LastVisibleParent);
+        ViewChild := ViewChild.NextSibbling;
+      until ViewChild = View.FirstChild;
   end;
 
 begin
@@ -1000,11 +1002,15 @@ procedure TViewLayout3D.ShowBranch(AView: TView3D);
 
   procedure ShowView(V: TView3D);
   var
-    I: integer;
+    ViewChild: TView3D;
   begin
     V.Visible := True;
-    for I := 0 to V.ChildrenCount - 1 do
-      ShowView(V.Children[I]);
+    ViewChild := V.FirstChild;
+    if Assigned(ViewChild) then
+      repeat
+        ShowView(ViewChild);
+        ViewChild := ViewChild.NextSibbling;
+      until ViewChild = V.FirstChild;
   end;
 
 var
