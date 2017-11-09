@@ -1,4 +1,4 @@
-unit ViewLayout3D;
+unit LayoutViewer;
 
 {$mode objfpc}{$H+}
 
@@ -15,9 +15,9 @@ type
   TZOrderAnimator = class;
   TToggleView3DAnimator = class;
 
-  { TViewLayout3D }
+  { TLayoutViewer }
 
-  TViewLayout3D = class(TOpenGLControl)
+  TLayoutViewer = class(TOpenGLControl)
   private
     FView3DEnabled: boolean;
     FRootView: TView3D;
@@ -236,9 +236,9 @@ begin
   FTargets[I].EndValue := EndValue;
 end;
 
-{ TViewLayout3D }
+{ TLayoutViewer }
 
-constructor TViewLayout3D.Create(AOwner: TComponent);
+constructor TLayoutViewer.Create(AOwner: TComponent);
 begin
   inherited;
 
@@ -270,7 +270,7 @@ begin
   FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
 end;
 
-destructor TViewLayout3D.Destroy;
+destructor TLayoutViewer.Destroy;
 begin
   FZOrderAnimator.Free;
   FZoomLevelAnimator.Free;
@@ -279,20 +279,20 @@ begin
   inherited Destroy;
 end;
 
-procedure TViewLayout3D.Changed;
+procedure TLayoutViewer.Changed;
 begin
-  Log('TViewLayout3D.Changed');
+  Log('TLayoutViewer.Changed');
   Invalidate;
 end;
 
-procedure TViewLayout3D.Zoom(Delta: integer);
+procedure TLayoutViewer.Zoom(Delta: integer);
 begin
   FZoomLevelAnimator.SetValueInterval(ZoomLevel,
     EnsureRange(FZoomLevel + Delta * StepZoomLevel, MinZoomLevel, MaxZoomLevel));
   FZoomLevelAnimator.Restart;
 end;
 
-procedure TViewLayout3D.Collapse(Root: TView3D);
+procedure TLayoutViewer.Collapse(Root: TView3D);
 
   procedure Visit(View: TView3D);
   var
@@ -313,7 +313,7 @@ procedure TViewLayout3D.Collapse(Root: TView3D);
   end;
 
 begin
-  Log('TViewLayout3D.Collapse %s', [DbgS(Root)]);
+  Log('TLayoutViewer.Collapse %s', [DbgS(Root)]);
 
   FZOrderAnimator.Finish;
   FZOrderAnimator.ClearTargets;
@@ -321,7 +321,7 @@ begin
   FZOrderAnimator.Start;
 end;
 
-procedure TViewLayout3D.Expand(Root: TView3D);
+procedure TLayoutViewer.Expand(Root: TView3D);
 
   procedure Visit(View, LastVisibleParent: TView3D);
   var
@@ -348,7 +348,7 @@ procedure TViewLayout3D.Expand(Root: TView3D);
   end;
 
 begin
-  Log('TViewLayout3D.Expand %s', [DbgS(Root)]);
+  Log('TLayoutViewer.Expand %s', [DbgS(Root)]);
 
   FZOrderAnimator.Finish;
   FZOrderAnimator.ClearTargets;
@@ -356,9 +356,9 @@ begin
   FZOrderAnimator.Start;
 end;
 
-procedure TViewLayout3D.SetRootView(AValue: TView3D);
+procedure TLayoutViewer.SetRootView(AValue: TView3D);
 begin
-  Log('TViewLayout3D.SetRootView %s', [DbgS(AValue)]);
+  Log('TLayoutViewer.SetRootView %s', [DbgS(AValue)]);
 
   if FRootView = AValue then
     Exit;
@@ -417,12 +417,12 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.StartCaptureView;
+procedure TLayoutViewer.StartCaptureView;
 var
   View: TView3D;
   TaskFactory: ICaptureViewTaskFactory;
 begin
-  Log('TViewLayout3D.StartCaptureView');
+  Log('TLayoutViewer.StartCaptureView');
 
   View := FRootView;
   repeat
@@ -438,22 +438,22 @@ begin
   until View = FRootView;
 end;
 
-procedure TViewLayout3D.ActiveViewChangedTimerTimer(Sender: TObject);
+procedure TLayoutViewer.ActiveViewChangedTimerTimer(Sender: TObject);
 begin
-  LogEnterMethod('TViewLayout3D.ActiveViewChangedTimerTimer');
+  LogEnterMethod('TLayoutViewer.ActiveViewChangedTimerTimer');
 
   FActiveViewChangedTimer.Enabled := False;
   DoActiveViewChanged;
 
-  LogExitMethod('TViewLayout3D.ActiveViewChangedTimerTimer');
+  LogExitMethod('TLayoutViewer.ActiveViewChangedTimerTimer');
 end;
 
-procedure TViewLayout3D.MouseLeaveHandler(Sender: TObject);
+procedure TLayoutViewer.MouseLeaveHandler(Sender: TObject);
 begin
   HighlightedView := nil;
 end;
 
-procedure TViewLayout3D.SetRotationX(Degres: single);
+procedure TLayoutViewer.SetRotationX(Degres: single);
 begin
   if FRotationX <> Degres then
   begin
@@ -462,19 +462,19 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.SetActiveView(AValue: TView3D);
+procedure TLayoutViewer.SetActiveView(AValue: TView3D);
 begin
   if FActiveView = AValue then
     Exit;
 
   FActiveView := AValue;
-  Log('TViewLayout3D.SetActiveView: FActiveView=%s', [DbgS(FActiveView)]);
+  Log('TLayoutViewer.SetActiveView: FActiveView=%s', [DbgS(FActiveView)]);
 
   DoActiveViewChanged;
   Invalidate;
 end;
 
-procedure TViewLayout3D.SetActiveBranch(AValue: TView3D);
+procedure TLayoutViewer.SetActiveBranch(AValue: TView3D);
 begin
   // Activate root view if requested branch is nil.
   if not Assigned(AValue) then
@@ -484,7 +484,7 @@ begin
     Exit;
 
   FActiveBranch := AValue;
-  Log('TViewLayout3D.SetActiveBranch: FActiveBranch=%s', [DbgS(FActiveBranch)]);
+  Log('TLayoutViewer.SetActiveBranch: FActiveBranch=%s', [DbgS(FActiveBranch)]);
 
   if Assigned(FActiveBranch) then // something to show?
   begin
@@ -492,16 +492,16 @@ begin
 
     if Assigned(FOnActiveBranchChanged) then
     begin
-      LogEnterMethod('TViewLayout3D.OnActiveBranchChanged');
+      LogEnterMethod('TLayoutViewer.OnActiveBranchChanged');
       FOnActiveBranchChanged(Self);
-      LogExitMethod('TViewLayout3D.OnActiveBranchChanged');
+      LogExitMethod('TLayoutViewer.OnActiveBranchChanged');
     end;
 
     Invalidate;
   end;
 end;
 
-procedure TViewLayout3D.SetView3DEnabled(AValue: boolean);
+procedure TLayoutViewer.SetView3DEnabled(AValue: boolean);
 begin
   if FView3DEnabled = AValue then
     Exit;
@@ -522,7 +522,7 @@ begin
   FToggleView3DAnimator.Restart;
 end;
 
-procedure TViewLayout3D.SetClipBounds(AValue: boolean);
+procedure TLayoutViewer.SetClipBounds(AValue: boolean);
 begin
   if FClipBounds <> AValue then
   begin
@@ -531,7 +531,7 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.SetHighlightedView(AValue: TView3D);
+procedure TLayoutViewer.SetHighlightedView(AValue: TView3D);
 begin
   if FHighlightedView <> AValue then
   begin
@@ -540,7 +540,7 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.SetRotationY(Degres: single);
+procedure TLayoutViewer.SetRotationY(Degres: single);
 begin
   if FRotationY <> Degres then
   begin
@@ -549,7 +549,7 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.SetZoomLevel(AValue: single);
+procedure TLayoutViewer.SetZoomLevel(AValue: single);
 begin
   if FZoomLevel <> AValue then
   begin
@@ -558,7 +558,7 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.SetScaleZ(AValue: single);
+procedure TLayoutViewer.SetScaleZ(AValue: single);
 begin
   if FScaleZ <> AValue then
   begin
@@ -567,7 +567,7 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.SetOriginX(AValue: single);
+procedure TLayoutViewer.SetOriginX(AValue: single);
 begin
   if FOriginX <> AValue then
   begin
@@ -576,7 +576,7 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.SetOriginY(AValue: single);
+procedure TLayoutViewer.SetOriginY(AValue: single);
 begin
   if FOriginY <> AValue then
   begin
@@ -585,7 +585,7 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.DoOnPaint;
+procedure TLayoutViewer.DoOnPaint;
 
   procedure DrawTexture(Left, Top, Right, Bottom, Z: single;
     TextureName: integer); inline;
@@ -839,7 +839,7 @@ begin
   SwapBuffers;
 end;
 
-procedure TViewLayout3D.ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
+procedure TLayoutViewer.ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
   const InterpolatedFraction: single);
 var
   A: TToggleView3DAnimator absolute Sender;
@@ -850,7 +850,7 @@ begin
     A.RotationYEndValue);
 end;
 
-procedure TViewLayout3D.MouseDownHandler(Sender: TObject; Button: TMouseButton;
+procedure TLayoutViewer.MouseDownHandler(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: integer);
 begin
   if (Button = mbLeft) and not (ssDouble in Shift) then
@@ -861,7 +861,7 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.MouseClickHandler(Sender: TObject);
+procedure TLayoutViewer.MouseClickHandler(Sender: TObject);
 var
   NewActiveView: TView3D;
 begin
@@ -879,37 +879,37 @@ begin
     // or OnDblClick handler, whichever comes first.
     NewActiveView := HitTest(FLastMouseX, FLastMouseY);
 
-    Log('TViewLayout3D.MouseClickHandler: HitTest(%d,%d)=%s',
+    Log('TLayoutViewer.MouseClickHandler: HitTest(%d,%d)=%s',
       [FLastMouseX, FLastMouseY, DbgS(NewActiveView)]);
 
     if NewActiveView <> FActiveView then
     begin
       FActiveView := NewActiveView;
-      Log('TViewLayout3D.MouseClickHandler: FActiveView=%s', [DbgS(FActiveView)]);
+      Log('TLayoutViewer.MouseClickHandler: FActiveView=%s', [DbgS(FActiveView)]);
       FActiveViewChangedTimer.Enabled := True;
       Invalidate;
     end;
   end;
 end;
 
-procedure TViewLayout3D.MouseDblClickHandler(Sender: TObject);
+procedure TLayoutViewer.MouseDblClickHandler(Sender: TObject);
 begin
-  LogEnterMethod('TViewLayout3D.MouseDblClickHandler');
+  LogEnterMethod('TLayoutViewer.MouseDblClickHandler');
 
   FActiveViewChangedTimer.Enabled := False;
   ActiveBranch := ActiveView;
   DoActiveViewChanged;
 
-  LogExitMethod('TViewLayout3D.MouseDblClickHandler');
+  LogExitMethod('TLayoutViewer.MouseDblClickHandler');
 end;
 
-procedure TViewLayout3D.MouseUpHandler(Sender: TObject; Button: TMouseButton;
+procedure TLayoutViewer.MouseUpHandler(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: integer);
 begin
   FMouseState := msNone;
 end;
 
-procedure TViewLayout3D.MouseMoveHandler(Sender: TObject; Shift: TShiftState;
+procedure TLayoutViewer.MouseMoveHandler(Sender: TObject; Shift: TShiftState;
   X, Y: integer);
 begin
   if FMouseState = msDown then
@@ -939,7 +939,7 @@ begin
     HighlightedView := HitTest(X, Y);
 end;
 
-procedure TViewLayout3D.MouseWheelHandler(Sender: TObject; Shift: TShiftState;
+procedure TLayoutViewer.MouseWheelHandler(Sender: TObject; Shift: TShiftState;
   WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
 begin
   if (FMouseState = msDragging) or FToggleView3DAnimator.IsRunning then
@@ -964,17 +964,17 @@ begin
   end;
 end;
 
-procedure TViewLayout3D.DoActiveViewChanged;
+procedure TLayoutViewer.DoActiveViewChanged;
 begin
   if Assigned(FOnActiveViewChanged) then
   begin
-    LogEnterMethod('TViewLayout3D.OnActiveViewChanged');
+    LogEnterMethod('TLayoutViewer.OnActiveViewChanged');
     FOnActiveViewChanged(Self);
-    LogExitMethod('TViewLayout3D.OnActiveViewChanged');
+    LogExitMethod('TLayoutViewer.OnActiveViewChanged');
   end;
 end;
 
-function TViewLayout3D.HitTest(X, Y: integer): TView3D;
+function TLayoutViewer.HitTest(X, Y: integer): TView3D;
 var
   View: TView3D;
 begin
@@ -999,7 +999,7 @@ begin
   until View = FRootView.Previous;
 end;
 
-procedure TViewLayout3D.ShowBranch(AView: TView3D);
+procedure TLayoutViewer.ShowBranch(AView: TView3D);
 
   procedure ShowView(V: TView3D);
   var
@@ -1028,24 +1028,24 @@ begin
   ShowView(AView);
 end;
 
-procedure TViewLayout3D.ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
+procedure TLayoutViewer.ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
 begin
   ZoomLevel := Value;
 end;
 
-procedure TViewLayout3D.ScaleZAnimateValueHandler(Sender: TFloatAnimator;
+procedure TLayoutViewer.ScaleZAnimateValueHandler(Sender: TFloatAnimator;
   Value: single);
 begin
   ScaleZ := Value;
 end;
 
-procedure TViewLayout3D.ZOrderAnimatorUpdateHandler(Sender: TAnimator;
+procedure TLayoutViewer.ZOrderAnimatorUpdateHandler(Sender: TAnimator;
   const InterpolatedFraction: single);
 begin
   Invalidate;
 end;
 
-procedure TViewLayout3D.CaptureViewTaskSuccessHandler(const Task: ITask);
+procedure TLayoutViewer.CaptureViewTaskSuccessHandler(const Task: ITask);
 var
   TextureName: GLint = 0;
   View: TView3D;

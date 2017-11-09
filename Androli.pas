@@ -11,7 +11,7 @@ uses {$IFDEF UNIX}
   Logging,
   FormMain,
   View3DTypes,
-  ViewLayout3D,
+  LayoutViewer,
   Animators,
   AndroidDebugBridge,
   FormOpenWindow,

@@ -6,7 +6,7 @@ interface
 
 uses
   Forms, Controls, StdCtrls, Dialogs, ComCtrls, ValEdit, ExtCtrls, Menus,
-  TreeFilterEdit, View3DTypes, ViewLayout3D, TaskRunner, Classes, SysUtils, Bookmarks;
+  TreeFilterEdit, View3DTypes, LayoutViewer, TaskRunner, Classes, SysUtils, Bookmarks;
 
 type
 
@@ -108,7 +108,7 @@ type
     procedure TreeViewSelectionChanged(Sender: TObject);
   private
     FRootView: TView3D;
-    FViewLayout3D: TViewLayout3D;
+    FLayoutViewer: TLayoutViewer;
     FScreenCursor: TCursor;
     FLayoutOpenTask: ILayoutOpenTask;
     FIndexedBookmarkManager: TIndexedBookmarkManager;
@@ -117,8 +117,8 @@ type
   protected
     procedure GotoBookmarkHandler(Sender: TObject);
     procedure ToggleBookmarkHandler(Sender: TObject);
-    procedure ViewLayout3DActiveViewChanged(Sender: TObject);
-    procedure ViewLayout3DActiveBranchChanged(Sender: TObject);
+    procedure LayoutViewerActiveViewChanged(Sender: TObject);
+    procedure LayoutViewerActiveBranchChanged(Sender: TObject);
     procedure UpdateTreeView(ARootView: TView3D = nil);
     procedure UpdatePropertyInspector(View: TView3D = nil);
     procedure LayoutOpenTaskError(const Task: ITask; Error: Exception);
@@ -155,18 +155,18 @@ const
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
-  FViewLayout3D := TViewLayout3D.Create(Self);
-  FViewLayout3D.Parent := Self;
-  FViewLayout3D.Align := alClient;
-  FViewLayout3D.OnActiveViewChanged := @ViewLayout3DActiveViewChanged;
-  FViewLayout3D.OnActiveBranchChanged := @ViewLayout3DActiveBranchChanged;
+  FLayoutViewer := TLayoutViewer.Create(Self);
+  FLayoutViewer.Parent := Self;
+  FLayoutViewer.Align := alClient;
+  FLayoutViewer.OnActiveViewChanged := @LayoutViewerActiveViewChanged;
+  FLayoutViewer.OnActiveBranchChanged := @LayoutViewerActiveBranchChanged;
   {$IFDEF DEBUG}
   StartOpenLayout(CreateDumpFileOpenTask('dumps/dump3.uix'));
   {$ENDIF}
-  SetControlIndex(FViewLayout3D, 0);
+  SetControlIndex(FLayoutViewer, 0);
 
-  MenuItemToggleView3D.Checked := FViewLayout3D.View3DEnabled;
-  MenuItemClipToParent.Checked := FViewLayout3D.ClipBounds;
+  MenuItemToggleView3D.Checked := FLayoutViewer.View3DEnabled;
+  MenuItemClipToParent.Checked := FLayoutViewer.ClipBounds;
 
   KeyPreview := True;
 
@@ -197,7 +197,7 @@ end;
 
 procedure TMainForm.TreeFilterEditAfterFilter(Sender: TObject);
 begin
-  FViewLayout3D.Changed;
+  FLayoutViewer.Changed;
 end;
 
 function TMainForm.TreeFilterEditFilterItem(Item: TObject; out Done: boolean): boolean;
@@ -233,7 +233,7 @@ var
 begin
   Node := TreeView.GetNodeAt(X, Y);
   if Assigned(Node) then
-    FViewLayout3D.HighlightedView := TView3D(Node.Data);
+    FLayoutViewer.HighlightedView := TView3D(Node.Data);
 end;
 
 procedure TMainForm.TreeViewSelectionChanged(Sender: TObject);
@@ -247,7 +247,7 @@ begin
   if Assigned(SelectedTreeNode) then
   begin
     SelectedView := TView3D(SelectedTreeNode.Data);
-    FViewLayout3D.ActiveView := SelectedView;
+    FLayoutViewer.ActiveView := SelectedView;
     UpdatePropertyInspector(SelectedView);
   end
   else
@@ -302,7 +302,7 @@ begin
   OldRootView := FRootView;
   FRootView := AValue;
 
-  FViewLayout3D.RootView := FRootView;
+  FLayoutViewer.RootView := FRootView;
   UpdateTreeView(FRootView);
   UpdatePropertyInspector;
 
@@ -322,20 +322,20 @@ begin
   FIndexedBookmarkManager.Toggle(TMenuItem(Sender).Tag);
 end;
 
-procedure TMainForm.ViewLayout3DActiveViewChanged(Sender: TObject);
+procedure TMainForm.LayoutViewerActiveViewChanged(Sender: TObject);
 var
   View: TView3D;
   TreeNode: TTreeNode;
 begin
-  View := TViewLayout3D(Sender).ActiveView;
+  View := TLayoutViewer(Sender).ActiveView;
   if Assigned(View) then
   begin
     TreeNode := TreeView.Items.FindNodeWithData(View);
     // Note that changing the selection on TreeView will cause our
     // TreeViewSelectionChanged to be called, which in turn, will set
-    // FViewLayout3D.ActiveView to the new selection.
+    // FLayoutViewer.ActiveView to the new selection.
     // But since the new selection is the same as the old one, the assignment
-    // won't have any affect on FLayout3DViewer and the notification loop
+    // won't have any affect on FLayoutViewer and the notification loop
     // will stop here.
     // Note also that we don't update the property inspector here because
     // TreeViewSelectionChanged will take care of it.
@@ -543,14 +543,14 @@ begin
   Result := TBookmark.Create;
   with TBookmark(Result) do
   begin
-    ActiveView := FViewLayout3D.ActiveView;
-    ActiveBranch := FViewLayout3D.ActiveBranch;
-    OriginX := FViewLayout3D.OriginX;
-    OriginY := FViewLayout3D.OriginY;
-    RotationX := FViewLayout3D.RotationX;
-    RotationY := FViewLayout3D.RotationY;
-    ScaleZ := FViewLayout3D.ScaleZ;
-    ZoomLevel := FViewLayout3D.ZoomLevel;
+    ActiveView := FLayoutViewer.ActiveView;
+    ActiveBranch := FLayoutViewer.ActiveBranch;
+    OriginX := FLayoutViewer.OriginX;
+    OriginY := FLayoutViewer.OriginY;
+    RotationX := FLayoutViewer.RotationX;
+    RotationY := FLayoutViewer.RotationY;
+    ScaleZ := FLayoutViewer.ScaleZ;
+    ZoomLevel := FLayoutViewer.ZoomLevel;
     TreeFilter := TreeFilterEdit.Text;
   end;
 
@@ -567,7 +567,7 @@ begin
     // because they all affect TreeView.
     TreeView.BeginUpdate;
     try
-      FViewLayout3D.ActiveBranch := ActiveBranch;
+      FLayoutViewer.ActiveBranch := ActiveBranch;
       // We first use ForceFilter so that TreeView is filtered immediately.
       // Otherwise we'll have flickering because filtering by default
       // is done in a TApplication.OnIdle handler.
@@ -579,22 +579,22 @@ begin
       TreeView.EndUpdate;
     end;
 
-    FViewLayout3D.ActiveView := ActiveView;
-    FViewLayout3D.HighlightedView := nil;
-    FViewLayout3D.OriginX := OriginX;
-    FViewLayout3D.OriginY := OriginY;
-    FViewLayout3D.RotationX := RotationX;
-    FViewLayout3D.RotationY := RotationY;
-    FViewLayout3D.ScaleZ := ScaleZ;
-    FViewLayout3D.ZoomLevel := ZoomLevel;
+    FLayoutViewer.ActiveView := ActiveView;
+    FLayoutViewer.HighlightedView := nil;
+    FLayoutViewer.OriginX := OriginX;
+    FLayoutViewer.OriginY := OriginY;
+    FLayoutViewer.RotationX := RotationX;
+    FLayoutViewer.RotationY := RotationY;
+    FLayoutViewer.ScaleZ := ScaleZ;
+    FLayoutViewer.ZoomLevel := ZoomLevel;
   end;
 
   LogExitMethod('TMainForm.RestoreBookmark');
 end;
 
-procedure TMainForm.ViewLayout3DActiveBranchChanged(Sender: TObject);
+procedure TMainForm.LayoutViewerActiveBranchChanged(Sender: TObject);
 begin
-  UpdateTreeView(TViewLayout3D(Sender).ActiveBranch);
+  UpdateTreeView(TLayoutViewer(Sender).ActiveBranch);
 end;
 
 procedure TMainForm.MenuItemOpenFileClick(Sender: TObject);
@@ -640,7 +640,7 @@ var
   MenuItem: TMenuItem absolute Sender;
 begin
   MenuItem.Checked := not MenuItem.Checked;
-  FViewLayout3D.ClipBounds := MenuItem.Checked;
+  FLayoutViewer.ClipBounds := MenuItem.Checked;
 end;
 
 procedure TMainForm.MenuItemCloseClick(Sender: TObject);
@@ -668,7 +668,7 @@ var
   MenuItem: TMenuItem absolute Sender;
 begin
   MenuItem.Checked := not MenuItem.Checked;
-  FViewLayout3D.View3DEnabled := MenuItem.Checked;
+  FLayoutViewer.View3DEnabled := MenuItem.Checked;
 end;
 
 procedure TMainForm.MenuItemOpenWindowClick(Sender: TObject);
@@ -685,12 +685,12 @@ end;
 
 procedure TMainForm.MenuItemZoomInClick(Sender: TObject);
 begin
-  FViewLayout3D.Zoom(1);
+  FLayoutViewer.Zoom(1);
 end;
 
 procedure TMainForm.MenuItemZoomOutClick(Sender: TObject);
 begin
-  FViewLayout3D.Zoom(-1);
+  FLayoutViewer.Zoom(-1);
 end;
 
 procedure TMainForm.TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
@@ -703,7 +703,7 @@ begin
   if Node.Deleting or not Root.Expanded then
     Exit;
 
-  FViewLayout3D.Collapse(Root);
+  FLayoutViewer.Collapse(Root);
 end;
 
 procedure TMainForm.TreeViewExpanded(Sender: TObject; Node: TTreeNode);
@@ -737,12 +737,12 @@ begin
   // We need this info in the views because expanded views are animated
   // slightly different than collapsed ones.
   Visit(Node);
-  FViewLayout3D.Expand(Root);
+  FLayoutViewer.Expand(Root);
 end;
 
 procedure TMainForm.TreeViewMouseLeave(Sender: TObject);
 begin
-  FViewLayout3D.HighlightedView := nil;
+  FLayoutViewer.HighlightedView := nil;
 end;
 
 procedure TMainForm.UpdateTreeViewLabels(Sender: TObject);
