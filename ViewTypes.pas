@@ -1,4 +1,4 @@
-unit View3DTypes;
+unit ViewTypes;
 
 {$mode objfpc}{$H+}
 
@@ -9,14 +9,14 @@ uses
 
 type
 
-  TView3D = class;
+  TView = class;
 
   { IViewProviderTask }
 
   IViewProviderTask = interface(ITask)
     ['{66E57A29-772A-4C95-B7AA-FE9926B6E041}']
     // Can be called only once and caller is responsible for freeing the result.
-    function GetResult: TView3D;
+    function GetResult: TView;
   end;
 
   { ICaptureViewTask }
@@ -25,27 +25,27 @@ type
     ['{61FCD982-73FE-4B2D-A4E9-6C380FD1183A}']
     // Can be called only once and caller is responsible for freeing the result.
     function GetResult: TRasterImage;
-    function GetAssociatedView: TView3D;
-    property AssociatedView: TView3D read GetAssociatedView;
+    function GetAssociatedView: TView;
+    property AssociatedView: TView read GetAssociatedView;
   end;
 
   { TCaptureViewTask }
 
   TCaptureViewTask = class(TTask, ICaptureViewTask)
   protected
-    FAssociatedView: TView3D;
+    FAssociatedView: TView;
     FResult: TRasterImage;
   public
-    constructor Create(AView: TView3D);
+    constructor Create(AView: TView);
     destructor Destroy; override;
     function GetResult: TRasterImage;
-    function GetAssociatedView: TView3D;
+    function GetAssociatedView: TView;
   end;
 
   { ICaptureViewTaskFactory }
 
   ICaptureViewTaskFactory = interface
-    function CreateTask(View: TView3D): TCaptureViewTask;
+    function CreateTask(View: TView): TCaptureViewTask;
   end;
 
   { ILayoutOpenTask }
@@ -60,16 +60,16 @@ type
 
   TLayoutOpenTask = class(TTask, ILayoutOpenTask)
   private
-    FResult: TView3D;
+    FResult: TView;
   protected
-    procedure SetResult(AValue: TView3D);
+    procedure SetResult(AValue: TView);
   public
     destructor Destroy; override;
-    function GetResult: TView3D;
+    function GetResult: TView;
     function GetDisplayName: string; virtual; abstract;
   end;
 
-  TView3DFlags = set of (
+  TViewFlags = set of (
     vfExpanding,
     vfCollapsing,
     vfExpanded,
@@ -77,11 +77,11 @@ type
     vfVisibilityInvisible,
     vfVisibilityGone);
 
-  { TView3D }
+  { TView }
 
-  TView3D = class
+  TView = class
   private
-    FFlags: TView3DFlags;
+    FFlags: TViewFlags;
     FProperties: TStringList;
     FTextureName: cardinal;
     FInflightCaptureViewTask: ICaptureViewTask;
@@ -98,12 +98,12 @@ type
     function GetClippedWidth: single; inline;
     function GetClippedHeight: single; inline;
   public
-    Parent: TView3D;
-    Next: TView3D;
-    Previous: TView3D;
-    FirstChild: TView3D;
-    NextSibbling: TView3D;
-    PrevSibbling: TView3D;
+    Parent: TView;
+    Next: TView;
+    Previous: TView;
+    FirstChild: TView;
+    NextSibbling: TView;
+    PrevSibbling: TView;
     HashCode: string;
     QualifiedClassName: string;
     ZOrder: single;
@@ -139,7 +139,7 @@ type
     procedure Translate(const DX, DY, DZ: single);
     function Contains(const X, Y: integer): boolean;
     procedure SetProperty(const Name, Value: string);
-    procedure AddChild(AView: TView3D);
+    procedure AddChild(AView: TView);
     function HasProp(const Name: string): boolean; inline;
     function GetProp(const Name: string): string; inline;
     function GetIntProp(const Name: string; DefaultValue: integer = 0): integer; inline;
@@ -164,17 +164,17 @@ type
   end;
 
 
-function Flatten(RootView: TView3D): TView3D;
+function Flatten(RootView: TView): TView;
 
 implementation
 
 uses
   SysUtils, LazLogger, contnrs;
 
-function Flatten(RootView: TView3D): TView3D;
+function Flatten(RootView: TView): TView;
 var
   Q: TQueue;
-  PreviousView, View, ViewChild: TView3D;
+  PreviousView, View, ViewChild: TView;
   ElementsToDepthIncrease: integer = 1;
   NextElementsToDepthIncreate: integer = 0;
 begin
@@ -184,7 +184,7 @@ begin
     Q.Push(RootView);
     while Q.Count > 0 do
     begin
-      View := TView3D(Q.Pop);
+      View := TView(Q.Pop);
       PreviousView.Next := View;
       View.Previous := PreviousView;
       PreviousView := View;
@@ -224,7 +224,7 @@ begin
   inherited;
 end;
 
-function TLayoutOpenTask.GetResult: TView3D;
+function TLayoutOpenTask.GetResult: TView;
 begin
   if not Assigned(FResult) then
     raise Exception.CreateFmt(
@@ -235,14 +235,14 @@ begin
   FResult := nil;
 end;
 
-procedure TLayoutOpenTask.SetResult(AValue: TView3D);
+procedure TLayoutOpenTask.SetResult(AValue: TView);
 begin
   FResult := AValue;
 end;
 
 { TCaptureViewTask }
 
-constructor TCaptureViewTask.Create(AView: TView3D);
+constructor TCaptureViewTask.Create(AView: TView);
 begin
   FAssociatedView := AView;
   FAssociatedView.InflightCaptureViewTask := Self;
@@ -265,14 +265,14 @@ begin
   FResult := nil;
 end;
 
-function TCaptureViewTask.GetAssociatedView: TView3D;
+function TCaptureViewTask.GetAssociatedView: TView;
 begin
   Result := FAssociatedView;
 end;
 
-{ TView3D }
+{ TView }
 
-function TView3D.GetSimpleClassName: string;
+function TView.GetSimpleClassName: string;
 var
   P: integer;
 begin
@@ -283,24 +283,24 @@ begin
     Result := QualifiedClassName;
 end;
 
-function TView3D.GetExpanded: boolean;
+function TView.GetExpanded: boolean;
 begin
   Result := vfExpanded in FFlags;
 end;
 
-function TView3D.GetPropCount: integer;
+function TView.GetPropCount: integer;
 begin
   Result := FProperties.Count;
 end;
 
-procedure TView3D.GetPropNameValue(I: integer; out Name, Value: string);
+procedure TView.GetPropNameValue(I: integer; out Name, Value: string);
 begin
   FProperties.GetNameValue(I, Name, Value);
 end;
 
-function TView3D.GetChildrenCount: integer;
+function TView.GetChildrenCount: integer;
 var
-  ViewChild: TView3D;
+  ViewChild: TView;
 begin
   Result := 0;
   ViewChild := FirstChild;
@@ -311,12 +311,12 @@ begin
     until ViewChild = FirstChild;
 end;
 
-function TView3D.GetVisibilityGone: boolean;
+function TView.GetVisibilityGone: boolean;
 begin
   Result := vfVisibilityGone in FFlags;
 end;
 
-procedure TView3D.SetExpanded(AValue: boolean);
+procedure TView.SetExpanded(AValue: boolean);
 begin
   if AValue then
     Include(FFlags, vfExpanded)
@@ -324,14 +324,14 @@ begin
     Exclude(FFlags, vfExpanded);
 end;
 
-procedure TView3D.SetInflightCaptureViewTask(AValue: ICaptureViewTask);
+procedure TView.SetInflightCaptureViewTask(AValue: ICaptureViewTask);
 begin
   if Assigned(FInflightCaptureViewTask) then
     FInflightCaptureViewTask.Cancel;
   FInflightCaptureViewTask := AValue;
 end;
 
-constructor TView3D.Create;
+constructor TView.Create;
 begin
   Visible := True;
   FProperties := TStringList.Create;
@@ -342,9 +342,9 @@ begin
   Expanded := True;
 end;
 
-destructor TView3D.Destroy;
+destructor TView.Destroy;
 var
-  CurrentChild, NextChild: TView3D;
+  CurrentChild, NextChild: TView;
 begin
   FProperties.Free;
 
@@ -368,7 +368,7 @@ begin
   inherited;
 end;
 
-procedure TView3D.SetBounds(ALeft, ATop, ARight, ABottom, AZ: integer);
+procedure TView.SetBounds(ALeft, ATop, ARight, ABottom, AZ: integer);
 begin
   Left := ALeft;
   Top := ATop;
@@ -378,7 +378,7 @@ begin
   ZOrderOriginal := AZ;
 end;
 
-procedure TView3D.SetPaddings(ALeft, ATop, ARight, ABottom: integer);
+procedure TView.SetPaddings(ALeft, ATop, ARight, ABottom: integer);
 begin
   PaddingLeft := ALeft;
   PaddingTop := ATop;
@@ -386,7 +386,7 @@ begin
   PaddingBottom := ABottom;
 end;
 
-procedure TView3D.SetMargins(ALeft, ATop, ARight, ABottom: integer);
+procedure TView.SetMargins(ALeft, ATop, ARight, ABottom: integer);
 begin
   MarginLeft := ALeft;
   MarginTop := ATop;
@@ -394,7 +394,7 @@ begin
   MarginBottom := ABottom;
 end;
 
-procedure TView3D.Translate(const DX, DY, DZ: single);
+procedure TView.Translate(const DX, DY, DZ: single);
 begin
   Left := Left + DX;
   Top := Top + DY;
@@ -404,7 +404,7 @@ begin
   ZOrderOriginal := ZOrderOriginal + DZ;
 end;
 
-function TView3D.Contains(const X, Y: integer): boolean;
+function TView.Contains(const X, Y: integer): boolean;
 var
   I, J: integer;
 begin
@@ -422,7 +422,7 @@ begin
   end;
 end;
 
-procedure TView3D.SetProperty(const Name, Value: string);
+procedure TView.SetProperty(const Name, Value: string);
 begin
   if Name = 'getVisibility()' then
     if Value = 'INVISIBLE' then
@@ -435,9 +435,9 @@ begin
     FProperties.Add(Name + '=' + Value);
 end;
 
-procedure TView3D.AddChild(AView: TView3D);
+procedure TView.AddChild(AView: TView);
 var
-  LastChild: TView3D;
+  LastChild: TView;
 begin
   Assert(not Assigned(AView.Parent), 'AView.Parent must be nil');
   Assert(not Assigned(AView.NextSibbling), 'AView.NextSibbling must be nil');
@@ -462,27 +462,27 @@ begin
   end;
 end;
 
-function TView3D.HasProp(const Name: string): boolean;
+function TView.HasProp(const Name: string): boolean;
 begin
   Result := FProperties.IndexOfName(Name) <> -1;
 end;
 
-function TView3D.GetProp(const Name: string): string;
+function TView.GetProp(const Name: string): string;
 begin
   Result := FProperties.Values[Name];
 end;
 
-function TView3D.GetIntProp(const Name: string; DefaultValue: integer): integer;
+function TView.GetIntProp(const Name: string; DefaultValue: integer): integer;
 begin
   Result := StrToIntDef(FProperties.Values[Name], DefaultValue);
 end;
 
-function TView3D.GetFloatProp(const Name: string; DefaultValue: single): single;
+function TView.GetFloatProp(const Name: string; DefaultValue: single): single;
 begin
   Result := StrToFloatDef(FProperties.Values[Name], DefaultValue);
 end;
 
-function TView3D.GetBoolProp(const Name: string; DefaultValue: boolean): boolean;
+function TView.GetBoolProp(const Name: string; DefaultValue: boolean): boolean;
 var
   Value: string;
 begin
@@ -495,32 +495,32 @@ begin
     Result := DefaultValue;
 end;
 
-function TView3D.GetViewportWidth: integer;
+function TView.GetViewportWidth: integer;
 begin
   Result := ViewportRect[1].X - ViewportRect[0].X;
 end;
 
-function TView3D.GetViewportHeight: integer;
+function TView.GetViewportHeight: integer;
 begin
   Result := ViewportRect[2].Y - ViewportRect[1].Y;
 end;
 
-function TView3D.GetWidth: single;
+function TView.GetWidth: single;
 begin
   Result := Right - Left;
 end;
 
-function TView3D.GetHeight: single;
+function TView.GetHeight: single;
 begin
   Result := Bottom - Top;
 end;
 
-function TView3D.GetClippedWidth: single;
+function TView.GetClippedWidth: single;
 begin
   Result := ClippedRight - ClippedLeft;
 end;
 
-function TView3D.GetClippedHeight: single;
+function TView.GetClippedHeight: single;
 begin
   Result := ClippedBottom - ClippedTop;
 end;

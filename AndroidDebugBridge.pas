@@ -5,7 +5,7 @@ unit AndroidDebugBridge;
 interface
 
 uses
-  Classes, SysUtils, TaskRunner, View3DTypes, blcksock, Graphics;
+  Classes, SysUtils, TaskRunner, ViewTypes, blcksock, Graphics;
 
 const
   RequestTimeout = 30000; // 30 seconds
@@ -32,7 +32,7 @@ type
     function GetDeviceSerial: string;
     function GetWindowList(Timeout: integer = -1): TWindowManagerEntryArray;
     function DumpWindow(const WindowHash: string;
-      const CheckCanceled: TObjectProcedure): TView3D;
+      const CheckCanceled: TObjectProcedure): TView;
     function CaptureView(const WindowHash, ViewClass, ViewHash: string): TRasterImage;
   end;
 
@@ -124,7 +124,7 @@ type
     const WindowList: TWindowManagerEntryArray) of object;
 
   TWindowDumpCompleteEvent = procedure(Sender: TDeviceInterface;
-    RootView: TView3D) of object;
+    RootView: TView) of object;
 
   TWindowDumpProgressEvent = procedure(Sender: TDeviceInterface;
     Progress: integer) of object;
@@ -204,7 +204,7 @@ type
     function GetDeviceSerial: string;
     function GetWindowList(Timeout: integer = -1): TWindowManagerEntryArray;
     function DumpWindow(const WindowHash: string;
-      const CheckCanceled: TObjectProcedure): TView3D;
+      const CheckCanceled: TObjectProcedure): TView;
     function CaptureView(const WindowHash, ViewClass, ViewHash: string): TRasterImage;
   end;
 
@@ -217,7 +217,7 @@ type
   protected
     procedure Run; override;
   public
-    constructor Create(const ADeviceSerial, AWindowHash: string; AView: TView3D);
+    constructor Create(const ADeviceSerial, AWindowHash: string; AView: TView);
   end;
 
   { TViewServerCaptureViewTaskFactory }
@@ -228,7 +228,7 @@ type
     FWindowHash: string;
   public
     constructor Create(const DeviceSerial, WindowHash: string);
-    function CreateTask(View: TView3D): TCaptureViewTask;
+    function CreateTask(View: TView): TCaptureViewTask;
   end;
 
 function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
@@ -245,7 +245,7 @@ begin
   FWindowHash := WindowHash;
 end;
 
-function TViewServerCaptureViewTaskFactory.CreateTask(View: TView3D): TCaptureViewTask;
+function TViewServerCaptureViewTaskFactory.CreateTask(View: TView): TCaptureViewTask;
 begin
   Result := TViewServerCaptureViewTask.Create(FDeviceSerial, FWindowHash, View);
 end;
@@ -254,7 +254,7 @@ end;
 
 procedure TViewServerCaptureViewTask.Run;
 var
-  View: TView3D;
+  View: TView;
 begin
   View := GetAssociatedView;
   FResult := CreateViewServerClient(FDeviceSerial).CaptureView(FWindowHash,
@@ -262,7 +262,7 @@ begin
 end;
 
 constructor TViewServerCaptureViewTask.Create(const ADeviceSerial, AWindowHash: string;
-  AView: TView3D);
+  AView: TView);
 begin
   inherited Create(AView);
   FDeviceSerial := ADeviceSerial;
@@ -332,9 +332,9 @@ begin
 end;
 
 function TViewServerClient.DumpWindow(const WindowHash: string;
-  const CheckCanceled: TObjectProcedure): TView3D;
+  const CheckCanceled: TObjectProcedure): TView;
 
-  procedure ParseDumpLine(Line: PChar; View: TView3D);
+  procedure ParseDumpLine(Line: PChar; View: TView);
   var
     Pos: PChar;
     PName, PValue: string;
@@ -373,11 +373,11 @@ function TViewServerClient.DumpWindow(const WindowHash: string;
     end;
   end;
 
-  function CreateView(AParent: TView3D; Line: PChar; Depth: integer): TView3D;
+  function CreateView(AParent: TView; Line: PChar; Depth: integer): TView;
   var
     OX, OY, ScaleX, ScaleY: single;
   begin
-    Result := TView3D.Create;
+    Result := TView.Create;
     try
       ParseDumpLine(Line, Result);
 
@@ -495,7 +495,7 @@ function TViewServerClient.DumpWindow(const WindowHash: string;
   end;
 
 var
-  CurrentView: TView3D = nil;
+  CurrentView: TView = nil;
   CurrentDepth: integer = -1;
   Depth: integer;
   Line: PChar;
@@ -559,8 +559,8 @@ begin
   end;
 end;
 
-function TViewServerClient.CaptureView(
-  const WindowHash, ViewClass, ViewHash: string): TRasterImage;
+function TViewServerClient.CaptureView(const WindowHash, ViewClass, ViewHash: string):
+TRasterImage;
 
   function GetImageDataStream: TStream;
   begin

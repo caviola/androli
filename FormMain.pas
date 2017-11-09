@@ -6,15 +6,15 @@ interface
 
 uses
   Forms, Controls, StdCtrls, Dialogs, ComCtrls, ValEdit, ExtCtrls, Menus,
-  TreeFilterEdit, View3DTypes, LayoutViewer, TaskRunner, Classes, SysUtils, Bookmarks;
+  TreeFilterEdit, ViewTypes, LayoutViewer, TaskRunner, Classes, SysUtils, Bookmarks;
 
 type
 
   { TBookmark }
 
   TBookmark = class
-    ActiveView: TView3D;
-    ActiveBranch: TView3D;
+    ActiveView: TView;
+    ActiveBranch: TView;
     OriginX: single;
     OriginY: single;
     RotationX: single;
@@ -107,20 +107,20 @@ type
     procedure TreeViewMouseMove(Sender: TObject; {%H-}Shift: TShiftState; X, Y: integer);
     procedure TreeViewSelectionChanged(Sender: TObject);
   private
-    FRootView: TView3D;
+    FRootView: TView;
     FLayoutViewer: TLayoutViewer;
     FScreenCursor: TCursor;
     FLayoutOpenTask: ILayoutOpenTask;
     FIndexedBookmarkManager: TIndexedBookmarkManager;
-    function GetTreeNodeText(View: TView3D): string;
-    procedure SetRootView(AValue: TView3D);
+    function GetTreeNodeText(View: TView): string;
+    procedure SetRootView(AValue: TView);
   protected
     procedure GotoBookmarkHandler(Sender: TObject);
     procedure ToggleBookmarkHandler(Sender: TObject);
     procedure LayoutViewerActiveViewChanged(Sender: TObject);
     procedure LayoutViewerActiveBranchChanged(Sender: TObject);
-    procedure UpdateTreeView(ARootView: TView3D = nil);
-    procedure UpdatePropertyInspector(View: TView3D = nil);
+    procedure UpdateTreeView(ARootView: TView = nil);
+    procedure UpdatePropertyInspector(View: TView = nil);
     procedure LayoutOpenTaskError(const Task: ITask; Error: Exception);
     procedure LayoutOpenTaskStarted(const Task: ITask);
     procedure LayoutOpenTaskStopped(const Task: ITask);
@@ -128,7 +128,7 @@ type
     procedure StartOpenLayout(const Task: TLayoutOpenTask);
     procedure CloseLayout;
     procedure CancelOpenLayout;
-    property RootView: TView3D read FRootView write SetRootView;
+    property RootView: TView read FRootView write SetRootView;
 
     // IIndexedBookmarkListener
     procedure OnBookmarkSet(I: integer);
@@ -202,7 +202,7 @@ end;
 
 function TMainForm.TreeFilterEditFilterItem(Item: TObject; out Done: boolean): boolean;
 var
-  View: TView3D absolute Item;
+  View: TView absolute Item;
 begin
   // TODO: I don't really understand how Result/Done should be used here.
   // Just know that the code below does exactly what I want.
@@ -233,20 +233,20 @@ var
 begin
   Node := TreeView.GetNodeAt(X, Y);
   if Assigned(Node) then
-    FLayoutViewer.HighlightedView := TView3D(Node.Data);
+    FLayoutViewer.HighlightedView := TView(Node.Data);
 end;
 
 procedure TMainForm.TreeViewSelectionChanged(Sender: TObject);
 var
   SelectedTreeNode: TTreeNode;
-  SelectedView: TView3D;
+  SelectedView: TView;
 begin
   LogEnterMethod('TMainForm.TreeViewSelectionChanged');
 
   SelectedTreeNode := TreeView.Selected;
   if Assigned(SelectedTreeNode) then
   begin
-    SelectedView := TView3D(SelectedTreeNode.Data);
+    SelectedView := TView(SelectedTreeNode.Data);
     FLayoutViewer.ActiveView := SelectedView;
     UpdatePropertyInspector(SelectedView);
   end
@@ -256,7 +256,7 @@ begin
   LogExitMethod('TMainForm.TreeViewSelectionChanged');
 end;
 
-function TMainForm.GetTreeNodeText(View: TView3D): string;
+function TMainForm.GetTreeNodeText(View: TView): string;
 var
   S: string;
   I: integer;
@@ -290,9 +290,9 @@ begin
   end;
 end;
 
-procedure TMainForm.SetRootView(AValue: TView3D);
+procedure TMainForm.SetRootView(AValue: TView);
 var
-  OldRootView: TView3D;
+  OldRootView: TView;
 begin
   if AValue = FRootView then
     Exit;
@@ -324,7 +324,7 @@ end;
 
 procedure TMainForm.LayoutViewerActiveViewChanged(Sender: TObject);
 var
-  View: TView3D;
+  View: TView;
   TreeNode: TTreeNode;
 begin
   View := TLayoutViewer(Sender).ActiveView;
@@ -346,11 +346,11 @@ begin
     TreeView.ClearSelection(False);
 end;
 
-procedure TMainForm.UpdateTreeView(ARootView: TView3D);
+procedure TMainForm.UpdateTreeView(ARootView: TView);
 
-  procedure AddView(View: TView3D; Parent: TTreeNode = nil);
+  procedure AddView(View: TView; Parent: TTreeNode = nil);
   var
-    ViewChild: TView3D;
+    ViewChild: TView;
     NewNode: TTreeNode;
   begin
     View.TreeNodeText := GetTreeNodeText(View);
@@ -408,7 +408,7 @@ begin
   LogExitMethod('TMainForm.UpdateTreeView');
 end;
 
-procedure TMainForm.UpdatePropertyInspector(View: TView3D);
+procedure TMainForm.UpdatePropertyInspector(View: TView);
 var
   I: integer;
   PName, PValue: string;
@@ -695,9 +695,9 @@ end;
 
 procedure TMainForm.TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
 var
-  Root: TView3D;
+  Root: TView;
 begin
-  Root := TView3D(Node.Data);
+  Root := TView(Node.Data);
   // First checking Node.Deleting is important because this event handler
   // may be called when TTreeView is being destroyed.
   if Node.Deleting or not Root.Expanded then
@@ -710,9 +710,9 @@ procedure TMainForm.TreeViewExpanded(Sender: TObject; Node: TTreeNode);
 
   procedure Visit(Node: TTreeNode);
   var
-    View: TView3D;
+    View: TView;
   begin
-    View := TView3D(Node.Data);
+    View := TView(Node.Data);
     View.Expanded := True;
     Node := Node.GetFirstChild;
     while Assigned(Node) do
@@ -724,9 +724,9 @@ procedure TMainForm.TreeViewExpanded(Sender: TObject; Node: TTreeNode);
   end;
 
 var
-  Root: TView3D;
+  Root: TView;
 begin
-  Root := TView3D(Node.Data);
+  Root := TView(Node.Data);
   if Root.Expanded then
     Exit;
 
@@ -748,13 +748,13 @@ end;
 procedure TMainForm.UpdateTreeViewLabels(Sender: TObject);
 var
   Node: TTreeNode;
-  View: TView3D;
+  View: TView;
 begin
   TreeView.BeginUpdate;
   try
     for Node in TreeView.Items do
     begin
-      View := TView3D(Node.Data);
+      View := TView(Node.Data);
       View.TreeNodeText := GetTreeNodeText(View);
       Node.Text := View.TreeNodeText;
     end;

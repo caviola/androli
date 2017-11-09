@@ -5,7 +5,7 @@ unit DeviceWindowLoader;
 interface
 
 uses
-  View3DTypes;
+  ViewTypes;
 
 function CreateDeviceWindowOpenTask(
   const DeviceSerial, WindowTitle, WindowHash: string): TLayoutOpenTask;

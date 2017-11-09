@@ -5,7 +5,7 @@ unit LayoutViewer;
 interface
 
 uses
-  Classes, Controls, Graphics, Menus, ExtCtrls, View3DTypes, Animators, OpenGLContext,
+  Classes, Controls, Graphics, Menus, ExtCtrls, ViewTypes, Animators, OpenGLContext,
   TaskRunner;
 
 type
@@ -20,7 +20,7 @@ type
   TLayoutViewer = class(TOpenGLControl)
   private
     FView3DEnabled: boolean;
-    FRootView: TView3D;
+    FRootView: TView;
     FClipBounds: boolean;
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
@@ -32,8 +32,8 @@ type
     FOriginX: single;
     FOriginY: single;
     FOriginZ: single;
-    FActiveView: TView3D;
-    FHighlightedView: TView3D;
+    FActiveView: TView;
+    FHighlightedView: TView;
     FMouseState: TMouseState;
     FLastMouseX: integer;
     FLastMouseY: integer;
@@ -43,20 +43,20 @@ type
     FScaleZ: single;
     FCameraZ: single;
     FOnActiveViewChanged: TNotifyEvent;
-    FActiveBranch: TView3D;
+    FActiveBranch: TView;
     FActiveViewChangedTimer: TTimer;
     procedure SetView3DEnabled(AValue: boolean);
-    procedure SetActiveBranch(AValue: TView3D);
-    procedure SetActiveView(AValue: TView3D);
+    procedure SetActiveBranch(AValue: TView);
+    procedure SetActiveView(AValue: TView);
     procedure SetClipBounds(AValue: boolean);
-    procedure SetHighlightedView(AValue: TView3D);
+    procedure SetHighlightedView(AValue: TView);
     procedure SetRotationX(Degres: single);
     procedure SetRotationY(Degres: single);
     procedure SetZoomLevel(AValue: single);
     procedure SetScaleZ(AValue: single);
     procedure SetOriginX(AValue: single);
     procedure SetOriginY(AValue: single);
-    procedure SetRootView(AValue: TView3D);
+    procedure SetRootView(AValue: TView);
     procedure StartCaptureView;
   protected
     procedure ActiveViewChangedTimerTimer(Sender: TObject);
@@ -77,8 +77,8 @@ type
       WheelDelta: integer; {%H-}MousePos: TPoint; var Handled: boolean);
 
     procedure DoActiveViewChanged; inline;
-    function HitTest(X, Y: integer): TView3D;
-    procedure ShowBranch(AView: TView3D);
+    function HitTest(X, Y: integer): TView;
+    procedure ShowBranch(AView: TView);
     procedure ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ZOrderAnimatorUpdateHandler(Sender: TAnimator;
@@ -89,21 +89,21 @@ type
     procedure DoOnPaint; override;
     procedure Changed;
     procedure Zoom(Delta: integer);
-    procedure Collapse(Root: TView3D);
-    procedure Expand(Root: TView3D);
-    property RootView: TView3D write SetRootView;
+    procedure Collapse(Root: TView);
+    procedure Expand(Root: TView);
+    property RootView: TView write SetRootView;
     property RotationX: single read FRotationX write SetRotationX;
     property RotationY: single read FRotationY write SetRotationY;
     property ZoomLevel: single read FZoomLevel write SetZoomLevel;
     property ScaleZ: single read FScaleZ write SetScaleZ;
     property OriginX: single read FOriginX write SetOriginX;
     property OriginY: single read FOriginY write SetOriginY;
-    property ActiveView: TView3D read FActiveView write SetActiveView;
-    property HighlightedView: TView3D read FHighlightedView write SetHighlightedView;
+    property ActiveView: TView read FActiveView write SetActiveView;
+    property HighlightedView: TView read FHighlightedView write SetHighlightedView;
     property OnActiveViewChanged: TNotifyEvent
       read FOnActiveViewChanged write FOnActiveViewChanged;
     property ClipBounds: boolean read FClipBounds write SetClipBounds;
-    property ActiveBranch: TView3D read FActiveBranch write SetActiveBranch;
+    property ActiveBranch: TView read FActiveBranch write SetActiveBranch;
     property OnActiveBranchChanged: TNotifyEvent
       read FOnActiveBranchChanged write FOnActiveBranchChanged;
     property View3DEnabled: boolean read FView3DEnabled write SetView3DEnabled;
@@ -111,7 +111,7 @@ type
 
 
   TZOrderAnimatorTargetRec = record
-    View: TView3D;
+    View: TView;
     StartValue: single;
     EndValue: single;
   end;
@@ -125,7 +125,7 @@ type
     procedure DoFrameUpdate(const InterpolatedFraction: single); override;
   public
     procedure ClearTargets;
-    procedure AddTarget(View: TView3D; const StartValue, EndValue: single);
+    procedure AddTarget(View: TView; const StartValue, EndValue: single);
   end;
 
   { TToggleView3DAnimator }
@@ -224,7 +224,7 @@ begin
   SetLength(FTargets, 0);
 end;
 
-procedure TZOrderAnimator.AddTarget(View: TView3D; const StartValue, EndValue: single);
+procedure TZOrderAnimator.AddTarget(View: TView; const StartValue, EndValue: single);
 var
   I: integer;
 begin
@@ -292,11 +292,11 @@ begin
   FZoomLevelAnimator.Restart;
 end;
 
-procedure TLayoutViewer.Collapse(Root: TView3D);
+procedure TLayoutViewer.Collapse(Root: TView);
 
-  procedure Visit(View: TView3D);
+  procedure Visit(View: TView);
   var
-    ViewChild: TView3D;
+    ViewChild: TView;
   begin
     ViewChild := View.FirstChild;
     if Assigned(ViewChild) then
@@ -321,11 +321,11 @@ begin
   FZOrderAnimator.Start;
 end;
 
-procedure TLayoutViewer.Expand(Root: TView3D);
+procedure TLayoutViewer.Expand(Root: TView);
 
-  procedure Visit(View, LastVisibleParent: TView3D);
+  procedure Visit(View, LastVisibleParent: TView);
   var
-    ViewChild: TView3D;
+    ViewChild: TView;
   begin
     ViewChild := View.FirstChild;
     if not Assigned(ViewChild) then
@@ -356,7 +356,7 @@ begin
   FZOrderAnimator.Start;
 end;
 
-procedure TLayoutViewer.SetRootView(AValue: TView3D);
+procedure TLayoutViewer.SetRootView(AValue: TView);
 begin
   Log('TLayoutViewer.SetRootView %s', [DbgS(AValue)]);
 
@@ -419,7 +419,7 @@ end;
 
 procedure TLayoutViewer.StartCaptureView;
 var
-  View: TView3D;
+  View: TView;
   TaskFactory: ICaptureViewTaskFactory;
 begin
   Log('TLayoutViewer.StartCaptureView');
@@ -462,7 +462,7 @@ begin
   end;
 end;
 
-procedure TLayoutViewer.SetActiveView(AValue: TView3D);
+procedure TLayoutViewer.SetActiveView(AValue: TView);
 begin
   if FActiveView = AValue then
     Exit;
@@ -474,7 +474,7 @@ begin
   Invalidate;
 end;
 
-procedure TLayoutViewer.SetActiveBranch(AValue: TView3D);
+procedure TLayoutViewer.SetActiveBranch(AValue: TView);
 begin
   // Activate root view if requested branch is nil.
   if not Assigned(AValue) then
@@ -531,7 +531,7 @@ begin
   end;
 end;
 
-procedure TLayoutViewer.SetHighlightedView(AValue: TView3D);
+procedure TLayoutViewer.SetHighlightedView(AValue: TView);
 begin
   if FHighlightedView <> AValue then
   begin
@@ -633,7 +633,7 @@ procedure TLayoutViewer.DoOnPaint;
     glEnd;
   end;
 
-  procedure DrawPadding(View: TView3D);
+  procedure DrawPadding(View: TView);
   begin
     with View do
     begin
@@ -670,7 +670,7 @@ procedure TLayoutViewer.DoOnPaint;
     end;
   end;
 
-  procedure DrawMargin(View: TView3D);
+  procedure DrawMargin(View: TView);
   begin
     with View do
     begin
@@ -706,7 +706,7 @@ procedure TLayoutViewer.DoOnPaint;
     end;
   end;
 
-  procedure DrawView(V: TView3D);
+  procedure DrawView(V: TView);
   var
     ModelViewMatrix, ProjectionMatrix: T16dArray;
     ViewportRect: TViewPortArray;
@@ -790,7 +790,7 @@ procedure TLayoutViewer.DoOnPaint;
   end;
 
 var
-  View: TView3D;
+  View: TView;
 begin
   glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
@@ -863,7 +863,7 @@ end;
 
 procedure TLayoutViewer.MouseClickHandler(Sender: TObject);
 var
-  NewActiveView: TView3D;
+  NewActiveView: TView;
 begin
   if FMouseState <> msDragging then
   begin
@@ -974,9 +974,9 @@ begin
   end;
 end;
 
-function TLayoutViewer.HitTest(X, Y: integer): TView3D;
+function TLayoutViewer.HitTest(X, Y: integer): TView;
 var
-  View: TView3D;
+  View: TView;
 begin
   Result := nil;
   // Start at last view and traverse the list backwards.
@@ -999,11 +999,11 @@ begin
   until View = FRootView.Previous;
 end;
 
-procedure TLayoutViewer.ShowBranch(AView: TView3D);
+procedure TLayoutViewer.ShowBranch(AView: TView);
 
-  procedure ShowView(V: TView3D);
+  procedure ShowView(V: TView);
   var
-    ViewChild: TView3D;
+    ViewChild: TView;
   begin
     V.Visible := True;
     ViewChild := V.FirstChild;
@@ -1015,7 +1015,7 @@ procedure TLayoutViewer.ShowBranch(AView: TView3D);
   end;
 
 var
-  View: TView3D;
+  View: TView;
 begin
   // Hide all views.
   View := FRootView;
@@ -1048,7 +1048,7 @@ end;
 procedure TLayoutViewer.CaptureViewTaskSuccessHandler(const Task: ITask);
 var
   TextureName: GLint = 0;
-  View: TView3D;
+  View: TView;
   Image: TRasterImage;
   CaptureViewTask: ICaptureViewTask;
 begin

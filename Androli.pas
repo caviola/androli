@@ -10,7 +10,7 @@ uses {$IFDEF UNIX}
   lazcontrols,
   Logging,
   FormMain,
-  View3DTypes,
+  ViewTypes,
   LayoutViewer,
   Animators,
   AndroidDebugBridge,

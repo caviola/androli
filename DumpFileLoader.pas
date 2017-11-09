@@ -5,7 +5,7 @@ unit DumpFileLoader;
 interface
 
 uses
-  View3DTypes;
+  ViewTypes;
 
 function CreateDumpFileOpenTask(const FilePath: string): TLayoutOpenTask;
 
@@ -45,7 +45,7 @@ procedure TDeviceMonitorDumpOpenTask.Run;
       Result := EmptyStr;
   end;
 
-  function CreateView(Node: TDOMNode; Depth: integer = 0): TView3D;
+  function CreateView(Node: TDOMNode; Depth: integer = 0): TView;
   var
     Left, Top, Right, Bottom: integer;
     S: string;
@@ -56,7 +56,7 @@ procedure TDeviceMonitorDumpOpenTask.Run;
     SScanf(GetAttribute(Node, 'bounds'), '[%d,%d][%d,%d]',
       [@Left, @Top, @Right, @Bottom]);
 
-    Result := TView3D.Create;
+    Result := TView.Create;
     try
       Result.QualifiedClassName := GetAttribute(Node, 'class');
 

@@ -88,7 +88,7 @@
         <ResourceBaseClass Value="Form"/>
       </Unit1>
       <Unit2>
-        <Filename Value="View3DTypes.pas"/>
+        <Filename Value="ViewTypes.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
