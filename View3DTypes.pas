@@ -71,8 +71,13 @@ type
 
   TView3DList = specialize TFPGList<TView3D>;
 
-  TViewVisibility = (vvVisible, vvInvisible, vvGone);
-  TView3DFlags = set of (vfExpanding, vfCollapsing, vfExpanded);
+  TView3DFlags = set of (
+    vfExpanding,
+    vfCollapsing,
+    vfExpanded,
+    vfUserHidden,
+    vfVisibilityInvisible,
+    vfVisibilityGone);
 
   { TView3D }
 
@@ -85,6 +90,7 @@ type
     function GetExpanded: boolean;
     function GetSimpleClassName: string;
     function GetChildrenCount: integer;
+    function GetVisibilityGone: boolean; inline;
     procedure SetExpanded(AValue: boolean);
     procedure SetInflightCaptureViewTask(AValue: ICaptureViewTask);
   public
@@ -112,7 +118,6 @@ type
     MarginTop: single;
     MarginRight: single;
     MarginBottom: single;
-    Visibility: TViewVisibility;
     ClippedLeft: single;
     ClippedTop: single;
     ClippedRight: single;
@@ -151,6 +156,7 @@ type
     property TextureName: cardinal read FTextureName write FTextureName;
     property InflightCaptureViewTask: ICaptureViewTask
       read FInflightCaptureViewTask write SetInflightCaptureViewTask;
+    property VisibilityGone: boolean read GetVisibilityGone;
   end;
 
 
@@ -301,6 +307,11 @@ begin
     until ViewChild = FirstChild;
 end;
 
+function TView3D.GetVisibilityGone: boolean;
+begin
+  Result := vfVisibilityGone in FFlags;
+end;
+
 procedure TView3D.SetExpanded(AValue: boolean);
 begin
   if AValue then
@@ -319,7 +330,6 @@ end;
 constructor TView3D.Create;
 begin
   Visible := True;
-  Visibility := vvVisible;
   FProperties := TStringList.Create;
   FProperties.Duplicates := dupIgnore;
   FProperties.Sorted := True;
@@ -412,10 +422,10 @@ procedure TView3D.SetProperty(const Name, Value: string);
 begin
   if Name = 'getVisibility()' then
     if Value = 'INVISIBLE' then
-      Visibility := vvInvisible
+      Include(FFlags, vfVisibilityInvisible)
     else
     if Value = 'GONE' then
-      Visibility := vvGone;
+      Include(FFlags, vfVisibilityGone);
 
   if (Name <> 'mID') or (Value <> 'NO_ID') then
     FProperties.Add(Name + '=' + Value);

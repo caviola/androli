@@ -821,7 +821,7 @@ begin
     View := FRootView;
     repeat
       // Skip views that won't be visible to the user.
-      if not View.Visible or (View.Visibility = vvGone) or (View.GetWidth = 0) or
+      if not View.Visible or View.VisibilityGone or (View.GetWidth = 0) or
         (View.GetHeight = 0) then
         View := View.Next
       else
