@@ -587,7 +587,8 @@ end;
 
 procedure TViewLayout3D.DoOnPaint;
 
-  procedure DrawTexture(Left, Top, Right, Bottom, Z: single; TextureName: integer);
+  procedure DrawTexture(Left, Top, Right, Bottom, Z: single;
+    TextureName: integer); inline;
   begin
     // Set color to fully opaque white as the texture is GL_COMBINEd with it.
     // by default. The result will be only the texture's color components.
@@ -610,7 +611,7 @@ procedure TViewLayout3D.DoOnPaint;
     glDisable(GL_TEXTURE_2D);
   end;
 
-  procedure PolyFill(Left, Top, Right, Bottom, Z: single; Color: TColorABGR);
+  procedure PolyFill(Left, Top, Right, Bottom, Z: single; Color: TColorABGR); inline;
   begin
     glColor4ubv(@Color);
     glBegin(GL_POLYGON);
@@ -621,7 +622,7 @@ procedure TViewLayout3D.DoOnPaint;
     glEnd;
   end;
 
-  procedure PolyLine(Left, Top, Right, Bottom, Z: single; Color: TColorABGR);
+  procedure PolyLine(Left, Top, Right, Bottom, Z: single; Color: TColorABGR); inline;
   begin
     glColor4ubv(@Color);
     glBegin(GL_LINE_LOOP);
@@ -781,9 +782,9 @@ procedure TViewLayout3D.DoOnPaint;
       // Keep track of the hierarchy's width and height.
       // We use this for "center fit" and determining how much can the
       // hierarchy be moved while dragging.
-      FHierarchyWidth := Max(FHierarchyWidth, GetViewportWidth +
+      FHierarchyWidth := Max(FHierarchyWidth, ViewportWidth +
         CanvasPaddingHorizontal * 2);
-      FHierarchyHeight := Max(FHierarchyHeight, GetViewportHeight +
+      FHierarchyHeight := Max(FHierarchyHeight, ViewportHeight +
         CanvasPaddingVertical * 2);
     end;
   end;
@@ -821,11 +822,11 @@ begin
     View := FRootView;
     repeat
       // Skip views that won't be visible to the user.
-      if not View.Visible or View.VisibilityGone or (View.GetWidth = 0) or
-        (View.GetHeight = 0) then
+      if not View.Visible or View.VisibilityGone or (View.Width = 0) or
+        (View.Height = 0) then
         View := View.Next
       else
-      if ClipBounds and ((View.GetClippedWidth = 0) or (View.GetClippedHeight = 0)) then
+      if ClipBounds and ((View.ClippedWidth = 0) or (View.ClippedHeight = 0)) then
         View := View.Next
       else
       begin
@@ -982,10 +983,10 @@ begin
   View := FRootView.Previous;
   repeat
     // Don't take into account views that are not visible to the user.
-    if not View.Visible or (View.GetWidth = 0) or (View.GetHeight = 0) then
+    if not View.Visible or (View.Width = 0) or (View.Height = 0) then
       View := View.Previous // continue
     else
-    if ClipBounds and ((View.GetClippedWidth = 0) or (View.GetClippedHeight = 0)) then
+    if ClipBounds and ((View.ClippedWidth = 0) or (View.ClippedHeight = 0)) then
       View := View.Previous // continue
     else
     if View.Contains(X, Y) then

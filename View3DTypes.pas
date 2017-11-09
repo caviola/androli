@@ -85,12 +85,18 @@ type
     FProperties: TStringList;
     FTextureName: cardinal;
     FInflightCaptureViewTask: ICaptureViewTask;
-    function GetExpanded: boolean;
+    function GetExpanded: boolean; inline;
     function GetSimpleClassName: string;
-    function GetChildrenCount: integer;
+    function GetChildrenCount: integer; inline;
     function GetVisibilityGone: boolean; inline;
-    procedure SetExpanded(AValue: boolean);
+    procedure SetExpanded(AValue: boolean); inline;
     procedure SetInflightCaptureViewTask(AValue: ICaptureViewTask);
+    function GetViewportWidth: integer; inline;
+    function GetViewportHeight: integer; inline;
+    function GetWidth: single; inline;
+    function GetHeight: single; inline;
+    function GetClippedWidth: single; inline;
+    function GetClippedHeight: single; inline;
   public
     Parent: TView3D;
     Next: TView3D;
@@ -134,20 +140,20 @@ type
     function Contains(const X, Y: integer): boolean;
     procedure SetProperty(const Name, Value: string);
     procedure AddChild(AView: TView3D);
-    function HasProp(const Name: string): boolean;
-    function GetProp(const Name: string): string;
-    function GetIntProp(const Name: string; DefaultValue: integer = 0): integer;
-    function GetFloatProp(const Name: string; DefaultValue: single = 0): single;
+    function HasProp(const Name: string): boolean; inline;
+    function GetProp(const Name: string): string; inline;
+    function GetIntProp(const Name: string; DefaultValue: integer = 0): integer; inline;
+    function GetFloatProp(const Name: string; DefaultValue: single = 0): single; inline;
     function GetBoolProp(const Name: string;
       DefaultValue: boolean = False): boolean;
-    function GetPropCount: integer;
-    procedure GetPropNameValue(I: integer; out Name, Value: string);
-    function GetViewportWidth: integer;
-    function GetViewportHeight: integer;
-    function GetWidth: single; inline;
-    function GetHeight: single; inline;
-    function GetClippedWidth: single; inline;
-    function GetClippedHeight: single; inline;
+    function GetPropCount: integer; inline;
+    procedure GetPropNameValue(I: integer; out Name, Value: string); inline;
+    property ViewportWidth: integer read GetViewportWidth;
+    property ViewportHeight: integer read GetViewportHeight;
+    property Width: single read GetWidth;
+    property Height: single read GetHeight;
+    property ClippedWidth: single read GetClippedWidth;
+    property ClippedHeight: single read GetClippedHeight;
     property ChildrenCount: integer read GetChildrenCount;
     property SimpleClassName: string read GetSimpleClassName;
     property Expanded: boolean read GetExpanded write SetExpanded;
@@ -282,7 +288,7 @@ begin
   Result := vfExpanded in FFlags;
 end;
 
-function TView3D.GetPropCount: integer; inline;
+function TView3D.GetPropCount: integer;
 begin
   Result := FProperties.Count;
 end;
