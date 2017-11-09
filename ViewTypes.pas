@@ -75,7 +75,8 @@ type
     vfExpanded,
     vfUserHidden,
     vfVisibilityInvisible,
-    vfVisibilityGone);
+    vfVisibilityGone,
+    vfMatchFilter);
 
   { TView }
 
@@ -86,11 +87,13 @@ type
     FTextureName: cardinal;
     FInflightCaptureViewTask: ICaptureViewTask;
     function GetExpanded: boolean; inline;
+    function GetMatchFilter: boolean; inline;
     function GetSimpleClassName: string;
     function GetChildrenCount: integer; inline;
     function GetVisibilityGone: boolean; inline;
     procedure SetExpanded(AValue: boolean); inline;
     procedure SetInflightCaptureViewTask(AValue: ICaptureViewTask);
+    procedure SetMatchFilter(AValue: boolean); inline;
     function GetViewportWidth: integer; inline;
     function GetViewportHeight: integer; inline;
     function GetWidth: single; inline;
@@ -126,7 +129,6 @@ type
     ClippedTop: single;
     ClippedRight: single;
     ClippedBottom: single;
-    MatchFilter: boolean;
     TreeNodeText: string;
     TransformScaleX: single;
     TransformScaleY: single;
@@ -161,6 +163,7 @@ type
     property InflightCaptureViewTask: ICaptureViewTask
       read FInflightCaptureViewTask write SetInflightCaptureViewTask;
     property VisibilityGone: boolean read GetVisibilityGone;
+    property MatchFilter: boolean read GetMatchFilter write SetMatchFilter;
   end;
 
 
@@ -288,6 +291,11 @@ begin
   Result := vfExpanded in FFlags;
 end;
 
+function TView.GetMatchFilter: boolean;
+begin
+  Result := vfMatchFilter in FFlags;
+end;
+
 function TView.GetPropCount: integer;
 begin
   Result := FProperties.Count;
@@ -329,6 +337,14 @@ begin
   if Assigned(FInflightCaptureViewTask) then
     FInflightCaptureViewTask.Cancel;
   FInflightCaptureViewTask := AValue;
+end;
+
+procedure TView.SetMatchFilter(AValue: boolean);
+begin
+  if AValue then
+    Include(FFlags, vfMatchFilter)
+  else
+    Exclude(FFlags, vfMatchFilter);
 end;
 
 constructor TView.Create;
