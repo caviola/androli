@@ -70,11 +70,11 @@ type
       Shift: TShiftState; X, Y: integer);
     procedure MouseClickHandler(Sender: TObject);
     procedure MouseDblClickHandler(Sender: TObject);
-    procedure MouseUpHandler(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: integer);
+    procedure MouseUpHandler(Sender: TObject; {%H-}Button: TMouseButton;
+    {%H-}Shift: TShiftState; {%H-}X, {%H-}Y: integer);
     procedure MouseMoveHandler(Sender: TObject; Shift: TShiftState; X, Y: integer);
     procedure MouseWheelHandler(Sender: TObject; Shift: TShiftState;
-      WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
+      WheelDelta: integer; {%H-}MousePos: TPoint; var Handled: boolean);
 
     procedure DoActiveViewChanged; inline;
     function HitTest(X, Y: integer): TView3D;
@@ -82,7 +82,7 @@ type
     procedure ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ZOrderAnimatorUpdateHandler(Sender: TAnimator;
-      const InterpolatedFraction: single);
+      const {%H-}InterpolatedFraction: single);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;

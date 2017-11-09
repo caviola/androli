@@ -5,7 +5,7 @@ unit View3DTypes;
 interface
 
 uses
-  Classes, fgl, TaskRunner, Graphics;
+  Classes, TaskRunner, Graphics;
 
 type
 
@@ -68,8 +68,6 @@ type
     function GetResult: TView3D;
     function GetDisplayName: string; virtual; abstract;
   end;
-
-  TView3DList = specialize TFPGList<TView3D>;
 
   TView3DFlags = set of (
     vfExpanding,

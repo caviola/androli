@@ -104,7 +104,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure TreeFilterEditAfterFilter(Sender: TObject);
     function TreeFilterEditFilterItem(Item: TObject; out Done: boolean): boolean;
-    procedure TreeViewMouseMove(Sender: TObject; Shift: TShiftState; X, Y: integer);
+    procedure TreeViewMouseMove(Sender: TObject; {%H-}Shift: TShiftState; X, Y: integer);
     procedure TreeViewSelectionChanged(Sender: TObject);
   private
     FRootView: TView3D;
