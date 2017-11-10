@@ -21,7 +21,7 @@ type
     RotationY: single;
     ScaleZ: single;
     ZoomLevel: single;
-    TreeFilter: string;
+    FilterText: string;
   end;
 
   { TMainForm }
@@ -107,28 +107,30 @@ type
     procedure TreeViewMouseMove(Sender: TObject; {%H-}Shift: TShiftState; X, Y: integer);
     procedure TreeViewSelectionChanged(Sender: TObject);
   private
-    FRootView: TView;
+    FLayout: IViewLayout;
     FLayoutViewer: TLayoutViewer;
     FScreenCursor: TCursor;
-    FLayoutOpenTask: ILayoutOpenTask;
+    FLayoutLoadTask: ILayoutLoadTask;
     FIndexedBookmarkManager: TIndexedBookmarkManager;
     function GetTreeNodeText(View: TView): string;
-    procedure SetRootView(AValue: TView);
+    procedure SetLayout(AValue: IViewLayout);
   protected
     procedure GotoBookmarkHandler(Sender: TObject);
+    procedure LayoutChanged;
     procedure ToggleBookmarkHandler(Sender: TObject);
-    procedure LayoutViewerActiveViewChanged(Sender: TObject);
-    procedure LayoutViewerActiveBranchChanged(Sender: TObject);
-    procedure UpdateTreeView(ARootView: TView = nil);
-    procedure UpdatePropertyInspector(View: TView = nil);
-    procedure LayoutOpenError(const Task: ITask; Error: Exception);
-    procedure LayoutOpenStarted(const Task: ITask);
-    procedure LayoutOpenResult(const Task: ITask; TheResult: TView);
-    procedure LayoutOpenStopped(const Task: ITask);
-    procedure StartOpenLayout(const Task: TLayoutOpenTask);
+    procedure LayoutViewerActiveViewChanged(NewView: TView);
+    procedure LayoutViewerActiveBranchChanged(NewBranch: TView);
+    procedure UpdateTreeView(RootView: TView = nil; SelectedView: TView = nil;
+      const FilterText: string = '');
+    procedure UpdateTreeViewSelection(AView: TView);
+    procedure UpdatePropertyInspector(AView: TView = nil);
+    procedure LayoutLoadError(const Task: ITask; Error: Exception);
+    procedure LayoutLoadStarted(const Task: ITask);
+    procedure LayoutLoadResult(const Task: ITask; TheResult: TViewLayout);
+    procedure LayoutLoadStopped(const Task: ITask);
+    procedure StartLoadLayout(const Task: TLayoutLoadTask);
     procedure CloseLayout;
-    procedure CancelOpenLayout;
-    property RootView: TView read FRootView write SetRootView;
+    procedure CancelLoadLayout;
 
     // IIndexedBookmarkListener
     procedure OnBookmarkSet(I: integer);
@@ -161,7 +163,7 @@ begin
   FLayoutViewer.OnActiveViewChanged := @LayoutViewerActiveViewChanged;
   FLayoutViewer.OnActiveBranchChanged := @LayoutViewerActiveBranchChanged;
   {$IFDEF DEBUG}
-  StartOpenLayout(CreateDumpFileOpenTask('dumps/dump3.uix'));
+  StartLoadLayout(CreateDumpFileLoadTask('dumps/dump3.uix'));
   {$ENDIF}
   SetControlIndex(FLayoutViewer, 0);
 
@@ -197,7 +199,7 @@ end;
 
 procedure TMainForm.TreeFilterEditAfterFilter(Sender: TObject);
 begin
-  FLayoutViewer.Changed;
+  FLayout.Changed;
 end;
 
 function TMainForm.TreeFilterEditFilterItem(Item: TObject; out Done: boolean): boolean;
@@ -247,7 +249,7 @@ begin
   if Assigned(SelectedTreeNode) then
   begin
     SelectedView := TView(SelectedTreeNode.Data);
-    FLayoutViewer.ActiveView := SelectedView;
+    FLayoutViewer.SetActiveView(SelectedView);
     UpdatePropertyInspector(SelectedView);
   end
   else
@@ -290,26 +292,21 @@ begin
   end;
 end;
 
-procedure TMainForm.SetRootView(AValue: TView);
-var
-  OldRootView: TView;
+procedure TMainForm.SetLayout(AValue: IViewLayout);
 begin
-  if AValue = FRootView then
-    Exit;
+  LogEnterMethod('TMainForm.SetViewLayout');
 
-  LogEnterMethod('TMainForm.SetRootView');
+  FLayout := AValue;
+  FLayoutViewer.SetLayout(AValue);
 
-  OldRootView := FRootView;
-  FRootView := AValue;
+  if Assigned(AValue) then
+    UpdateTreeView(AValue.ActiveBranch)
+  else
+    UpdateTreeView;
 
-  FLayoutViewer.RootView := FRootView;
-  UpdateTreeView(FRootView);
   UpdatePropertyInspector;
 
-  if Assigned(OldRootView) then
-    OldRootView.Free;
-
-  LogExitMethod('TMainForm.SetRootView');
+  LogExitMethod('TMainForm.SetViewLayout');
 end;
 
 procedure TMainForm.GotoBookmarkHandler(Sender: TObject);
@@ -317,36 +314,31 @@ begin
   FIndexedBookmarkManager.Go(TMenuItem(Sender).Tag);
 end;
 
+procedure TMainForm.LayoutViewerActiveBranchChanged(NewBranch: TView);
+begin
+  if NewBranch = FLayout.RootView then
+    UpdateTreeView(NewBranch) // don't select RootView
+  else
+    UpdateTreeView(NewBranch, NewBranch);
+end;
+
+procedure TMainForm.LayoutChanged;
+begin
+  FLayoutViewer.Invalidate;
+end;
+
 procedure TMainForm.ToggleBookmarkHandler(Sender: TObject);
 begin
   FIndexedBookmarkManager.Toggle(TMenuItem(Sender).Tag);
 end;
 
-procedure TMainForm.LayoutViewerActiveViewChanged(Sender: TObject);
-var
-  View: TView;
-  TreeNode: TTreeNode;
+procedure TMainForm.LayoutViewerActiveViewChanged(NewView: TView);
 begin
-  View := TLayoutViewer(Sender).ActiveView;
-  if Assigned(View) then
-  begin
-    TreeNode := TreeView.Items.FindNodeWithData(View);
-    // Note that changing the selection on TreeView will cause our
-    // TreeViewSelectionChanged to be called, which in turn, will set
-    // FLayoutViewer.ActiveView to the new selection.
-    // But since the new selection is the same as the old one, the assignment
-    // won't have any affect on FLayoutViewer and the notification loop
-    // will stop here.
-    // Note also that we don't update the property inspector here because
-    // TreeViewSelectionChanged will take care of it.
-    if Assigned(TreeNode) then
-      TreeNode.Selected := True;
-  end
-  else
-    TreeView.ClearSelection(False);
+  UpdateTreeViewSelection(NewView);
 end;
 
-procedure TMainForm.UpdateTreeView(ARootView: TView);
+procedure TMainForm.UpdateTreeView(RootView: TView; SelectedView: TView;
+  const FilterText: string);
 
   procedure AddView(View: TView; Parent: TTreeNode = nil);
   var
@@ -369,59 +361,51 @@ procedure TMainForm.UpdateTreeView(ARootView: TView);
 begin
   LogEnterMethod('TMainForm.UpdateTreeView');
 
-  TreeFilterEdit.Clear;
+  TreeView.BeginUpdate;
+  try
+    TreeView.Items.Clear;
 
-  if Assigned(RootView) then
-  begin
-    TreeView.BeginUpdate;
-    try
-      TreeView.Items.Clear;
-      AddView(ARootView);
+    if Assigned(RootView) then
+    begin
+      AddView(RootView);
       TreeFilterEdit.Enabled := True;
-      // Filter TreeView immediately.
-      TreeFilterEdit.ForceFilter(EmptyStr);
-      TreeFilterEdit.Text := EmptyStr;
-    finally
-      TreeView.EndUpdate;
-    end;
-
-    CheckBoxShowViewIDs.Enabled := True;
-    CheckBoxShowFullClassNames.Enabled := True;
-  end
-  else
-  begin
-    TreeView.BeginUpdate;
-    try
-      TreeView.Items.Clear;
-      // Filter TreeView immediately.
-      TreeFilterEdit.ForceFilter(EmptyStr);
-      TreeFilterEdit.Text := EmptyStr;
+      CheckBoxShowViewIDs.Enabled := True;
+      CheckBoxShowFullClassNames.Enabled := True;
+    end
+    else
+    begin
       TreeFilterEdit.Enabled := False;
-    finally
-      TreeView.EndUpdate;
+      CheckBoxShowViewIDs.Enabled := False;
+      CheckBoxShowFullClassNames.Enabled := False;
     end;
 
-    CheckBoxShowViewIDs.Enabled := False;
-    CheckBoxShowFullClassNames.Enabled := False;
+    // Filter TreeView immediately instead of waiting for OnIdle
+    // to avoid flickering.
+    TreeFilterEdit.ForceFilter(FilterText);
+    TreeFilterEdit.Text := FilterText;
+
+    UpdateTreeViewSelection(SelectedView);
+  finally
+    TreeView.EndUpdate;
   end;
 
   LogExitMethod('TMainForm.UpdateTreeView');
 end;
 
-procedure TMainForm.UpdatePropertyInspector(View: TView);
+procedure TMainForm.UpdatePropertyInspector(AView: TView);
 var
   I: integer;
   PName, PValue: string;
 begin
-  Log('TMainForm.UpdatePropertyInspector %s', [DbgS(View)]);
+  Log('TMainForm.UpdatePropertyInspector %s', [DbgS(AView)]);
 
   ValueListEditor.BeginUpdate;
   try
     ValueListEditor.Clear;
-    if Assigned(View) then
-      for I := 0 to View.GetPropCount - 1 do
+    if Assigned(AView) then
+      for I := 0 to AView.GetPropCount - 1 do
       begin
-        View.GetPropNameValue(I, PName, PValue);
+        AView.GetPropNameValue(I, PName, PValue);
         ValueListEditor.InsertRow(PName, PValue, False);
       end;
   finally
@@ -429,51 +413,53 @@ begin
   end;
 end;
 
-procedure TMainForm.LayoutOpenError(const Task: ITask; Error: Exception);
+procedure TMainForm.LayoutLoadError(const Task: ITask; Error: Exception);
 begin
-  LogException('TMainForm.LayoutOpenError', Error);
+  LogException('TMainForm.LayoutLoadError', Error);
 end;
 
-procedure TMainForm.LayoutOpenStarted(const Task: ITask);
+procedure TMainForm.LayoutLoadStarted(const Task: ITask);
 begin
   FScreenCursor := Screen.Cursor;
   Screen.Cursor := crHourGlass;
 end;
 
-procedure TMainForm.LayoutOpenResult(const Task: ITask; TheResult: TView);
+procedure TMainForm.LayoutLoadResult(const Task: ITask; TheResult: TViewLayout);
 begin
-  LogEnterMethod('TMainForm.LayoutOpenResult');
+  LogEnterMethod('TMainForm.LayoutLoadResult');
 
-  RootView := TheResult;
-  Caption := Format(FormFileCaptionFormat, [FLayoutOpenTask.DisplayName]);
+  TheResult.OnChange := @LayoutChanged;
+  SetLayout(TheResult);
+
+  Caption := Format(FormFileCaptionFormat, [FLayoutLoadTask.DisplayName]);
   MenuItemClose.Enabled := True;
   MenuItemZoomIn.Enabled := True;
   MenuItemZoomOut.Enabled := True;
   FIndexedBookmarkManager.Clear;
 
-  LogExitMethod('TMainForm.LayoutOpenResult');
+  LogExitMethod('TMainForm.LayoutLoadResult');
 end;
 
-procedure TMainForm.LayoutOpenStopped(const Task: ITask);
+procedure TMainForm.LayoutLoadStopped(const Task: ITask);
 begin
   Screen.Cursor := FScreenCursor;
-  FLayoutOpenTask := nil;
+  FLayoutLoadTask := nil;
 end;
 
-procedure TMainForm.StartOpenLayout(const Task: TLayoutOpenTask);
+procedure TMainForm.StartLoadLayout(const Task: TLayoutLoadTask);
 begin
   LogEnterMethod('TMainForm.StartOpenLayout');
 
-  if Assigned(FLayoutOpenTask) then
-    FLayoutOpenTask.Cancel;
+  if Assigned(FLayoutLoadTask) then
+    FLayoutLoadTask.Cancel;
 
   with Task do
   begin
-    OnStarted := @LayoutOpenStarted;
-    OnResult := @LayoutOpenResult;
-    OnError := @LayoutOpenError;
-    OnStopped := @LayoutOpenStopped;
-    FLayoutOpenTask := Start as ILayoutOpenTask;
+    OnStarted := @LayoutLoadStarted;
+    OnResult := @LayoutLoadResult;
+    OnError := @LayoutLoadError;
+    OnStopped := @LayoutLoadStopped;
+    FLayoutLoadTask := Start as ILayoutLoadTask;
   end;
 
   LogExitMethod('TMainForm.StartOpenLayout');
@@ -515,7 +501,8 @@ procedure TMainForm.CloseLayout;
 begin
   LogEnterMethod('TMainForm.CloseLayout');
 
-  RootView := nil;
+  SetLayout(nil);
+
   Caption := AppName;
   MenuItemClose.Enabled := False;
   MenuItemZoomIn.Enabled := False;
@@ -525,17 +512,36 @@ begin
   LogExitMethod('TMainForm.CloseLayout');
 end;
 
-procedure TMainForm.CancelOpenLayout;
+procedure TMainForm.CancelLoadLayout;
 begin
-  LogEnterMethod('TMainForm.CancelOpenLayout');
+  LogEnterMethod('TMainForm.CancelLoadLayout');
 
-  if Assigned(FLayoutOpenTask) then
+  if Assigned(FLayoutLoadTask) then
   begin
-    FLayoutOpenTask.Cancel;
-    FLayoutOpenTask := nil;
+    FLayoutLoadTask.Cancel;
+    FLayoutLoadTask := nil;
   end;
 
-  LogExitMethod('TMainForm.CancelOpenLayout');
+  LogExitMethod('TMainForm.CancelLoadLayout');
+end;
+
+procedure TMainForm.UpdateTreeViewSelection(AView: TView);
+var
+  TreeNode: TTreeNode;
+begin
+  if Assigned(AView) then
+  begin
+    TreeNode := TreeView.Items.FindNodeWithData(AView);
+    // Note that changing the selection on TreeView will cause our
+    // TreeViewSelectionChanged to be called, which in turn, will set
+    // FLayoutViewer.ActiveView to the new selection.
+    // Note also that we don't update the property inspector here because
+    // TreeViewSelectionChanged will take care of it.
+    if Assigned(TreeNode) then
+      TreeNode.Selected := True;
+  end
+  else
+    TreeView.ClearSelection(False);
 end;
 
 function TMainForm.SaveBookmark: TObject;
@@ -544,14 +550,14 @@ begin
   with TBookmark(Result) do
   begin
     ActiveView := FLayoutViewer.ActiveView;
-    ActiveBranch := FLayoutViewer.ActiveBranch;
+    ActiveBranch := FLayout.ActiveBranch;
     OriginX := FLayoutViewer.OriginX;
     OriginY := FLayoutViewer.OriginY;
     RotationX := FLayoutViewer.RotationX;
     RotationY := FLayoutViewer.RotationY;
     ScaleZ := FLayoutViewer.ScaleZ;
     ZoomLevel := FLayoutViewer.ZoomLevel;
-    TreeFilter := TreeFilterEdit.Text;
+    FilterText := TreeFilterEdit.Text;
   end;
 
   Log('TMainForm.SaveBookmark: Result=%s', [DbgS(Result)]);
@@ -563,23 +569,7 @@ begin
 
   with TBookmark(Which) do
   begin
-    // The following properties are updated in a BeginUpdate/EndUpdate block
-    // because they all affect TreeView.
-    TreeView.BeginUpdate;
-    try
-      FLayoutViewer.ActiveBranch := ActiveBranch;
-      // We first use ForceFilter so that TreeView is filtered immediately.
-      // Otherwise we'll have flickering because filtering by default
-      // is done in a TApplication.OnIdle handler.
-      TreeFilterEdit.ForceFilter(TreeFilter);
-      // This won't have any effect on filtering because Text
-      // will be equal to the filter set above.
-      TreeFilterEdit.Text := TreeFilter;
-    finally
-      TreeView.EndUpdate;
-    end;
-
-    FLayoutViewer.ActiveView := ActiveView;
+    FLayoutViewer.SetActiveBranch(ActiveBranch);
     FLayoutViewer.HighlightedView := nil;
     FLayoutViewer.OriginX := OriginX;
     FLayoutViewer.OriginY := OriginY;
@@ -587,20 +577,16 @@ begin
     FLayoutViewer.RotationY := RotationY;
     FLayoutViewer.ScaleZ := ScaleZ;
     FLayoutViewer.ZoomLevel := ZoomLevel;
+    UpdateTreeView(ActiveBranch, ActiveView, FilterText);
   end;
 
   LogExitMethod('TMainForm.RestoreBookmark');
 end;
 
-procedure TMainForm.LayoutViewerActiveBranchChanged(Sender: TObject);
-begin
-  UpdateTreeView(TLayoutViewer(Sender).ActiveBranch);
-end;
-
 procedure TMainForm.MenuItemOpenFileClick(Sender: TObject);
 begin
   if DialogOpenFile.Execute then
-    StartOpenLayout(CreateDumpFileOpenTask(DialogOpenFile.FileName));
+    StartLoadLayout(CreateDumpFileLoadTask(DialogOpenFile.FileName));
 end;
 
 procedure TMainForm.MenuItemQuitClick(Sender: TObject);
@@ -622,17 +608,16 @@ procedure TMainForm.FormDestroy(Sender: TObject);
 begin
   FIndexedBookmarkManager.Free;
 
-  if Assigned(FRootView) then
-    FRootView.Free;
+  FLayout := nil;
 
-  if Assigned(FLayoutOpenTask) then
-    FLayoutOpenTask.Cancel;
+  if Assigned(FLayoutLoadTask) then
+    FLayoutLoadTask.Cancel;
 end;
 
 procedure TMainForm.FormKeyPress(Sender: TObject; var Key: char);
 begin
   if (Ord(Key) = VK_ESCAPE) then
-    CancelOpenLayout;
+    CancelLoadLayout;
 end;
 
 procedure TMainForm.MenuItemClipToParentClick(Sender: TObject);
@@ -676,7 +661,7 @@ begin
   with TOpenWindowForm.Create(nil) do
     try
       if ShowModal = mrOk then
-        StartOpenLayout(CreateDeviceWindowOpenTask(SelectedDeviceSerial,
+        StartLoadLayout(CreateDeviceWindowLoadTask(SelectedDeviceSerial,
           SelectedWindowTitle, SelectedWindowHash));
     finally
       Free;

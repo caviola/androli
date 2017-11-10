@@ -175,6 +175,19 @@ type
 
   EAdbException = class(Exception);
 
+  { TViewServerCaptureViewTask }
+
+  TViewServerCaptureViewTask = class(TCaptureViewTask)
+  private
+    FDeviceSerial: string;
+    FWindowHash: string;
+  protected
+    procedure Run; override;
+  public
+    constructor Create(const ADeviceSerial, AWindowHash: string; AView: TView);
+  end;
+
+
 function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
 
 implementation
@@ -211,46 +224,10 @@ type
     function CaptureView(const WindowHash, ViewClass, ViewHash: string): TRasterImage;
   end;
 
-  { TViewServerCaptureViewTask }
-
-  TViewServerCaptureViewTask = class(TCaptureViewTask)
-  private
-    FDeviceSerial: string;
-    FWindowHash: string;
-  protected
-    procedure Run; override;
-  public
-    constructor Create(const ADeviceSerial, AWindowHash: string; AView: TView);
-  end;
-
-  { TViewServerCaptureViewTaskFactory }
-
-  TViewServerCaptureViewTaskFactory = class(TInterfacedObject, ICaptureViewTaskFactory)
-  private
-    FDeviceSerial: string;
-    FWindowHash: string;
-  public
-    constructor Create(const DeviceSerial, WindowHash: string);
-    function CreateTask(View: TView): TCaptureViewTask;
-  end;
 
 function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
 begin
   Result := TViewServerClient.Create(DeviceSerial);
-end;
-
-{ TViewServerCaptureViewTaskFactory }
-
-constructor TViewServerCaptureViewTaskFactory.Create(
-  const DeviceSerial, WindowHash: string);
-begin
-  FDeviceSerial := DeviceSerial;
-  FWindowHash := WindowHash;
-end;
-
-function TViewServerCaptureViewTaskFactory.CreateTask(View: TView): TCaptureViewTask;
-begin
-  Result := TViewServerCaptureViewTask.Create(FDeviceSerial, FWindowHash, View);
 end;
 
 { TViewServerCaptureViewTask }
@@ -502,11 +479,7 @@ var
   CurrentDepth: integer = -1;
   Depth: integer;
   Line: PChar;
-  TaskFactory: ICaptureViewTaskFactory;
 begin
-  TaskFactory := TViewServerCaptureViewTaskFactory.Create(
-    FAdbDeviceConnection.DeviceSerial, WindowHash);
-
   FAdbDeviceConnection.ConnectTcp(ViewServerPort);
   try
     FAdbDeviceConnection.Socket.SendString('DUMP ' + WindowHash + #10);
@@ -533,7 +506,6 @@ begin
         end;
 
         CurrentView := CreateView(CurrentView, Line, Depth);
-        CurrentView.CaptureViewTaskFactory := TaskFactory;
         CurrentDepth := Depth;
       until False;
     except
@@ -550,11 +522,8 @@ begin
 
     // Rewind to root view.
     if Assigned(CurrentView) then
-    begin
       while Assigned(CurrentView.Parent) do
         CurrentView := CurrentView.Parent;
-      CurrentView := Flatten(CurrentView);
-    end;
 
     Result := CurrentView;
   finally
@@ -562,8 +531,8 @@ begin
   end;
 end;
 
-function TViewServerClient.CaptureView(
-  const WindowHash, ViewClass, ViewHash: string): TRasterImage;
+function TViewServerClient.CaptureView(const WindowHash, ViewClass, ViewHash: string):
+TRasterImage;
 
   function GetImageDataStream: TStream;
   begin

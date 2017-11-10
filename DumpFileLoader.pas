@@ -7,7 +7,7 @@ interface
 uses
   ViewTypes;
 
-function CreateDumpFileOpenTask(const FilePath: string): TLayoutOpenTask;
+function CreateDumpFileLoadTask(const FilePath: string): TLayoutLoadTask;
 
 implementation
 
@@ -15,9 +15,9 @@ uses
   SysUtils, LazUTF8, laz2_XMLRead, laz2_DOM, Logging, Math;
 
 type
-  { TDeviceMonitorDumpOpenTask }
+  { TDeviceMonitorDumpLoadTask }
 
-  TDeviceMonitorDumpOpenTask = class(TLayoutOpenTask)
+  TDeviceMonitorDumpLoadTask = class(TLayoutLoadTask)
   private
     FFilePath: string;
   protected
@@ -29,12 +29,12 @@ type
 
 { TDeviceMonitorDumpLoadTask }
 
-constructor TDeviceMonitorDumpOpenTask.Create(const AFilePath: string);
+constructor TDeviceMonitorDumpLoadTask.Create(const AFilePath: string);
 begin
   FFilePath := AFilePath;
 end;
 
-procedure TDeviceMonitorDumpOpenTask.Run;
+procedure TDeviceMonitorDumpLoadTask.Run;
 
   function GetAttribute(Node: TDOMNode; const Name: string): string;
   begin
@@ -100,7 +100,7 @@ var
   Document: TXMLDocument;
   Node: TDOMNode;
 begin
-  Log('TDeviceMonitorDumpOpenTask.Run: FileName=''%s''', [FFilePath]);
+  Log('TDeviceMonitorDumpLoadTask.Run: FileName=''%s''', [FFilePath]);
 
   ReadXMLFile(Document, FFilePath);
   try
@@ -120,20 +120,20 @@ begin
 
     // Since we already checked for the presence of at least the root node,
     // we'll always return at least one view.
-    SetResult(Flatten(CreateView(nil, Node)));
+    SetResult(TViewLayout.Create(CreateView(nil, Node)));
   finally
     Document.Free;
   end;
 end;
 
-function TDeviceMonitorDumpOpenTask.GetDisplayName: string;
+function TDeviceMonitorDumpLoadTask.GetDisplayName: string;
 begin
   Result := FFilePath;
 end;
 
-function CreateDumpFileOpenTask(const FilePath: string): TLayoutOpenTask;
+function CreateDumpFileLoadTask(const FilePath: string): TLayoutLoadTask;
 begin
-  Result := TDeviceMonitorDumpOpenTask.Create(FilePath);
+  Result := TDeviceMonitorDumpLoadTask.Create(FilePath);
 end;
 
 end.

@@ -15,18 +15,20 @@ type
   TZOrderAnimator = class;
   TToggleView3DAnimator = class;
 
+  TActiveViewChangedEvent = procedure(NewView: TView) of object;
+  TActiveBranchChangedEvent = procedure(NewBranch: TView) of object;
+
   { TLayoutViewer }
 
   TLayoutViewer = class(TOpenGLControl)
   private
     FView3DEnabled: boolean;
-    FRootView: TView;
+    FLayout: IViewLayout;
     FClipBounds: boolean;
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
     FZOrderAnimator: TZOrderAnimator;
     FToggleView3DAnimator: TToggleView3DAnimator;
-    FOnActiveBranchChanged: TNotifyEvent;
     FScaleZAnimator: TFloatAnimator;
     FZoomLevelAnimator: TFloatAnimator;
     FOriginX: single;
@@ -42,12 +44,10 @@ type
     FZoomLevel: single;
     FScaleZ: single;
     FCameraZ: single;
-    FOnActiveViewChanged: TNotifyEvent;
-    FActiveBranch: TView;
+    FOnActiveViewChanged: TActiveViewChangedEvent;
+    FOnActiveBranchChanged: TActiveBranchChangedEvent;
     FActiveViewChangedTimer: TTimer;
     procedure SetView3DEnabled(AValue: boolean);
-    procedure SetActiveBranch(AValue: TView);
-    procedure SetActiveView(AValue: TView);
     procedure SetClipBounds(AValue: boolean);
     procedure SetHighlightedView(AValue: TView);
     procedure SetRotationX(Degres: single);
@@ -56,12 +56,8 @@ type
     procedure SetScaleZ(AValue: single);
     procedure SetOriginX(AValue: single);
     procedure SetOriginY(AValue: single);
-    procedure SetRootView(AValue: TView);
-    procedure StartCaptureView;
   protected
     procedure ActiveViewChangedTimerTimer(Sender: TObject);
-    procedure CaptureViewTaskResultHandler(const Task: ITask;
-      TheResult: TRasterImage; TheAssociatedView: TView);
     procedure MouseLeaveHandler(Sender: TObject);
 
     procedure ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
@@ -78,8 +74,6 @@ type
       WheelDelta: integer; {%H-}MousePos: TPoint; var Handled: boolean);
 
     procedure DoActiveViewChanged; inline;
-    function HitTest(X, Y: integer): TView;
-    procedure ShowBranch(AView: TView);
     procedure ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ZOrderAnimatorUpdateHandler(Sender: TAnimator;
@@ -88,25 +82,27 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
     procedure DoOnPaint; override;
-    procedure Changed;
     procedure Zoom(Delta: integer);
     procedure Collapse(Root: TView);
     procedure Expand(Root: TView);
-    property RootView: TView write SetRootView;
+    procedure SetActiveBranch(AValue: TView);
+    function SetActiveView(AValue: TView): boolean;
+    procedure SetLayout(AValue: IViewLayout);
     property RotationX: single read FRotationX write SetRotationX;
     property RotationY: single read FRotationY write SetRotationY;
     property ZoomLevel: single read FZoomLevel write SetZoomLevel;
     property ScaleZ: single read FScaleZ write SetScaleZ;
     property OriginX: single read FOriginX write SetOriginX;
     property OriginY: single read FOriginY write SetOriginY;
-    property ActiveView: TView read FActiveView write SetActiveView;
+    property ActiveView: TView read FActiveView;
     property HighlightedView: TView read FHighlightedView write SetHighlightedView;
-    property OnActiveViewChanged: TNotifyEvent
+    // Fired when user changes active view.
+    property OnActiveViewChanged: TActiveViewChangedEvent
       read FOnActiveViewChanged write FOnActiveViewChanged;
+    // Fires when user changes active branch.
+    property OnActiveBranchChanged: TActiveBranchChangedEvent
+      write FOnActiveBranchChanged;
     property ClipBounds: boolean read FClipBounds write SetClipBounds;
-    property ActiveBranch: TView read FActiveBranch write SetActiveBranch;
-    property OnActiveBranchChanged: TNotifyEvent
-      read FOnActiveBranchChanged write FOnActiveBranchChanged;
     property View3DEnabled: boolean read FView3DEnabled write SetView3DEnabled;
   end;
 
@@ -149,7 +145,7 @@ type
 implementation
 
 uses
-  SysUtils, LCLIntf, LCLProc, Math, GLext, gl, glu, Logging;
+  SysUtils, LCLIntf, LCLProc, Math, gl, glu, Logging;
 
 type
   TColorABGR = cardinal;
@@ -189,9 +185,6 @@ const
 
   CanvasPaddingVertical = 50;
   CanvasPaddingHorizontal = 50;
-
-var
-  CapturableWidgets: TStringList;
 
 { TToggleView3DAnimator }
 
@@ -280,12 +273,6 @@ begin
   inherited Destroy;
 end;
 
-procedure TLayoutViewer.Changed;
-begin
-  Log('TLayoutViewer.Changed');
-  Invalidate;
-end;
-
 procedure TLayoutViewer.Zoom(Delta: integer);
 begin
   FZoomLevelAnimator.SetValueInterval(ZoomLevel,
@@ -357,12 +344,18 @@ begin
   FZOrderAnimator.Start;
 end;
 
-procedure TLayoutViewer.SetRootView(AValue: TView);
+procedure TLayoutViewer.SetActiveBranch(AValue: TView);
 begin
-  Log('TLayoutViewer.SetRootView %s', [DbgS(AValue)]);
+  if FLayout.SetActiveBranch(AValue) then
+    Invalidate;
+end;
 
-  if FRootView = AValue then
-    Exit;
+procedure TLayoutViewer.SetLayout(AValue: IViewLayout);
+var
+  RootView: TView;
+begin
+  Log('TLayoutViewer.SetViewLayout %s', [DbgS(Pointer(AValue))]);
+
   // TODO: center fit initially
 
   FRotationY := 0;
@@ -370,17 +363,17 @@ begin
   FZoomLevel := InitialZoomLevel;
   FScaleZ := 0;
 
-  FRootView := AValue;
-  FActiveBranch := AValue;
+  FLayout := AValue;
   FActiveView := nil;
 
-  if Assigned(FRootView) then
+  if Assigned(FLayout) then
   begin
-    FCameraZ := CameraDistance + FRootView.Previous.ZOrderOriginal;
+    RootView := FLayout.ActiveBranch;
+    FCameraZ := CameraDistance + RootView.Previous.ZOrderOriginal;
     // Initial origin X,Y is the center of root view.
-    FOriginX := (FRootView.Right - FRootView.Left) / 2;
-    FOriginY := (FRootView.Bottom - FRootView.Top) / 2;
-    FOriginZ := FRootView.Previous.ZOrderOriginal / 2;
+    FOriginX := (RootView.Right - RootView.Left) / 2;
+    FOriginY := (RootView.Bottom - RootView.Top) / 2;
+    FOriginZ := RootView.Previous.ZOrderOriginal / 2;
 
     OnMouseDown := @MouseDownHandler;
     OnMouseUp := @MouseUpHandler;
@@ -400,8 +393,6 @@ begin
     end
     else
       Invalidate;
-
-    StartCaptureView;
   end
   else
   begin
@@ -418,27 +409,6 @@ begin
   end;
 end;
 
-procedure TLayoutViewer.StartCaptureView;
-var
-  View: TView;
-  TaskFactory: ICaptureViewTaskFactory;
-begin
-  Log('TLayoutViewer.StartCaptureView');
-
-  View := FRootView;
-  repeat
-    TaskFactory := View.CaptureViewTaskFactory;
-    if (CapturableWidgets.IndexOf(View.QualifiedClassName) <> -1) and
-      Assigned(TaskFactory) then
-      with TaskFactory.CreateTask(View) do
-      begin
-        OnResult := @CaptureViewTaskResultHandler;
-        Start;
-      end;
-    View := View.Next;
-  until View = FRootView;
-end;
-
 procedure TLayoutViewer.ActiveViewChangedTimerTimer(Sender: TObject);
 begin
   LogEnterMethod('TLayoutViewer.ActiveViewChangedTimerTimer');
@@ -447,45 +417,6 @@ begin
   DoActiveViewChanged;
 
   LogExitMethod('TLayoutViewer.ActiveViewChangedTimerTimer');
-end;
-
-procedure TLayoutViewer.CaptureViewTaskResultHandler(const Task: ITask;
-  TheResult: TRasterImage; TheAssociatedView: TView);
-var
-  TextureName: GLint = 0;
-begin
-  try
-    // Abort if image was not fetched or its width/height is 1px.
-    if not Assigned(TheResult) or (TheResult.Width = 1) or (TheResult.Height = 1) then
-      Exit;
-
-    // Create new OpenGL texture from image data.
-    // Note we create the texture for a view only once.
-    // If for some reason (eg. out-of-memory) the texture creation fails,
-    // the view won't have an associated texture and we won't display its image.
-    glGenTextures(1, @TextureName);
-    glBindTexture(GL_TEXTURE_2D, TextureName);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(
-      GL_TEXTURE_2D,
-      0,
-      GL_RGBA,
-      TheResult.Width,
-      TheResult.Height,
-      0,
-      GL_BGRA,
-      GL_UNSIGNED_BYTE,
-      TheResult.RawImage.Data);
-  finally
-    TheResult.Free;
-  end;
-
-  TheAssociatedView.TextureName := TextureName;
-
-  // Repaint the whole view layout.
-  // This will happen each time a new view image is fetched.
-  Invalidate;
 end;
 
 procedure TLayoutViewer.MouseLeaveHandler(Sender: TObject);
@@ -502,43 +433,17 @@ begin
   end;
 end;
 
-procedure TLayoutViewer.SetActiveView(AValue: TView);
+function TLayoutViewer.SetActiveView(AValue: TView): boolean;
 begin
-  if FActiveView = AValue then
-    Exit;
-
-  FActiveView := AValue;
-  Log('TLayoutViewer.SetActiveView: FActiveView=%s', [DbgS(FActiveView)]);
-
-  DoActiveViewChanged;
-  Invalidate;
-end;
-
-procedure TLayoutViewer.SetActiveBranch(AValue: TView);
-begin
-  // Activate root view if requested branch is nil.
-  if not Assigned(AValue) then
-    AValue := FRootView;
-
-  if FActiveBranch = AValue then
-    Exit;
-
-  FActiveBranch := AValue;
-  Log('TLayoutViewer.SetActiveBranch: FActiveBranch=%s', [DbgS(FActiveBranch)]);
-
-  if Assigned(FActiveBranch) then // something to show?
+  if FActiveView <> AValue then
   begin
-    ShowBranch(FActiveBranch);
-
-    if Assigned(FOnActiveBranchChanged) then
-    begin
-      LogEnterMethod('TLayoutViewer.OnActiveBranchChanged');
-      FOnActiveBranchChanged(Self);
-      LogExitMethod('TLayoutViewer.OnActiveBranchChanged');
-    end;
-
+    Log('TLayoutViewer.SetActiveView %s', [DbgS(AValue)]);
+    FActiveView := AValue;
     Invalidate;
-  end;
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 procedure TLayoutViewer.SetView3DEnabled(AValue: boolean);
@@ -746,7 +651,7 @@ procedure TLayoutViewer.DoOnPaint;
     end;
   end;
 
-  procedure DrawView(V: TView);
+  procedure DrawView(V: TView; Texture: cardinal);
   var
     ModelViewMatrix, ProjectionMatrix: T16dArray;
     ViewportRect: TViewPortArray;
@@ -764,10 +669,10 @@ procedure TLayoutViewer.DoOnPaint;
   var
     C: TColorABGR;
   begin
-    if V.TextureName <> 0 then
-      DrawTexture(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, V.TextureName);
+    if Texture > 0 then
+      DrawTexture(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, Texture);
 
-    if FActiveView = V then
+    if ActiveView = V then
     begin
       DrawMargin(V);
       DrawPadding(V);
@@ -830,7 +735,7 @@ procedure TLayoutViewer.DoOnPaint;
   end;
 
 var
-  View: TView;
+  View, CurrentRoot: TView;
 begin
   glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
@@ -854,26 +759,26 @@ begin
   glScalef(ZoomLevel, ZoomLevel, 1);
   gluPerspective(45, Width / Height, 0, FCameraZ);
 
-  if Assigned(FRootView) then
+  if Assigned(FLayout) then
   begin
     FHierarchyWidth := 0;
     FHierarchyHeight := 0;
 
-    View := FRootView;
+    CurrentRoot := FLayout.ActiveBranch;
+    View := CurrentRoot;
     repeat
       // Skip views that won't be visible to the user.
-      if not View.Visible or View.VisibilityGone or (View.Width = 0) or
-        (View.Height = 0) then
-        View := View.Next
+      if View.VisibilityGone or (View.Width = 0) or (View.Height = 0) then
+        View := View.Next // continue
       else
       if ClipBounds and ((View.ClippedWidth = 0) or (View.ClippedHeight = 0)) then
-        View := View.Next
+        View := View.Next // continue
       else
       begin
-        DrawView(View);
-        View := View.Next;
+        DrawView(View, View.TextureName);
+        View := View.Next; // continue
       end;
-    until View = FRootView;
+    until View = CurrentRoot;
   end;
 
   SwapBuffers;
@@ -903,42 +808,50 @@ end;
 
 procedure TLayoutViewer.MouseClickHandler(Sender: TObject);
 var
-  NewActiveView: TView;
+  ClickedView: TView;
 begin
+  LogEnterMethod('TLayoutViewer.MouseClickHandler');
+
   if FMouseState <> msDragging then
   begin
     // We're here because the user performed a click without dragging.
     // When the user double-clicks we also receive an OnClick
     // followed by OnDblClick.
-    // UX-wise, we use click to change ActiveView and double-click to change
-    // both ActiveBranch and ActiveView.
+    // UX-wise, we use click to change the active view and double-click
+    // to change both the active branch and active view.
     // Give that at this point we don't know if OnDblClick will ever come, and
     // to avoid flickering, for now update the active view without firing
     // OnActiveViewChanged and wait a little bit to see if OnDblClick is called.
-    // OnActiveViewChanged will be fired later, either in our OnTimer or
-    // or OnDblClick handler, whichever comes first.
-    NewActiveView := HitTest(FLastMouseX, FLastMouseY);
-
-    Log('TLayoutViewer.MouseClickHandler: HitTest(%d,%d)=%s',
-      [FLastMouseX, FLastMouseY, DbgS(NewActiveView)]);
-
-    if NewActiveView <> FActiveView then
-    begin
-      FActiveView := NewActiveView;
-      Log('TLayoutViewer.MouseClickHandler: FActiveView=%s', [DbgS(FActiveView)]);
-      FActiveViewChangedTimer.Enabled := True;
-      Invalidate;
-    end;
+    // OnActiveViewChanged will be fired later, either in ActiveViewChangedTimerTimer
+    // or MouseDblClickHandler, whichever comes first.
+    ClickedView := FLayout.HitTest(FLastMouseX, FLastMouseY, ClipBounds);
+    if SetActiveView(ClickedView) then  // active view really changed?
+      FActiveViewChangedTimer.Enabled := True
+    else
+      Log('TLayoutViewer.MouseClickHandler: HitTest(%d,%d,%s)=%s',
+        [FLastMouseX, FLastMouseY, DbgS(ClipBounds), DbgS(ClickedView)]);
   end;
+
+  LogExitMethod('TLayoutViewer.MouseClickHandler');
 end;
 
 procedure TLayoutViewer.MouseDblClickHandler(Sender: TObject);
 begin
   LogEnterMethod('TLayoutViewer.MouseDblClickHandler');
 
-  FActiveViewChangedTimer.Enabled := False;
-  ActiveBranch := ActiveView;
-  DoActiveViewChanged;
+  if FLayout.SetActiveBranch(ActiveView) then // active branch changed?
+  begin
+    FActiveViewChangedTimer.Enabled := False;
+    if Assigned(FOnActiveBranchChanged) then
+      FOnActiveBranchChanged(FLayout.ActiveBranch);
+    Invalidate;
+  end
+  else if FActiveViewChangedTimer.Enabled then // active view changed?
+  begin
+    FActiveViewChangedTimer.Enabled := False;
+    DoActiveViewChanged;
+    Invalidate;
+  end;
 
   LogExitMethod('TLayoutViewer.MouseDblClickHandler');
 end;
@@ -976,7 +889,7 @@ begin
     FLastMouseY := Y;
   end
   else
-    HighlightedView := HitTest(X, Y);
+    HighlightedView := FLayout.HitTest(X, Y, ClipBounds);
 end;
 
 procedure TLayoutViewer.MouseWheelHandler(Sender: TObject; Shift: TShiftState;
@@ -1007,65 +920,7 @@ end;
 procedure TLayoutViewer.DoActiveViewChanged;
 begin
   if Assigned(FOnActiveViewChanged) then
-  begin
-    LogEnterMethod('TLayoutViewer.OnActiveViewChanged');
-    FOnActiveViewChanged(Self);
-    LogExitMethod('TLayoutViewer.OnActiveViewChanged');
-  end;
-end;
-
-function TLayoutViewer.HitTest(X, Y: integer): TView;
-var
-  View: TView;
-begin
-  Result := nil;
-  // Start at last view and traverse the list backwards.
-  View := FRootView.Previous;
-  repeat
-    // Don't take into account views that are not visible to the user.
-    if not View.Visible or (View.Width = 0) or (View.Height = 0) then
-      View := View.Previous // continue
-    else
-    if ClipBounds and ((View.ClippedWidth = 0) or (View.ClippedHeight = 0)) then
-      View := View.Previous // continue
-    else
-    if View.Contains(X, Y) then
-    begin
-      Result := View;
-      Break;
-    end
-    else
-      View := View.Previous;
-  until View = FRootView.Previous;
-end;
-
-procedure TLayoutViewer.ShowBranch(AView: TView);
-
-  procedure ShowView(V: TView);
-  var
-    ViewChild: TView;
-  begin
-    V.Visible := True;
-    ViewChild := V.FirstChild;
-    if Assigned(ViewChild) then
-      repeat
-        ShowView(ViewChild);
-        ViewChild := ViewChild.NextSibbling;
-      until ViewChild = V.FirstChild;
-  end;
-
-var
-  View: TView;
-begin
-  // Hide all views.
-  View := FRootView;
-  repeat
-    View.Visible := False;
-    View := View.Next;
-  until View = FRootView;
-
-  // Shows views in branch.
-  ShowView(AView);
+    FOnActiveViewChanged(FActiveView);
 end;
 
 procedure TLayoutViewer.ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
@@ -1084,56 +939,5 @@ procedure TLayoutViewer.ZOrderAnimatorUpdateHandler(Sender: TAnimator;
 begin
   Invalidate;
 end;
-
-initialization
-  CapturableWidgets := TStringList.Create;
-  with CapturableWidgets do
-  begin
-    Sorted := True;
-    CaseSensitive := True;
-    Add('android.inputmethodservice.ExtractEditText');
-    Add('android.support.design.widget.FloatingActionButton');
-    Add('android.support.design.widget.TextInputEditText');
-    Add('android.support.v4.widget.ContentLoadingProgressBar');
-    Add('android.support.v7.widget.AppCompatAutoCompleteTextView');
-    Add('android.support.v7.widget.AppCompatButton');
-    Add('android.support.v7.widget.AppCompatCheckBox');
-    Add('android.support.v7.widget.AppCompatCheckedTextView');
-    Add('android.support.v7.widget.AppCompatEditText');
-    Add('android.support.v7.widget.AppCompatImageButton');
-    Add('android.support.v7.widget.AppCompatImageView');
-    Add('android.support.v7.widget.AppCompatMultiAutoCompleteTextView');
-    Add('android.support.v7.widget.AppCompatRadioButton');
-    Add('android.support.v7.widget.AppCompatRatingBar');
-    Add('android.support.v7.widget.AppCompatSeekBar');
-    Add('android.support.v7.widget.AppCompatSpinner');
-    Add('android.support.v7.widget.AppCompatTextView');
-    Add('android.support.v7.widget.AppCompatTextView');
-    Add('android.support.v7.widget.SwitchCompat');
-    Add('android.widget.AutoCompleteTextView');
-    Add('android.widget.Button');
-    Add('android.widget.Checkbox');
-    Add('android.widget.CheckedTextView');
-    Add('android.widget.Chronometer');
-    Add('android.widget.DigitalClock');
-    Add('android.widget.EditText');
-    Add('android.widget.ImageButton');
-    Add('android.widget.ImageView');
-    Add('android.widget.MultiAutoCompleteTextView');
-    Add('android.widget.ProgressBar');
-    Add('android.widget.QuickContactBadge');
-    Add('android.widget.RadioButton');
-    Add('android.widget.RatingBar');
-    Add('android.widget.SeekBar');
-    Add('android.widget.Switch');
-    Add('android.widget.TextClock');
-    Add('android.widget.TextView');
-    Add('android.widget.Toast');
-    Add('android.widget.ToggleButton');
-    Add('android.widget.ZoomButton');
-  end;
-
-finalization
-  CapturableWidgets.Free;
 
 end.

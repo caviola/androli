@@ -7,66 +7,16 @@ interface
 uses
   Classes, TaskRunner, Graphics;
 
+const
+  MinCaptureViewWidth = 2;
+  MinCaptureViewHeight = 2;
+
 type
-
-  TView = class;
-
-  TCaptureViewResultEvent = procedure(const Task: ITask; TheResult: TRasterImage;
-    TheAssociatedView: TView) of object;
-
-  { TCaptureViewTask }
-
-  TCaptureViewTask = class(TTask)
-  private
-    FAssociatedView: TView;
-    FResult: TRasterImage;
-    FOnResult: TCaptureViewResultEvent;
-  protected
-    procedure DoOnSuccess; override;
-    procedure SetResult(AValue: TRasterImage);
-    function GetAssociatedView: TView; inline;
-  public
-    constructor Create(AView: TView);
-    destructor Destroy; override;
-    property OnResult: TCaptureViewResultEvent read FOnResult write FOnResult;
-  end;
-
-  { ICaptureViewTaskFactory }
-
-  ICaptureViewTaskFactory = interface
-    function CreateTask(View: TView): TCaptureViewTask;
-  end;
-
-  { ILayoutOpenTask }
-
-  ILayoutOpenTask = interface(ITask)
-    ['{F1CC2749-77DC-4AC4-A183-19ECDB4E3924}']
-    function GetDisplayName: string;
-    property DisplayName: string read GetDisplayName;
-  end;
-
-  TLayoutOpenResultEvent = procedure(const Task: ITask; TheResult: TView) of object;
-
-  { TLayoutOpenTask }
-
-  TLayoutOpenTask = class(TTask, ILayoutOpenTask)
-  private
-    FOnResult: TLayoutOpenResultEvent;
-    FResult: TView;
-  protected
-    procedure SetResult(AValue: TView);
-    procedure DoOnSuccess; override;
-  public
-    destructor Destroy; override;
-    function GetDisplayName: string; virtual; abstract;
-    property OnResult: TLayoutOpenResultEvent read FOnResult write FOnResult;
-  end;
 
   TViewFlags = set of (
     vfExpanding,
     vfCollapsing,
     vfExpanded,
-    vfUserHidden,
     vfVisibilityInvisible,
     vfVisibilityGone,
     vfMatchFilter);
@@ -105,7 +55,6 @@ type
     ZOrder: single;
     ZOrderOriginal: single;
     ViewportRect: array[0..3] of TPoint;
-    Visible: boolean;
     Left: single;
     Top: single;
     Right: single;
@@ -125,7 +74,6 @@ type
     TreeNodeText: string;
     TransformScaleX: single;
     TransformScaleY: single;
-    CaptureViewTaskFactory: ICaptureViewTaskFactory;
     constructor Create;
     destructor Destroy; override;
     procedure SetBounds(ALeft, ATop, ARight, ABottom, AZ: integer);
@@ -159,25 +107,114 @@ type
     property MatchFilter: boolean read GetMatchFilter write SetMatchFilter;
   end;
 
+  { ICaptureViewTask }
 
-function Flatten(RootView: TView): TView;
+  ICaptureViewTask = interface(ITask)
+    ['{482F5D70-E9F0-493C-800E-ED6F4A9B40A5}']
+    function GetAssociatedView: TView;
+    property AssociatedView: TView read GetAssociatedView;
+  end;
+
+  TCaptureViewResultEvent = procedure(const Task: ITask; Image: TRasterImage;
+    View: TView) of object;
+
+  { TCaptureViewTask }
+
+  TCaptureViewTask = class(TTask, ICaptureViewTask)
+  private
+    FView: TView;
+    FResult: TRasterImage;
+    FOnResult: TCaptureViewResultEvent;
+  protected
+    procedure DoOnSuccess; override;
+    procedure SetResult(AValue: TRasterImage);
+    function GetAssociatedView: TView; inline;
+  public
+    constructor Create(AView: TView);
+    destructor Destroy; override;
+    property OnResult: TCaptureViewResultEvent read FOnResult write FOnResult;
+  end;
+
+  { IViewLayout }
+
+  IViewLayout = interface
+    ['{16F9F11F-D19C-4830-A8EC-50DD658F4D96}']
+    procedure Changed;
+    function HitTest(const X, Y: integer; ClipBounds: boolean): TView;
+    function GetActiveBranch: TView;
+    function SetActiveBranch(AValue: TView): boolean;
+    function GetRootView: TView;
+    property ActiveBranch: TView read GetActiveBranch;
+    property RootView: TView read GetRootView;
+  end;
+
+  { TViewLayout }
+
+  TViewLayout = class(TInterfacedObject, IViewLayout)
+  protected
+    FRootView: TView;
+    FActiveBranch: TView;
+    FOnChange: TObjectProcedure;
+    procedure Flatten;
+    function HitTest(const X, Y: integer; ClipBounds: boolean): TView;
+    function GetActiveBranch: TView; inline;
+    function SetActiveBranch(AValue: TView): boolean; virtual;
+    function GetRootView: TView; inline;
+    procedure Changed;
+    procedure DoOnChange;
+  public
+    constructor Create(ARootView: TView);
+    destructor Destroy; override;
+    property OnChange: TObjectProcedure read FOnChange write FOnChange;
+  end;
+
+  { ILayoutLoadTask }
+
+  ILayoutLoadTask = interface(ITask)
+    ['{F1CC2749-77DC-4AC4-A183-19ECDB4E3924}']
+    function GetDisplayName: string;
+    property DisplayName: string read GetDisplayName;
+  end;
+
+  TLayoutLoadResultEvent = procedure(const Task: ITask;
+    TheResult: TViewLayout) of object;
+
+  { TLayoutLoadTask }
+
+  TLayoutLoadTask = class(TTask, ILayoutLoadTask)
+  private
+    FOnResult: TLayoutLoadResultEvent;
+    FResult: TViewLayout;
+  protected
+    procedure SetResult(AValue: TViewLayout);
+    procedure DoOnSuccess; override;
+  public
+    destructor Destroy; override;
+    function GetDisplayName: string; virtual; abstract;
+    property OnResult: TLayoutLoadResultEvent read FOnResult write FOnResult;
+  end;
+
 
 implementation
 
 uses
-  SysUtils, LazLogger, contnrs;
+  SysUtils, LCLProc, Logging, contnrs;
 
-function Flatten(RootView: TView): TView;
+{ TViewLayout }
+
+procedure TViewLayout.Flatten;
 var
   Q: TQueue;
   PreviousView, View, ViewChild: TView;
   ElementsToDepthIncrease: integer = 1;
   NextElementsToDepthIncreate: integer = 0;
 begin
-  PreviousView := RootView;
+  // Link views in ActiveBranch in a circular, double-linked list
+  // by their Next/Previous properties in breadth-first order.
+  PreviousView := FActiveBranch;
   Q := TQueue.Create;
   try
-    Q.Push(RootView);
+    Q.Push(FActiveBranch);
     while Q.Count > 0 do
     begin
       View := TView(Q.Pop);
@@ -205,28 +242,97 @@ begin
   end;
 
   // Finish off by making the double-linked list circular.
-  PreviousView.Next := RootView;
-  RootView.Previous := PreviousView;
-
-  Result := RootView;
+  PreviousView.Next := FActiveBranch;
+  FActiveBranch.Previous := PreviousView;
 end;
 
-{ TLayoutOpenTask }
+function TViewLayout.HitTest(const X, Y: integer; ClipBounds: boolean): TView;
+begin
+  // Start at last view in ActiveBranch and traverse the list backwards.
+  Result := FActiveBranch.Previous;
+  repeat
+    // Don't take into account views that are not visible to the user.
+    if (Result.Width = 0) or (Result.Height = 0) then
+      Result := Result.Previous // continue
+    else
+    if ClipBounds and ((Result.ClippedWidth = 0) or (Result.ClippedHeight = 0)) then
+      Result := Result.Previous // continue
+    else
+    if Result.Contains(X, Y) then
+      Exit // success
+    else
+      Result := Result.Previous; // continue
+  until Result = FActiveBranch.Previous;
+  Result := nil;
+end;
 
-destructor TLayoutOpenTask.Destroy;
+function TViewLayout.GetActiveBranch: TView;
+begin
+  Result := FActiveBranch;
+end;
+
+function TViewLayout.SetActiveBranch(AValue: TView): boolean;
+begin
+  // Activate root view if requested branch is nil.
+  if not Assigned(AValue) then
+    AValue := FRootView;
+
+  if FActiveBranch <> AValue then
+  begin
+    Log('TViewLayout.SetActiveBranch %s', [DbgS(AValue)]);
+    FActiveBranch := AValue;
+    Flatten;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+function TViewLayout.GetRootView: TView;
+begin
+  Result := FRootView;
+end;
+
+procedure TViewLayout.DoOnChange;
+begin
+  if Assigned(FOnChange) then
+    FOnChange;
+end;
+
+constructor TViewLayout.Create(ARootView: TView);
+begin
+  Assert(Assigned(ARootView), 'ARootView = nil');
+  FRootView := ARootView;
+  SetActiveBranch(ARootView);
+end;
+
+destructor TViewLayout.Destroy;
+begin
+  FRootView.Free;
+  inherited;
+end;
+
+procedure TViewLayout.Changed;
+begin
+  DoOnChange;
+end;
+
+{ TLayoutLoadTask }
+
+destructor TLayoutLoadTask.Destroy;
 begin
   if Assigned(FResult) then
     FResult.Free;
   inherited;
 end;
 
-procedure TLayoutOpenTask.SetResult(AValue: TView);
+procedure TLayoutLoadTask.SetResult(AValue: TViewLayout);
 begin
   Assert(not Assigned(FResult), 'FResult <> nil');
   FResult := AValue;
 end;
 
-procedure TLayoutOpenTask.DoOnSuccess;
+procedure TLayoutLoadTask.DoOnSuccess;
 begin
   inherited;
 
@@ -247,13 +353,14 @@ end;
 
 function TCaptureViewTask.GetAssociatedView: TView;
 begin
-  Result := FAssociatedView;
+  Result := FView;
 end;
 
 constructor TCaptureViewTask.Create(AView: TView);
 begin
-  FAssociatedView := AView;
-  FAssociatedView.InflightCaptureViewTask := Self;
+  Assert(Assigned(AView), 'AView = nil');
+  FView := AView;
+  FView.InflightCaptureViewTask := Self;
 end;
 
 destructor TCaptureViewTask.Destroy;
@@ -269,7 +376,8 @@ begin
 
   if Assigned(FOnResult) then
   begin
-    FOnResult(Self, FResult, FAssociatedView);
+    Assert(Assigned(FResult), 'FResult = nil');
+    FOnResult(Self, FResult, FView);
     FResult := nil;
   end;
 end;
@@ -350,7 +458,6 @@ end;
 
 constructor TView.Create;
 begin
-  Visible := True;
   FProperties := TStringList.Create;
   FProperties.Duplicates := dupIgnore;
   FProperties.Sorted := True;
@@ -373,8 +480,6 @@ begin
       CurrentChild.Free;
       CurrentChild := NextChild;
     until CurrentChild = FirstChild;
-
-  CaptureViewTaskFactory := nil;
 
   if Assigned(FInflightCaptureViewTask) then
   begin
