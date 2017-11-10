@@ -81,19 +81,20 @@ type
     property DeviceSerial: string read FDevice;
   end;
 
-  IDeviceListTask = interface(ITask)
-    ['{762266BE-3445-4FF0-A87E-43279F0765DE}']
-    function GetResult: TAdbDeviceEntryArray;
-  end;
+  TDeviceListResultEvent = procedure(const Task: ITask;
+    const TheResult: TAdbDeviceEntryArray) of object;
 
   { TDeviceListTask }
 
-  TDeviceListTask = class(TTask, IDeviceListTask)
+  TDeviceListTask = class(TTask)
   private
-    FDeviceList: TAdbDeviceEntryArray;
+    FOnResult: TDeviceListResultEvent;
+    FResult: TAdbDeviceEntryArray;
   protected
     procedure Run; override;
-    function GetResult: TAdbDeviceEntryArray;
+    procedure DoOnSuccess; override;
+  public
+    property OnResult: TDeviceListResultEvent read FOnResult write FOnResult;
   end;
 
   TDeviceListCompleteEvent = procedure(Sender: TObject;
@@ -103,11 +104,12 @@ type
 
   TAdbInterface = class
   private
-    FDeviceListTask: IDeviceListTask;
+    FDeviceListTask: ITask;
     FOnDeviceListComplete: TDeviceListCompleteEvent;
     FOnDeviceListError: TNotifyEvent;
   protected
-    procedure DeviceListSuccess(const Task: ITask);
+    procedure DeviceListResult(const Task: ITask;
+      const TheResult: TAdbDeviceEntryArray);
     procedure DeviceListError(const Task: ITask; Error: Exception);
   public
     destructor Destroy; override;
@@ -129,36 +131,37 @@ type
   TWindowDumpProgressEvent = procedure(Sender: TDeviceInterface;
     Progress: integer) of object;
 
-  IWindowListTask = interface(ITask)
-    ['{3079A8C2-5DCF-4371-BCF6-761B5106488B}']
-    function GetResult: TWindowManagerEntryArray;
-  end;
+  TWindowListResultEvent = procedure(const Task: ITask;
+    const TheResult: TWindowManagerEntryArray) of object;
 
   { TWindowListTask }
 
-  TWindowListTask = class(TTask, IWindowListTask)
+  TWindowListTask = class(TTask)
   private
     FDeviceSerial: string;
     FResult: TWindowManagerEntryArray;
+    FOnResult: TWindowListResultEvent;
   protected
     procedure Run; override;
+    procedure DoOnSuccess; override;
   public
     constructor Create(const DeviceSerial: string);
-    function GetResult: TWindowManagerEntryArray;
+    property OnResult: TWindowListResultEvent read FOnResult write FOnResult;
   end;
 
   { TDeviceInterface }
 
   TDeviceInterface = class
   private
-    FWindowListTask: IWindowListTask;
+    FWindowListTask: ITask;
     FOnWindowListComplete: TWindowListCompleteEvent;
     FOnWindowListError: TNotifyEvent;
     FSerialNumber: string;
   protected
-    procedure WindowListTaskSuccess(const Task: ITask);
-    procedure WindowListTaskError(const Task: ITask; Error: Exception);
-    procedure WindowListTaskStopped(const Task: ITask);
+    procedure WindowListResult(const Task: ITask;
+      const TheResult: TWindowManagerEntryArray);
+    procedure WindowListError(const Task: ITask; Error: Exception);
+    procedure WindowListStopped(const Task: ITask);
   public
     constructor Create(const ADevice: string);
     destructor Destroy; override;
@@ -257,8 +260,8 @@ var
   View: TView;
 begin
   View := GetAssociatedView;
-  FResult := CreateViewServerClient(FDeviceSerial).CaptureView(FWindowHash,
-    View.QualifiedClassName, View.HashCode);
+  SetResult(CreateViewServerClient(FDeviceSerial).CaptureView(FWindowHash,
+    View.QualifiedClassName, View.HashCode));
 end;
 
 constructor TViewServerCaptureViewTask.Create(const ADeviceSerial, AWindowHash: string;
@@ -559,8 +562,8 @@ begin
   end;
 end;
 
-function TViewServerClient.CaptureView(const WindowHash, ViewClass, ViewHash: string):
-TRasterImage;
+function TViewServerClient.CaptureView(
+  const WindowHash, ViewClass, ViewHash: string): TRasterImage;
 
   function GetImageDataStream: TStream;
   begin
@@ -608,15 +611,18 @@ procedure TDeviceListTask.Run;
 begin
   with TAdbHostConnection.Create do
     try
-      FDeviceList := GetDevices;
+      FResult := GetDevices;
     finally
       Free;
     end;
 end;
 
-function TDeviceListTask.GetResult: TAdbDeviceEntryArray;
+procedure TDeviceListTask.DoOnSuccess;
 begin
-  Result := FDeviceList;
+  inherited;
+
+  if Assigned(FOnResult) then
+    FOnResult(Self, FResult);
 end;
 
 { TWindowListTask }
@@ -637,9 +643,12 @@ begin
   end;
 end;
 
-function TWindowListTask.GetResult: TWindowManagerEntryArray;
+procedure TWindowListTask.DoOnSuccess;
 begin
-  Result := FResult;
+  inherited;
+
+  if Assigned(FOnResult) then
+    FOnResult(Self, FResult);
 end;
 
 { TAdbHostConnection }
@@ -759,19 +768,20 @@ begin
   FSerialNumber := ADevice;
 end;
 
-procedure TDeviceInterface.WindowListTaskSuccess(const Task: ITask);
+procedure TDeviceInterface.WindowListResult(const Task: ITask;
+  const TheResult: TWindowManagerEntryArray);
 begin
   if Assigned(OnWindowListComplete) then
-    OnWindowListComplete(Self, (Task as IWindowListTask).GetResult);
+    OnWindowListComplete(Self, TheResult);
 end;
 
-procedure TDeviceInterface.WindowListTaskError(const Task: ITask; Error: Exception);
+procedure TDeviceInterface.WindowListError(const Task: ITask; Error: Exception);
 begin
   if Assigned(OnWindowListError) then
     OnWindowListError(Self);
 end;
 
-procedure TDeviceInterface.WindowListTaskStopped(const Task: ITask);
+procedure TDeviceInterface.WindowListStopped(const Task: ITask);
 begin
   FWindowListTask := nil;
 end;
@@ -791,10 +801,10 @@ begin
 
   with TWindowListTask.Create(SerialNumber) do
   begin
-    OnSuccess := @WindowListTaskSuccess;
-    OnError := @WindowListTaskError;
-    OnStopped := @WindowListTaskStopped;
-    FWindowListTask := Start as IWindowListTask;
+    OnResult := @WindowListResult;
+    OnError := @WindowListError;
+    OnStopped := @WindowListStopped;
+    FWindowListTask := Start;
   end;
 end;
 
@@ -847,10 +857,11 @@ end;
 
 { TAdbInterface }
 
-procedure TAdbInterface.DeviceListSuccess(const Task: ITask);
+procedure TAdbInterface.DeviceListResult(const Task: ITask;
+  const TheResult: TAdbDeviceEntryArray);
 begin
   if Assigned(OnDeviceListComplete) then
-    OnDeviceListComplete(Self, (Task as IDeviceListTask).GetResult);
+    OnDeviceListComplete(Self, TheResult);
 end;
 
 procedure TAdbInterface.DeviceListError(const Task: ITask; Error: Exception);
@@ -873,9 +884,9 @@ begin
 
   with TDeviceListTask.Create do
   begin
-    OnSuccess := @DeviceListSuccess;
+    OnResult := @DeviceListResult;
     OnError := @DeviceListError;
-    FDeviceListTask := Start as IDeviceListTask;
+    FDeviceListTask := Start;
   end;
 end;
 

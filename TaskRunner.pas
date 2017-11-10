@@ -56,10 +56,10 @@ type
     procedure CheckCanceled;
     procedure Run; virtual; abstract;
     function GetCanceled: boolean;
-    procedure DoOnStarted;
-    procedure DoOnSuccess;
-    procedure DoOnError(Error: Exception);
-    procedure DoOnStopped;
+    procedure DoOnStarted; virtual;
+    procedure DoOnSuccess; virtual;
+    procedure DoOnError(Error: Exception); virtual;
+    procedure DoOnStopped; virtual;
   public
     constructor Create;
     destructor Destroy; override;

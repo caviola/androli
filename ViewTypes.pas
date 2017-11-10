@@ -11,35 +11,24 @@ type
 
   TView = class;
 
-  { IViewProviderTask }
-
-  IViewProviderTask = interface(ITask)
-    ['{66E57A29-772A-4C95-B7AA-FE9926B6E041}']
-    // Can be called only once and caller is responsible for freeing the result.
-    function GetResult: TView;
-  end;
-
-  { ICaptureViewTask }
-
-  ICaptureViewTask = interface(ITask)
-    ['{61FCD982-73FE-4B2D-A4E9-6C380FD1183A}']
-    // Can be called only once and caller is responsible for freeing the result.
-    function GetResult: TRasterImage;
-    function GetAssociatedView: TView;
-    property AssociatedView: TView read GetAssociatedView;
-  end;
+  TCaptureViewResultEvent = procedure(const Task: ITask; TheResult: TRasterImage;
+    TheAssociatedView: TView) of object;
 
   { TCaptureViewTask }
 
-  TCaptureViewTask = class(TTask, ICaptureViewTask)
-  protected
+  TCaptureViewTask = class(TTask)
+  private
     FAssociatedView: TView;
     FResult: TRasterImage;
+    FOnResult: TCaptureViewResultEvent;
+  protected
+    procedure DoOnSuccess; override;
+    procedure SetResult(AValue: TRasterImage);
+    function GetAssociatedView: TView; inline;
   public
     constructor Create(AView: TView);
     destructor Destroy; override;
-    function GetResult: TRasterImage;
-    function GetAssociatedView: TView;
+    property OnResult: TCaptureViewResultEvent read FOnResult write FOnResult;
   end;
 
   { ICaptureViewTaskFactory }
@@ -50,23 +39,27 @@ type
 
   { ILayoutOpenTask }
 
-  ILayoutOpenTask = interface(IViewProviderTask)
+  ILayoutOpenTask = interface(ITask)
     ['{F1CC2749-77DC-4AC4-A183-19ECDB4E3924}']
     function GetDisplayName: string;
     property DisplayName: string read GetDisplayName;
   end;
 
+  TLayoutOpenResultEvent = procedure(const Task: ITask; TheResult: TView) of object;
+
   { TLayoutOpenTask }
 
   TLayoutOpenTask = class(TTask, ILayoutOpenTask)
   private
+    FOnResult: TLayoutOpenResultEvent;
     FResult: TView;
   protected
     procedure SetResult(AValue: TView);
+    procedure DoOnSuccess; override;
   public
     destructor Destroy; override;
-    function GetResult: TView;
     function GetDisplayName: string; virtual; abstract;
+    property OnResult: TLayoutOpenResultEvent read FOnResult write FOnResult;
   end;
 
   TViewFlags = set of (
@@ -85,14 +78,14 @@ type
     FFlags: TViewFlags;
     FProperties: TStringList;
     FTextureName: cardinal;
-    FInflightCaptureViewTask: ICaptureViewTask;
+    FInflightCaptureViewTask: ITask;
     function GetExpanded: boolean; inline;
     function GetMatchFilter: boolean; inline;
     function GetSimpleClassName: string;
     function GetChildrenCount: integer; inline;
     function GetVisibilityGone: boolean; inline;
     procedure SetExpanded(AValue: boolean); inline;
-    procedure SetInflightCaptureViewTask(AValue: ICaptureViewTask);
+    procedure SetInflightCaptureViewTask(AValue: ITask);
     procedure SetMatchFilter(AValue: boolean); inline;
     function GetViewportWidth: integer; inline;
     function GetViewportHeight: integer; inline;
@@ -160,7 +153,7 @@ type
     property SimpleClassName: string read GetSimpleClassName;
     property Expanded: boolean read GetExpanded write SetExpanded;
     property TextureName: cardinal read FTextureName write FTextureName;
-    property InflightCaptureViewTask: ICaptureViewTask
+    property InflightCaptureViewTask: ITask
       read FInflightCaptureViewTask write SetInflightCaptureViewTask;
     property VisibilityGone: boolean read GetVisibilityGone;
     property MatchFilter: boolean read GetMatchFilter write SetMatchFilter;
@@ -227,23 +220,35 @@ begin
   inherited;
 end;
 
-function TLayoutOpenTask.GetResult: TView;
-begin
-  if not Assigned(FResult) then
-    raise Exception.CreateFmt(
-      '%s.GetResult can be called only once and caller must free the result.',
-      [ClassName]);
-
-  Result := FResult;
-  FResult := nil;
-end;
-
 procedure TLayoutOpenTask.SetResult(AValue: TView);
 begin
+  Assert(not Assigned(FResult), 'FResult <> nil');
   FResult := AValue;
 end;
 
+procedure TLayoutOpenTask.DoOnSuccess;
+begin
+  inherited;
+
+  if Assigned(FOnResult) then
+  begin
+    FOnResult(Self, FResult);
+    FResult := nil;
+  end;
+end;
+
 { TCaptureViewTask }
+
+procedure TCaptureViewTask.SetResult(AValue: TRasterImage);
+begin
+  Assert(not Assigned(FResult), 'FResult <> nil');
+  FResult := AValue;
+end;
+
+function TCaptureViewTask.GetAssociatedView: TView;
+begin
+  Result := FAssociatedView;
+end;
 
 constructor TCaptureViewTask.Create(AView: TView);
 begin
@@ -258,19 +263,15 @@ begin
   inherited;
 end;
 
-function TCaptureViewTask.GetResult: TRasterImage;
+procedure TCaptureViewTask.DoOnSuccess;
 begin
-  if not Assigned(FResult) then
-    raise Exception.CreateFmt(
-      '%s.GetResult can be called only once and caller must free it.', [ClassName]);
+  inherited;
 
-  Result := FResult;
-  FResult := nil;
-end;
-
-function TCaptureViewTask.GetAssociatedView: TView;
-begin
-  Result := FAssociatedView;
+  if Assigned(FOnResult) then
+  begin
+    FOnResult(Self, FResult, FAssociatedView);
+    FResult := nil;
+  end;
 end;
 
 { TView }
@@ -332,7 +333,7 @@ begin
     Exclude(FFlags, vfExpanded);
 end;
 
-procedure TView.SetInflightCaptureViewTask(AValue: ICaptureViewTask);
+procedure TView.SetInflightCaptureViewTask(AValue: ITask);
 begin
   if Assigned(FInflightCaptureViewTask) then
     FInflightCaptureViewTask.Cancel;

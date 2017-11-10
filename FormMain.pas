@@ -121,10 +121,10 @@ type
     procedure LayoutViewerActiveBranchChanged(Sender: TObject);
     procedure UpdateTreeView(ARootView: TView = nil);
     procedure UpdatePropertyInspector(View: TView = nil);
-    procedure LayoutOpenTaskError(const Task: ITask; Error: Exception);
-    procedure LayoutOpenTaskStarted(const Task: ITask);
-    procedure LayoutOpenTaskStopped(const Task: ITask);
-    procedure LayoutOpenTaskSuccess(const Task: ITask);
+    procedure LayoutOpenError(const Task: ITask; Error: Exception);
+    procedure LayoutOpenStarted(const Task: ITask);
+    procedure LayoutOpenResult(const Task: ITask; TheResult: TView);
+    procedure LayoutOpenStopped(const Task: ITask);
     procedure StartOpenLayout(const Task: TLayoutOpenTask);
     procedure CloseLayout;
     procedure CancelOpenLayout;
@@ -429,35 +429,35 @@ begin
   end;
 end;
 
-procedure TMainForm.LayoutOpenTaskError(const Task: ITask; Error: Exception);
+procedure TMainForm.LayoutOpenError(const Task: ITask; Error: Exception);
 begin
-  LogException('TMainForm.LayoutOpenTaskError', Error);
+  LogException('TMainForm.LayoutOpenError', Error);
 end;
 
-procedure TMainForm.LayoutOpenTaskStarted(const Task: ITask);
+procedure TMainForm.LayoutOpenStarted(const Task: ITask);
 begin
   FScreenCursor := Screen.Cursor;
   Screen.Cursor := crHourGlass;
 end;
 
-procedure TMainForm.LayoutOpenTaskStopped(const Task: ITask);
+procedure TMainForm.LayoutOpenResult(const Task: ITask; TheResult: TView);
 begin
-  Screen.Cursor := FScreenCursor;
-  FLayoutOpenTask := nil;
-end;
+  LogEnterMethod('TMainForm.LayoutOpenResult');
 
-procedure TMainForm.LayoutOpenTaskSuccess(const Task: ITask);
-begin
-  LogEnterMethod('TMainForm.LayoutOpenTaskSuccess');
-
-  RootView := FLayoutOpenTask.GetResult;
+  RootView := TheResult;
   Caption := Format(FormFileCaptionFormat, [FLayoutOpenTask.DisplayName]);
   MenuItemClose.Enabled := True;
   MenuItemZoomIn.Enabled := True;
   MenuItemZoomOut.Enabled := True;
   FIndexedBookmarkManager.Clear;
 
-  LogExitMethod('TMainForm.LayoutOpenTaskSuccess');
+  LogExitMethod('TMainForm.LayoutOpenResult');
+end;
+
+procedure TMainForm.LayoutOpenStopped(const Task: ITask);
+begin
+  Screen.Cursor := FScreenCursor;
+  FLayoutOpenTask := nil;
 end;
 
 procedure TMainForm.StartOpenLayout(const Task: TLayoutOpenTask);
@@ -469,10 +469,10 @@ begin
 
   with Task do
   begin
-    OnStarted := @LayoutOpenTaskStarted;
-    OnSuccess := @LayoutOpenTaskSuccess;
-    OnError := @LayoutOpenTaskError;
-    OnStopped := @LayoutOpenTaskStopped;
+    OnStarted := @LayoutOpenStarted;
+    OnResult := @LayoutOpenResult;
+    OnError := @LayoutOpenError;
+    OnStopped := @LayoutOpenStopped;
     FLayoutOpenTask := Start as ILayoutOpenTask;
   end;
 

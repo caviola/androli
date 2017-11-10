@@ -60,7 +60,8 @@ type
     procedure StartCaptureView;
   protected
     procedure ActiveViewChangedTimerTimer(Sender: TObject);
-    procedure CaptureViewTaskSuccessHandler(const Task: ITask);
+    procedure CaptureViewTaskResultHandler(const Task: ITask;
+      TheResult: TRasterImage; TheAssociatedView: TView);
     procedure MouseLeaveHandler(Sender: TObject);
 
     procedure ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
@@ -431,7 +432,7 @@ begin
       Assigned(TaskFactory) then
       with TaskFactory.CreateTask(View) do
       begin
-        OnSuccess := @CaptureViewTaskSuccessHandler;
+        OnResult := @CaptureViewTaskResultHandler;
         Start;
       end;
     View := View.Next;
@@ -446,6 +447,45 @@ begin
   DoActiveViewChanged;
 
   LogExitMethod('TLayoutViewer.ActiveViewChangedTimerTimer');
+end;
+
+procedure TLayoutViewer.CaptureViewTaskResultHandler(const Task: ITask;
+  TheResult: TRasterImage; TheAssociatedView: TView);
+var
+  TextureName: GLint = 0;
+begin
+  try
+    // Abort if image was not fetched or its width/height is 1px.
+    if not Assigned(TheResult) or (TheResult.Width = 1) or (TheResult.Height = 1) then
+      Exit;
+
+    // Create new OpenGL texture from image data.
+    // Note we create the texture for a view only once.
+    // If for some reason (eg. out-of-memory) the texture creation fails,
+    // the view won't have an associated texture and we won't display its image.
+    glGenTextures(1, @TextureName);
+    glBindTexture(GL_TEXTURE_2D, TextureName);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(
+      GL_TEXTURE_2D,
+      0,
+      GL_RGBA,
+      TheResult.Width,
+      TheResult.Height,
+      0,
+      GL_BGRA,
+      GL_UNSIGNED_BYTE,
+      TheResult.RawImage.Data);
+  finally
+    TheResult.Free;
+  end;
+
+  TheAssociatedView.TextureName := TextureName;
+
+  // Repaint the whole view layout.
+  // This will happen each time a new view image is fetched.
+  Invalidate;
 end;
 
 procedure TLayoutViewer.MouseLeaveHandler(Sender: TObject);
@@ -1042,51 +1082,6 @@ end;
 procedure TLayoutViewer.ZOrderAnimatorUpdateHandler(Sender: TAnimator;
   const InterpolatedFraction: single);
 begin
-  Invalidate;
-end;
-
-procedure TLayoutViewer.CaptureViewTaskSuccessHandler(const Task: ITask);
-var
-  TextureName: GLint = 0;
-  View: TView;
-  Image: TRasterImage;
-  CaptureViewTask: ICaptureViewTask;
-begin
-  CaptureViewTask := Task as ICaptureViewTask;
-  View := CaptureViewTask.AssociatedView;
-  Assert(Assigned(View), 'CaptureViewTask.AssociatedView is nil');
-  Image := CaptureViewTask.GetResult;
-  try
-    // Abort if image was not fetched or its width/height is 1px.
-    if not Assigned(Image) or (Image.Width = 1) or (Image.Height = 1) then
-      Exit;
-
-    // Create new OpenGL texture from image data.
-    // Note we create the texture for a view only once.
-    // If for some reason (eg. out-of-memory) the texture creation fails,
-    // the view won't have an associated texture and we won't display its image.
-    glGenTextures(1, @TextureName);
-    glBindTexture(GL_TEXTURE_2D, TextureName);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(
-      GL_TEXTURE_2D,
-      0,
-      GL_RGBA,
-      Image.Width,
-      Image.Height,
-      0,
-      GL_BGRA,
-      GL_UNSIGNED_BYTE,
-      Image.RawImage.Data);
-  finally
-    Image.Free;
-  end;
-
-  View.TextureName := TextureName;
-
-  // Repaint the whole view layout.
-  // This will happen each time a new view image is fetched.
   Invalidate;
 end;
 
