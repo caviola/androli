@@ -12,7 +12,7 @@ function CreateDumpFileOpenTask(const FilePath: string): TLayoutOpenTask;
 implementation
 
 uses
-  SysUtils, LazUTF8, laz2_XMLRead, laz2_DOM, Logging;
+  SysUtils, LazUTF8, laz2_XMLRead, laz2_DOM, Logging, Math;
 
 type
   { TDeviceMonitorDumpOpenTask }
@@ -45,7 +45,7 @@ procedure TDeviceMonitorDumpOpenTask.Run;
       Result := EmptyStr;
   end;
 
-  function CreateView(Node: TDOMNode; Depth: integer = 0): TView;
+  function CreateView(Parent: TView; Node: TDOMNode; Depth: integer = 0): TView;
   var
     Left, Top, Right, Bottom: integer;
     S: string;
@@ -69,14 +69,27 @@ procedure TDeviceMonitorDumpOpenTask.Run;
         Result.SetProperty('mID', S);
 
       Result.SetBounds(Left, Top, Right, Bottom, Depth);
-      Result.ClippedLeft := Left;
-      Result.ClippedTop := Top;
-      Result.ClippedRight := Right;
-      Result.ClippedBottom := Bottom;
+
+      if Assigned(Parent) then
+      begin
+        Result.ClippedLeft := EnsureRange(Left, Parent.ClippedLeft, Parent.ClippedRight);
+        Result.ClippedTop := EnsureRange(Top, Parent.ClippedTop, Parent.ClippedBottom);
+        Result.ClippedRight :=
+          EnsureRange(Right, Parent.ClippedLeft, Parent.ClippedRight);
+        Result.ClippedBottom :=
+          EnsureRange(Bottom, Parent.ClippedTop, Parent.ClippedBottom);
+      end
+      else
+      begin
+        Result.ClippedLeft := Left;
+        Result.ClippedTop := Top;
+        Result.ClippedRight := Right;
+        Result.ClippedBottom := Bottom;
+      end;
 
       for ChildNode in Node do
         if ChildNode.NodeType <> COMMENT_NODE then
-          Result.AddChild(CreateView(ChildNode, Depth + 1));
+          Result.AddChild(CreateView(Result, ChildNode, Depth + 1));
     except
       Result.Free;
       raise;
@@ -107,7 +120,7 @@ begin
 
     // Since we already checked for the presence of at least the root node,
     // we'll always return at least one view.
-    SetResult(Flatten(CreateView(Node)));
+    SetResult(Flatten(CreateView(nil, Node)));
   finally
     Document.Free;
   end;
