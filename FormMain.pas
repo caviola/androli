@@ -61,7 +61,7 @@ type
     MenuItemGotoBookmark: TMenuItem;
     MenuItemSearch: TMenuItem;
     MenuItemClipToParent: TMenuItem;
-    MenuItemToggleView3D: TMenuItem;
+    MenuItemToggleMode3D: TMenuItem;
     MenuItemClose: TMenuItem;
     MenuItem3: TMenuItem;
     MenuItemNormalSize: TMenuItem;
@@ -92,7 +92,7 @@ type
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
     procedure MenuItemOpenViewServerWindowClick(Sender: TObject);
     procedure MenuItemSetBookmarkClick(Sender: TObject);
-    procedure MenuItemToggleView3DClick(Sender: TObject);
+    procedure MenuItemToggleMode3DClick(Sender: TObject);
     procedure MenuItemQuitClick(Sender: TObject);
     procedure MenuItemOpenFileClick(Sender: TObject);
     procedure MenuItemZoomInClick(Sender: TObject);
@@ -168,7 +168,7 @@ begin
   {$ENDIF}
   SetControlIndex(FLayoutViewer, 0);
 
-  MenuItemToggleView3D.Checked := FLayoutViewer.View3DEnabled;
+  MenuItemToggleMode3D.Checked := FLayoutViewer.Mode3D;
   MenuItemClipToParent.Checked := FLayoutViewer.ClipBounds;
 
   KeyPreview := True;
@@ -649,12 +649,12 @@ begin
   FIndexedBookmarkManager.SetFree;
 end;
 
-procedure TMainForm.MenuItemToggleView3DClick(Sender: TObject);
+procedure TMainForm.MenuItemToggleMode3DClick(Sender: TObject);
 var
   MenuItem: TMenuItem absolute Sender;
 begin
   MenuItem.Checked := not MenuItem.Checked;
-  FLayoutViewer.View3DEnabled := MenuItem.Checked;
+  FLayoutViewer.Mode3D := MenuItem.Checked;
 end;
 
 procedure TMainForm.MenuItemOpenViewServerWindowClick(Sender: TObject);

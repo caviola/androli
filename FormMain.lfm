@@ -337,9 +337,9 @@ object MainForm: TMainForm
       object MenuItem2: TMenuItem
         Caption = '-'
       end
-      object MenuItemToggleView3D: TMenuItem
-        Caption = 'Enable 3D View'
-        OnClick = MenuItemToggleView3DClick
+      object MenuItemToggleMode3D: TMenuItem
+        Caption = 'Enable 3D Mode'
+        OnClick = MenuItemToggleMode3DClick
       end
       object MenuItemClipToParent: TMenuItem
         Caption = 'Clip Bounds to Parent'

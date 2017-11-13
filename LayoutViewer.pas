@@ -13,7 +13,7 @@ type
   TMouseState = (msNone, msDown, msDragging);
 
   TZOrderAnimator = class;
-  TToggleView3DAnimator = class;
+  TMode3DToggleAnimator = class;
 
   TActiveViewChangedEvent = procedure(NewView: TView) of object;
   TActiveBranchChangedEvent = procedure(NewBranch: TView) of object;
@@ -22,13 +22,13 @@ type
 
   TLayoutViewer = class(TOpenGLControl)
   private
-    FView3DEnabled: boolean;
+    FMode3D: boolean;
     FLayout: IViewLayout;
     FClipBounds: boolean;
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
     FZOrderAnimator: TZOrderAnimator;
-    FToggleView3DAnimator: TToggleView3DAnimator;
+    FMode3DToggleAnimator: TMode3DToggleAnimator;
     FScaleZAnimator: TFloatAnimator;
     FZoomLevelAnimator: TFloatAnimator;
     FOriginX: single;
@@ -47,7 +47,7 @@ type
     FOnActiveViewChanged: TActiveViewChangedEvent;
     FOnActiveBranchChanged: TActiveBranchChangedEvent;
     FActiveViewChangedTimer: TTimer;
-    procedure SetView3DEnabled(AValue: boolean);
+    procedure SetMode3D(AValue: boolean);
     procedure SetClipBounds(AValue: boolean);
     procedure SetHighlightedView(AValue: TView);
     procedure SetRotationX(Degres: single);
@@ -60,7 +60,7 @@ type
     procedure ActiveViewChangedTimerTimer(Sender: TObject);
     procedure MouseLeaveHandler(Sender: TObject);
 
-    procedure ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
+    procedure Mode3DToggleAnimatorUpdate(Sender: TAnimator;
       const InterpolatedFraction: single);
 
     procedure MouseDownHandler(Sender: TObject; Button: TMouseButton;
@@ -103,7 +103,7 @@ type
     property OnActiveBranchChanged: TActiveBranchChangedEvent
       write FOnActiveBranchChanged;
     property ClipBounds: boolean read FClipBounds write SetClipBounds;
-    property View3DEnabled: boolean read FView3DEnabled write SetView3DEnabled;
+    property Mode3D: boolean read FMode3D write SetMode3D;
   end;
 
 
@@ -125,9 +125,9 @@ type
     procedure AddTarget(View: TView; const StartValue, EndValue: single);
   end;
 
-  { TToggleView3DAnimator }
+  { TMode3DToggleAnimator }
 
-  TToggleView3DAnimator = class(TAnimator)
+  TMode3DToggleAnimator = class(TAnimator)
   private
     FRotationYStartValue: single;
     FRotationYEndValue: single;
@@ -162,9 +162,9 @@ const
 
   InitialZoomLevel = 1;
 
-  View3DScaleZ = 20;
-  View3DRotationX = 0;
-  View3DRotationY = 30;
+  Mode3DScaleZ = 20;
+  Mode3DRotationX = 0;
+  Mode3DRotationY = 30;
 
   StepZoomLevel = 0.1;
   StepScaleZ = 20;
@@ -186,16 +186,16 @@ const
   CanvasPaddingVertical = 50;
   CanvasPaddingHorizontal = 50;
 
-{ TToggleView3DAnimator }
+{ TMode3DToggleAnimator }
 
-procedure TToggleView3DAnimator.SetRotationYInterval(
+procedure TMode3DToggleAnimator.SetRotationYInterval(
   const StartValue, EndValue: single);
 begin
   FRotationYStartValue := StartValue;
   FRotationYEndValue := EndValue;
 end;
 
-procedure TToggleView3DAnimator.SetScaleZInterval(const StartValue, EndValue: single);
+procedure TMode3DToggleAnimator.SetScaleZInterval(const StartValue, EndValue: single);
 begin
   FScaleZStartValue := StartValue;
   FScateZEndValue := EndValue;
@@ -249,10 +249,10 @@ begin
   glShadeModel(GL_SMOOTH);
   glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-  FView3DEnabled := True;
-  FToggleView3DAnimator := TToggleView3DAnimator.Create;
-  FToggleView3DAnimator.Duration := 500;
-  FToggleView3DAnimator.OnUpdate := @ToggleView3DAnimatorUpdateHandler;
+  FMode3D := True;
+  FMode3DToggleAnimator := TMode3DToggleAnimator.Create;
+  FMode3DToggleAnimator.Duration := 500;
+  FMode3DToggleAnimator.OnUpdate := @Mode3DToggleAnimatorUpdate;
 
   FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
   FScaleZAnimator.Duration := 200;
@@ -269,7 +269,7 @@ begin
   FZOrderAnimator.Free;
   FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
-  FToggleView3DAnimator.Free;
+  FMode3DToggleAnimator.Free;
   inherited Destroy;
 end;
 
@@ -301,7 +301,7 @@ procedure TLayoutViewer.Collapse(Root: TView);
   end;
 
 begin
-  Log('TLayoutViewer.Collapse %s', [DbgS(Root)]);
+  Log('TLayoutViewer.Collapse %s: Root.ZOrder=%f', [DbgS(Root), Root.ZOrder]);
 
   FZOrderAnimator.Finish;
   FZOrderAnimator.ClearTargets;
@@ -354,7 +354,11 @@ procedure TLayoutViewer.SetLayout(AValue: IViewLayout);
 var
   RootView: TView;
 begin
-  Log('TLayoutViewer.SetViewLayout %s', [DbgS(Pointer(AValue))]);
+  if Assigned(AValue) then
+    Log('TLayoutViewer.SetViewLayout %s: ActiveBranch=%s',
+      [DbgS(Pointer(AValue)), DbgS(AValue.ActiveBranch)])
+  else
+    Log('TLayoutViewer.SetViewLayout nil');
 
   // TODO: center fit initially
 
@@ -383,13 +387,13 @@ begin
     OnClick := @MouseClickHandler;
     OnDblClick := @MouseDblClickHandler;
 
-    if View3DEnabled then
+    if Mode3D then
     begin
       // No need to Invalidate here because the animation starts right away
       // and will take care of it.
-      FToggleView3DAnimator.SetRotationYInterval(0, 0);
-      FToggleView3DAnimator.SetScaleZInterval(0, View3DScaleZ);
-      FToggleView3DAnimator.Restart;
+      FMode3DToggleAnimator.SetRotationYInterval(0, 0);
+      FMode3DToggleAnimator.SetScaleZInterval(0, Mode3DScaleZ);
+      FMode3DToggleAnimator.Restart;
     end
     else
       Invalidate;
@@ -446,25 +450,25 @@ begin
     Result := False;
 end;
 
-procedure TLayoutViewer.SetView3DEnabled(AValue: boolean);
+procedure TLayoutViewer.SetMode3D(AValue: boolean);
 begin
-  if FView3DEnabled = AValue then
+  if FMode3D = AValue then
     Exit;
 
-  FView3DEnabled := AValue;
-  if FView3DEnabled then
+  FMode3D := AValue;
+  if FMode3D then
   begin
     // Don't RotateY.
-    FToggleView3DAnimator.SetRotationYInterval(0, 0);
-    FToggleView3DAnimator.SetScaleZInterval(0, View3DScaleZ);
+    FMode3DToggleAnimator.SetRotationYInterval(0, 0);
+    FMode3DToggleAnimator.SetScaleZInterval(0, Mode3DScaleZ);
   end
   else
   begin
-    FToggleView3DAnimator.SetRotationYInterval(RotationY, 0);
-    FToggleView3DAnimator.SetScaleZInterval(ScaleZ, 0);
+    FMode3DToggleAnimator.SetRotationYInterval(RotationY, 0);
+    FMode3DToggleAnimator.SetScaleZInterval(ScaleZ, 0);
   end;
 
-  FToggleView3DAnimator.Restart;
+  FMode3DToggleAnimator.Restart;
 end;
 
 procedure TLayoutViewer.SetClipBounds(AValue: boolean);
@@ -739,28 +743,47 @@ var
 begin
   glClearColor(0, 0, 0, 1);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity;
-  // 3. Move to (-OriginX, OriginY, -FCameraZ).
-  glTranslatef(-OriginX, OriginY, -FCameraZ);
-  // 2. Rotate and scale Z coords around (OriginX, OriginY, FOriginZ).
-  glTranslatef(OriginX, OriginY, FOriginZ);
-  glRotatef(RotationY, 0, 1, 0);
-  glScalef(1, 1, ScaleZ);
-  glTranslatef(-OriginX, -OriginY, -FOriginZ);
-  // 1. Invert our Y-axis.
-  glScalef(1, -1, 1);
+  try
+    if not Assigned(FLayout) then
+      Exit;
 
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity;
-  glScalef(ZoomLevel, ZoomLevel, 1);
-  gluPerspective(45, Width / Height, 0, FCameraZ);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  if Assigned(FLayout) then
-  begin
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity;
+    // Note that the order in which we apply transformations is important.
+    // 1. Move to (-OriginX, OriginY, -FCameraZ).
+    glTranslatef(-OriginX, OriginY, -FCameraZ);
+    // 2. Invert our Y-axis.
+    glScalef(1, -1, 1);
+
+    if FMode3DToggleAnimator.IsRunning then
+    begin
+      // 3. Rotate and scale Z coords around (OriginX, OriginY, FOriginZ).
+      glTranslatef(OriginX, OriginY, FOriginZ);
+      glRotatef(RotationY, 0, 1, 0);
+      glScalef(1, 1, ScaleZ);
+      glTranslatef(-OriginX, -OriginY, -FOriginZ);
+    end
+    else if Mode3D then
+    begin
+      // 3. Rotate and scale Z coords around (OriginX, OriginY, FOriginZ).
+      glTranslatef(OriginX, OriginY, FOriginZ);
+      glRotatef(RotationY, 0, 1, 0);
+      glScalef(1, 1, ScaleZ);
+      glTranslatef(-OriginX, -OriginY, -FOriginZ);
+    end
+    else
+      glScalef(1, 1, 0); // 2D mode, drop Z coord
+
+    // 4. Perspective projection.
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity;
+    glScalef(ZoomLevel, ZoomLevel, 1);
+    gluPerspective(45, Width / Height, 0, FCameraZ);
+
     FHierarchyWidth := 0;
     FHierarchyHeight := 0;
 
@@ -779,15 +802,15 @@ begin
         View := View.Next; // continue
       end;
     until View = CurrentRoot;
+  finally
+    SwapBuffers;
   end;
-
-  SwapBuffers;
 end;
 
-procedure TLayoutViewer.ToggleView3DAnimatorUpdateHandler(Sender: TAnimator;
+procedure TLayoutViewer.Mode3DToggleAnimatorUpdate(Sender: TAnimator;
   const InterpolatedFraction: single);
 var
-  A: TToggleView3DAnimator absolute Sender;
+  A: TMode3DToggleAnimator absolute Sender;
 begin
   ScaleZ := FloatEvaluator(InterpolatedFraction, A.ScaleZStartValue,
     A.ScateZEndValue);
@@ -876,7 +899,7 @@ begin
       OriginY := OriginY - (Y - FLastMouseY);
     end
     else
-    if View3DEnabled then
+    if Mode3D then
     begin
       // Constrain X/Y rotation to predefined min/max angles.
       RotationX := EnsureRange(RotationX - Y - FLastMouseY, MinRotationX,
@@ -895,13 +918,13 @@ end;
 procedure TLayoutViewer.MouseWheelHandler(Sender: TObject; Shift: TShiftState;
   WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
 begin
-  if (FMouseState = msDragging) or FToggleView3DAnimator.IsRunning then
+  if (FMouseState = msDragging) or FMode3DToggleAnimator.IsRunning then
     Exit;
 
   WheelDelta := Sign(WheelDelta);
   if ssCtrl in Shift then
   begin
-    if View3DEnabled then
+    if Mode3D then
     begin
       // Constrain Z scaling to predefined min/max values.
       FScaleZAnimator.SetValueInterval(ScaleZ,
