@@ -56,9 +56,12 @@ type
 
 
 var
-  OpenViewServerWindowForm : TOpenViewServerWindowForm;
+  OpenViewServerWindowForm: TOpenViewServerWindowForm;
 
 implementation
+
+const
+  WindowNoTitle = '<untitled>';
 
 {$R *.lfm}
 
@@ -142,6 +145,7 @@ procedure TOpenViewServerWindowForm.SetWindowList(
   const WindowList: TWindowManagerEntryArray);
 var
   I: integer;
+  WindowTitle: string;
 begin
   // We need to associate another string (window hash) with each item
   // in ListBoxWindows (window title).
@@ -154,7 +158,11 @@ begin
     ListBoxWindows.Clear;
     for I := 0 to Length(WindowList) - 1 do
     begin
-      ListBoxWindows.AddItem(WindowList[I].Title, nil);
+      WindowTitle := WindowList[I].Title;
+      if WindowTitle = EmptyStr then
+        WindowTitle := WindowNoTitle;
+
+      ListBoxWindows.AddItem(WindowTitle, nil);
       FWindowHashes[I] := WindowList[I].HashCode;
     end;
   finally
