@@ -1,9 +1,9 @@
-object OpenWindowForm: TOpenWindowForm
+object OpenViewServerWindowForm: TOpenViewServerWindowForm
   Left = 1906
   Height = 325
   Top = 297
   Width = 685
-  Caption = 'Open Device Window'
+  Caption = 'Open View Server Window'
   ClientHeight = 325
   ClientWidth = 685
   Constraints.MinHeight = 300

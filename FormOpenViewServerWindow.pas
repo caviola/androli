@@ -1,4 +1,4 @@
-unit FormOpenWindow;
+unit FormOpenViewServerWindow;
 
 {$mode objfpc}{$H+}
 
@@ -10,9 +10,9 @@ uses
 
 type
 
-  { TOpenWindowForm }
+  { TOpenViewServerWindowForm }
 
-  TOpenWindowForm = class(TForm)
+  TOpenViewServerWindowForm = class(TForm)
     ButtonCancel: TButton;
     ButtonOpen: TButton;
     ButtonRefreshWindows: TButton;
@@ -25,9 +25,9 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
-    procedure ListBoxDevicesSelectionChange(Sender: TObject; User: boolean);
+    procedure ListBoxDevicesSelectionChange(Sender: TObject; {%H-}User: boolean);
     procedure ListBoxWindowsDblClick(Sender: TObject);
-    procedure ListBoxWindowsSelectionChange(Sender: TObject; User: boolean);
+    procedure ListBoxWindowsSelectionChange(Sender: TObject; {%H-}User: boolean);
   private
     FAdbInterface: TAdbInterface;
     FSelectedDevice: TDeviceInterface;
@@ -54,6 +54,10 @@ type
     property SelectedWindowHash: string read GetSelectedWindowHash;
   end;
 
+
+var
+  OpenViewServerWindowForm : TOpenViewServerWindowForm;
+
 implementation
 
 {$R *.lfm}
@@ -66,9 +70,9 @@ begin
     ListBox.Items.Objects[I].Free;
 end;
 
-{ TOpenWindowForm }
+{ TOpenViewServerWindowForm }
 
-procedure TOpenWindowForm.FormCreate(Sender: TObject);
+procedure TOpenViewServerWindowForm.FormCreate(Sender: TObject);
 begin
   KeyPreview := True;
   FAdbInterface := TAdbInterface.Create;
@@ -78,25 +82,26 @@ begin
   ButtonRefreshDevices.Enabled := False;
 end;
 
-procedure TOpenWindowForm.ButtonRefreshDevicesClick(Sender: TObject);
+procedure TOpenViewServerWindowForm.ButtonRefreshDevicesClick(Sender: TObject);
 begin
   ButtonRefreshDevices.Enabled := False;
   FAdbInterface.GetDeviceList;
 end;
 
-procedure TOpenWindowForm.FormDestroy(Sender: TObject);
+procedure TOpenViewServerWindowForm.FormDestroy(Sender: TObject);
 begin
   FreeListBoxObjects(ListBoxDevices);
   FAdbInterface.Free;
 end;
 
-procedure TOpenWindowForm.FormKeyPress(Sender: TObject; var Key: char);
+procedure TOpenViewServerWindowForm.FormKeyPress(Sender: TObject; var Key: char);
 begin
   if Key = #27 then
     ModalResult := mrCancel;
 end;
 
-procedure TOpenWindowForm.ListBoxDevicesSelectionChange(Sender: TObject; User: boolean);
+procedure TOpenViewServerWindowForm.ListBoxDevicesSelectionChange(Sender: TObject;
+  User: boolean);
 var
   I: integer;
 begin
@@ -107,18 +112,19 @@ begin
     SelectedDevice := nil;
 end;
 
-procedure TOpenWindowForm.ListBoxWindowsDblClick(Sender: TObject);
+procedure TOpenViewServerWindowForm.ListBoxWindowsDblClick(Sender: TObject);
 begin
   if (SelectedWindowHash <> EmptyStr) and ButtonOpen.Enabled then
     ButtonOpen.Click;
 end;
 
-procedure TOpenWindowForm.ListBoxWindowsSelectionChange(Sender: TObject; User: boolean);
+procedure TOpenViewServerWindowForm.ListBoxWindowsSelectionChange(Sender: TObject;
+  User: boolean);
 begin
   ButtonOpen.Enabled := ListBoxWindows.ItemIndex > -1;
 end;
 
-procedure TOpenWindowForm.SetSelectedDevice(V: TDeviceInterface);
+procedure TOpenViewServerWindowForm.SetSelectedDevice(V: TDeviceInterface);
 begin
   if FSelectedDevice = V then
     Exit;
@@ -132,7 +138,8 @@ begin
     V.GetWindowList;
 end;
 
-procedure TOpenWindowForm.SetWindowList(const WindowList: TWindowManagerEntryArray);
+procedure TOpenViewServerWindowForm.SetWindowList(
+  const WindowList: TWindowManagerEntryArray);
 var
   I: integer;
 begin
@@ -155,7 +162,7 @@ begin
   end;
 end;
 
-procedure TOpenWindowForm.AdbDeviceListComplete(Sender: TObject;
+procedure TOpenViewServerWindowForm.AdbDeviceListComplete(Sender: TObject;
   const DeviceList: TAdbDeviceEntryArray);
 var
   E: TAdbDeviceEntry;
@@ -190,12 +197,12 @@ begin
   ButtonRefreshDevices.Enabled := True;
 end;
 
-procedure TOpenWindowForm.AdbDeviceListError(Sender: TObject);
+procedure TOpenViewServerWindowForm.AdbDeviceListError(Sender: TObject);
 begin
   ButtonRefreshDevices.Enabled := True;
 end;
 
-function TOpenWindowForm.GetSelectedDeviceSerial: string;
+function TOpenViewServerWindowForm.GetSelectedDeviceSerial: string;
 begin
   if Assigned(FSelectedDevice) then
     Result := FSelectedDevice.SerialNumber
@@ -203,7 +210,7 @@ begin
     Result := EmptyStr;
 end;
 
-function TOpenWindowForm.GetSelectedWindowHash: string;
+function TOpenViewServerWindowForm.GetSelectedWindowHash: string;
 var
   I: integer;
 begin
@@ -214,7 +221,7 @@ begin
     Result := EmptyStr;
 end;
 
-function TOpenWindowForm.GetSelectedWindowTitle: string;
+function TOpenViewServerWindowForm.GetSelectedWindowTitle: string;
 var
   I: integer;
 begin
@@ -225,14 +232,14 @@ begin
     Result := EmptyStr;
 end;
 
-procedure TOpenWindowForm.DeviceWindowListComplete(Sender: TDeviceInterface;
+procedure TOpenViewServerWindowForm.DeviceWindowListComplete(Sender: TDeviceInterface;
   const WindowList: TWindowManagerEntryArray);
 begin
   if SelectedDevice = Sender then
     Self.WindowList := WindowList;
 end;
 
-procedure TOpenWindowForm.DeviceWindowListError(Sender: TObject);
+procedure TOpenViewServerWindowForm.DeviceWindowListError(Sender: TObject);
 begin
   ButtonRefreshWindows.Enabled := Assigned(SelectedDevice);
 end;

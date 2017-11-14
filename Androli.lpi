@@ -104,30 +104,30 @@
         <IsPartOfProject Value="True"/>
       </Unit5>
       <Unit6>
-        <Filename Value="FormOpenWindow.pas"/>
+        <Filename Value="TaskRunner.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="OpenWindowForm"/>
-        <HasResources Value="True"/>
-        <ResourceBaseClass Value="Form"/>
       </Unit6>
       <Unit7>
-        <Filename Value="TaskRunner.pas"/>
+        <Filename Value="DumpFileLoader.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit7>
       <Unit8>
-        <Filename Value="DumpFileLoader.pas"/>
+        <Filename Value="Logging.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit8>
       <Unit9>
-        <Filename Value="Logging.pas"/>
+        <Filename Value="Bookmarks.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit9>
       <Unit10>
-        <Filename Value="DeviceWindowLoader.pas"/>
+        <Filename Value="FormOpenViewServerWindow.pas"/>
         <IsPartOfProject Value="True"/>
+        <ComponentName Value="OpenViewServerWindowForm"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
       </Unit10>
       <Unit11>
-        <Filename Value="Bookmarks.pas"/>
+        <Filename Value="ViewServerLoader.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit11>
     </Units>

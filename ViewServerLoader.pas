@@ -1,4 +1,4 @@
-unit DeviceWindowLoader;
+unit ViewServerLoader;
 
 {$mode objfpc}{$H+}
 
@@ -7,8 +7,8 @@ interface
 uses
   ViewTypes;
 
-function CreateDeviceWindowLoadTask(const DeviceSerial, WindowTitle,
-  WindowHash: string): TLayoutLoadTask;
+function CreateViewServerWindowLoadTask(
+  const DeviceSerial, WindowTitle, WindowHash: string): TLayoutLoadTask;
 
 implementation
 
@@ -16,9 +16,9 @@ uses AndroidDebugBridge, Logging, Classes, Graphics, TaskRunner, GLext, gl, LCLP
 
 type
 
-  { TDeviceWindowLayout }
+  { TViewServerWindowLayout }
 
-  TDeviceWindowLayout = class(TViewLayout)
+  TViewServerWindowLayout = class(TViewLayout)
   private
     FDeviceSerial: string;
     FWindowHash: string;
@@ -30,9 +30,9 @@ type
     destructor Destroy; override;
   end;
 
-  { TDeviceWindowLoadTask }
+  { TViewServerWindowLoadTask }
 
-  TDeviceWindowLoadTask = class(TLayoutLoadTask)
+  TViewServerWindowLoadTask = class(TLayoutLoadTask)
   private
     FDeviceSerial: string;
     FWindowTitle: string;
@@ -45,20 +45,20 @@ type
   end;
 
 
-function CreateDeviceWindowLoadTask(const DeviceSerial, WindowTitle,
-  WindowHash: string): TLayoutLoadTask;
+function CreateViewServerWindowLoadTask(
+  const DeviceSerial, WindowTitle, WindowHash: string): TLayoutLoadTask;
 begin
-  Result := TDeviceWindowLoadTask.Create(DeviceSerial, WindowTitle, WindowHash);
+  Result := TViewServerWindowLoadTask.Create(DeviceSerial, WindowTitle, WindowHash);
 end;
 
 { TDeviceWindowLayout }
 
-procedure TDeviceWindowLayout.CaptureViewResult(const Task: ITask;
+procedure TViewServerWindowLayout.CaptureViewResult(const Task: ITask;
   Image: TRasterImage; View: TView);
 var
   TextureName: GLint = 0;
 begin
-  Log('TDeviceWindowLayout.CaptureViewResult: Task=%s, View=%s@%s, Image=%dx%d',
+  Log('TViewServerWindowLayout.CaptureViewResult: Task=%s, View=%s@%s, Image=%dx%d',
     [DbgS(Pointer(Task)), View.QualifiedClassName, View.HashCode,
     Image.Width, Image.Height]);
 
@@ -98,7 +98,7 @@ begin
   Changed;
 end;
 
-constructor TDeviceWindowLayout.Create(const ADeviceSerial, AWindowHash: string;
+constructor TViewServerWindowLayout.Create(const ADeviceSerial, AWindowHash: string;
   ARootView: TView);
 begin
   inherited Create(ARootView);
@@ -107,7 +107,7 @@ begin
   CaptureViews(FRootView);
 end;
 
-destructor TDeviceWindowLayout.Destroy;
+destructor TViewServerWindowLayout.Destroy;
 
   procedure DeleteTexture(AView: TView);
   var
@@ -127,7 +127,7 @@ begin
   inherited;
 end;
 
-procedure TDeviceWindowLayout.CaptureViews(AView: TView);
+procedure TViewServerWindowLayout.CaptureViews(AView: TView);
 var
   Child: TView;
 begin
@@ -149,23 +149,23 @@ begin
       Start;
     end
   else
-    Log('TDeviceWindowLayout.CaptureViews: skip view %s@%s too small %dx%d',
+    Log('TViewServerWindowLayout.CaptureViews: skip view %s@%s too small %dx%d',
       [AView.QualifiedClassName, AView.HashCode, TruncToInt(AView.Width),
       TruncToInt(AView.Height)]);
 end;
 
 { TDeviceWindowOpenTask }
 
-procedure TDeviceWindowLoadTask.Run;
+procedure TViewServerWindowLoadTask.Run;
 begin
-  Log('TDeviceWindowLoadTask.Run: Device=''%s'', WindowTitle=''%s'', WindowHash=''%s''',
+  Log('TViewServerWindowLoadTask.Run: Device=''%s'', WindowTitle=''%s'', WindowHash=''%s''',
     [FDeviceSerial, FWindowTitle, FWindowHash]);
 
-  SetResult(TDeviceWindowLayout.Create(FDeviceSerial, FWindowHash,
+  SetResult(TViewServerWindowLayout.Create(FDeviceSerial, FWindowHash,
     CreateViewServerClient(FDeviceSerial).DumpWindow(FWindowHash, @CheckCanceled)));
 end;
 
-constructor TDeviceWindowLoadTask.Create(
+constructor TViewServerWindowLoadTask.Create(
   const ADeviceSerial, AWindowTitle, AWindowHash: string);
 begin
   FDeviceSerial := ADeviceSerial;
@@ -173,7 +173,7 @@ begin
   FWindowHash := AWindowHash;
 end;
 
-function TDeviceWindowLoadTask.GetDisplayName: string;
+function TViewServerWindowLoadTask.GetDisplayName: string;
 begin
   Result := FDeviceSerial + ':' + FWindowTitle;
 end;

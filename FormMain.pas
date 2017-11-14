@@ -72,7 +72,7 @@ type
     MenuItemFile: TMenuItem;
     MenuItemAbout: TMenuItem;
     MenuItemOpenFile: TMenuItem;
-    MenuItemOpenWindow: TMenuItem;
+    MenuItemOpenViewServerWindow: TMenuItem;
     MenuItem4: TMenuItem;
     MenuItemQuit: TMenuItem;
     MenuItemHelp: TMenuItem;
@@ -90,11 +90,11 @@ type
     procedure MenuItemCloseClick(Sender: TObject);
     procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
+    procedure MenuItemOpenViewServerWindowClick(Sender: TObject);
     procedure MenuItemSetBookmarkClick(Sender: TObject);
     procedure MenuItemToggleView3DClick(Sender: TObject);
     procedure MenuItemQuitClick(Sender: TObject);
     procedure MenuItemOpenFileClick(Sender: TObject);
-    procedure MenuItemOpenWindowClick(Sender: TObject);
     procedure MenuItemZoomInClick(Sender: TObject);
     procedure MenuItemZoomOutClick(Sender: TObject);
     procedure TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
@@ -145,7 +145,8 @@ var
 implementation
 
 uses
-  LCLType, FormOpenWindow, LazUTF8, DumpFileLoader, DeviceWindowLoader, LCLProc, Logging;
+  LCLType, FormOpenViewServerWindow, LazUTF8, DumpFileLoader,
+  ViewServerLoader, LCLProc, Logging;
 
 const
   AppName = 'Androli';
@@ -656,12 +657,12 @@ begin
   FLayoutViewer.View3DEnabled := MenuItem.Checked;
 end;
 
-procedure TMainForm.MenuItemOpenWindowClick(Sender: TObject);
+procedure TMainForm.MenuItemOpenViewServerWindowClick(Sender: TObject);
 begin
-  with TOpenWindowForm.Create(nil) do
+  with TOpenViewServerWindowForm.Create(nil) do
     try
       if ShowModal = mrOk then
-        StartLoadLayout(CreateDeviceWindowLoadTask(SelectedDeviceSerial,
+        StartLoadLayout(CreateViewServerWindowLoadTask(SelectedDeviceSerial,
           SelectedWindowTitle, SelectedWindowHash));
     finally
       Free;

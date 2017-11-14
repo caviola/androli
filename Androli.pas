@@ -14,11 +14,11 @@ uses {$IFDEF UNIX}
   LayoutViewer,
   Animators,
   AndroidDebugBridge,
-  FormOpenWindow,
+  FormOpenViewServerWindow,
   TaskRunner,
   DumpFileLoader,
   lazopenglcontext,
-  DeviceWindowLoader,
+  ViewServerLoader,
   Bookmarks;
 
 {$R *.res}

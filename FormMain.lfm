@@ -149,10 +149,10 @@ object MainForm: TMainForm
         ShortCut = 49231
         OnClick = MenuItemOpenFileClick
       end
-      object MenuItemOpenWindow: TMenuItem
-        Caption = '&Open Device Window'
+      object MenuItemOpenViewServerWindow: TMenuItem
+        Caption = '&Open View Server Window'
         ShortCut = 16463
-        OnClick = MenuItemOpenWindowClick
+        OnClick = MenuItemOpenViewServerWindowClick
       end
       object MenuItem4: TMenuItem
         Caption = '-'
