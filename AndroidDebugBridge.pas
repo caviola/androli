@@ -523,7 +523,9 @@ begin
     // Rewind to root view.
     if Assigned(CurrentView) then
       while Assigned(CurrentView.Parent) do
-        CurrentView := CurrentView.Parent;
+        CurrentView := CurrentView.Parent
+    else
+      raise Exception.CreateFmt('Window ''%s'' has no root view', [WindowHash]);
 
     Result := CurrentView;
   finally
