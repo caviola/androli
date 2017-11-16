@@ -88,6 +88,30 @@ type
       read FOnAnimateValue write FOnAnimateValue;
   end;
 
+  TFloatArrayAnimator = class;
+
+  TAnimateFloatArrayEvent = procedure(Sender: TFloatArrayAnimator;
+    const Values: array of single) of object;
+
+  { TFloatArrayAnimator }
+
+  TFloatArrayAnimator = class(TAnimator)
+  private
+    FOnAnimateArray: TAnimateFloatArrayEvent;
+    FStartValues: array of single;
+    FEndValues: array of single;
+    FInterpolatedValues: array of single;
+  protected
+    procedure DoFrameUpdate(const InterpolatedFraction: single); override;
+  public
+    constructor Create(Count: integer = 1;
+      AOnAnimateArray: TAnimateFloatArrayEvent = nil);
+    procedure SetElementInterval(Index: integer;
+      const StartValue, EndValue: single); inline;
+    property OnAnimateArray: TAnimateFloatArrayEvent
+      read FOnAnimateArray write FOnAnimateArray;
+  end;
+
 
 function LinearInterpolator(const Fraction: single): single; inline;
 // Accelerating from zero velocity.
@@ -160,6 +184,40 @@ type
 
 var
   AnimationTickTimer: TAnimatorTickTimer;
+
+{ TFloatArrayAnimator }
+
+procedure TFloatArrayAnimator.DoFrameUpdate(const InterpolatedFraction: single);
+var
+  I: integer;
+begin
+  inherited DoFrameUpdate(InterpolatedFraction);
+
+  if Assigned(FOnAnimateArray) then
+  begin
+    for I := 0 to Length(FInterpolatedValues) - 1 do
+      FInterpolatedValues[I] :=
+        FloatEvaluator(InterpolatedFraction, FStartValues[I], FEndValues[I]);
+    FOnAnimateArray(Self, FInterpolatedValues);
+  end;
+end;
+
+constructor TFloatArrayAnimator.Create(Count: integer;
+  AOnAnimateArray: TAnimateFloatArrayEvent);
+begin
+  inherited Create;
+  FOnAnimateArray := AOnAnimateArray;
+  SetLength(FStartValues, Count);
+  SetLength(FEndValues, Count);
+  SetLength(FInterpolatedValues, Count);
+end;
+
+procedure TFloatArrayAnimator.SetElementInterval(Index: integer;
+  const StartValue, EndValue: single);
+begin
+  FStartValues[Index] := StartValue;
+  FEndValues[Index] := EndValue;
+end;
 
 { TFloatAnimator }
 
