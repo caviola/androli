@@ -32,6 +32,7 @@ type
     DialogOpenFile: TOpenDialog;
     MainMenu: TMainMenu;
     MenuItem1: TMenuItem;
+    MenuItemCenterHierarchy: TMenuItem;
     MenuItemToggleBookmark4: TMenuItem;
     MenuItemToggleBookmark5: TMenuItem;
     MenuItemToggleBookmark6: TMenuItem;
@@ -85,6 +86,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure MenuItemAboutClick(Sender: TObject);
+    procedure MenuItemCenterHierarchyClick(Sender: TObject);
     procedure MenuItemClearBookmarksClick(Sender: TObject);
     procedure MenuItemClipBoundsClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
@@ -436,6 +438,7 @@ begin
   MenuItemClose.Enabled := True;
   MenuItemZoomIn.Enabled := True;
   MenuItemZoomOut.Enabled := True;
+  MenuItemCenterHierarchy.Enabled := True;
   FIndexedBookmarkManager.Clear;
 
   LogExitMethod('TMainForm.LayoutLoadResult');
@@ -508,6 +511,7 @@ begin
   MenuItemClose.Enabled := False;
   MenuItemZoomIn.Enabled := False;
   MenuItemZoomOut.Enabled := False;
+  MenuItemCenterHierarchy.Enabled := False;
   FIndexedBookmarkManager.Clear;
 
   LogExitMethod('TMainForm.CloseLayout');
@@ -598,6 +602,11 @@ end;
 procedure TMainForm.MenuItemAboutClick(Sender: TObject);
 begin
   //TODO:
+end;
+
+procedure TMainForm.MenuItemCenterHierarchyClick(Sender: TObject);
+begin
+  FLayoutViewer.Center;
 end;
 
 procedure TMainForm.MenuItemClearBookmarksClick(Sender: TObject);

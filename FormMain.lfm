@@ -345,6 +345,11 @@ object MainForm: TMainForm
         Caption = 'Clip Bounds to Parent'
         OnClick = MenuItemClipBoundsClick
       end
+      object MenuItemCenterHierarchy: TMenuItem
+        Caption = 'Center &Hierarchy'
+        ShortCut = 16456
+        OnClick = MenuItemCenterHierarchyClick
+      end
     end
     object MenuItemHelp: TMenuItem
       Caption = '&Help'

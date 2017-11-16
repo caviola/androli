@@ -76,6 +76,7 @@ type
     procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ZOrderAnimatorUpdateHandler(Sender: TAnimator;
       const {%H-}InterpolatedFraction: single);
+    procedure GetActiveBranchCenter(var X, Y, Z: single);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -86,6 +87,7 @@ type
     procedure SetActiveBranch(AValue: TView);
     function SetActiveView(AValue: TView): boolean;
     procedure SetLayout(AValue: IViewLayout);
+    procedure Center;
     property RotationX: single read FRotationX write SetRotationX;
     property RotationY: single read FRotationY write SetRotationY;
     property ZoomLevel: single read FZoomLevel write SetZoomLevel;
@@ -345,8 +347,6 @@ begin
 end;
 
 procedure TLayoutViewer.SetLayout(AValue: IViewLayout);
-var
-  RootView: TView;
 begin
   if Assigned(AValue) then
     Log('TLayoutViewer.SetViewLayout %s: ActiveBranch=%s',
@@ -356,22 +356,17 @@ begin
 
   // TODO: center fit initially
 
+  FLayout := AValue;
+  FActiveView := nil;
+
   FRotationY := 0;
   FRotationX := 0;
   FZoomLevel := InitialZoomLevel;
   FScaleZ := 0;
 
-  FLayout := AValue;
-  FActiveView := nil;
-
   if Assigned(FLayout) then
   begin
-    RootView := FLayout.ActiveBranch;
-    FCameraZ := CameraDistance + RootView.Previous.ZOrderOriginal;
-    // Initial origin X,Y is the center of root view.
-    FOriginX := (RootView.Right - RootView.Left) / 2;
-    FOriginY := (RootView.Bottom - RootView.Top) / 2;
-    FOriginZ := RootView.Previous.ZOrderOriginal / 2;
+    FCameraZ := CameraDistance + FLayout.ActiveBranch.Previous.ZOrderOriginal;
 
     OnMouseDown := @MouseDownHandler;
     OnMouseUp := @MouseUpHandler;
@@ -381,10 +376,10 @@ begin
     OnClick := @MouseClickHandler;
     OnDblClick := @MouseDblClickHandler;
 
+    GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ);
+
     if Mode3D then
     begin
-      // No need to Invalidate here because the animation starts right away
-      // and will take care of it.
       FMode3DToggleAnimator.SetRotationYInterval(0, 0);
       FMode3DToggleAnimator.SetScaleZInterval(0, Mode3DScaleZ);
       FMode3DToggleAnimator.Restart;
@@ -394,7 +389,6 @@ begin
   end
   else
   begin
-    FCameraZ := 0;
     OnMouseDown := nil;
     OnMouseUp := nil;
     OnMouseMove := nil;
@@ -403,6 +397,15 @@ begin
     OnClick := nil;
     OnDblClick := nil;
     PopupMenu := nil;
+    Invalidate;
+  end;
+end;
+
+procedure TLayoutViewer.Center;
+begin
+  if Assigned(FLayout) then
+  begin
+    GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ);
     Invalidate;
   end;
 end;
@@ -837,7 +840,7 @@ begin
     FActiveViewChangedTimer.Enabled := False;
     if Assigned(FOnActiveBranchChanged) then
       FOnActiveBranchChanged(FLayout.ActiveBranch);
-    Invalidate;
+    Center;
   end
   else if FActiveViewChangedTimer.Enabled then // active view changed?
   begin
@@ -931,6 +934,35 @@ procedure TLayoutViewer.ZOrderAnimatorUpdateHandler(Sender: TAnimator;
   const InterpolatedFraction: single);
 begin
   Invalidate;
+end;
+
+procedure TLayoutViewer.GetActiveBranchCenter(var X, Y, Z: single);
+var
+  View: TView;
+  MinLeft, MinTop, MaxRight, MaxBottom, MinZOrder, MaxZOrder: single;
+begin
+  MinLeft := MaxSingle;
+  MinTop := MaxSingle;
+  MinZOrder := MaxSingle;
+  MaxRight := MinSingle;
+  MaxBottom := MinSingle;
+  MaxZOrder := MinSingle;
+
+  // Compute layout bounding cube.
+  View := FLayout.ActiveBranch;
+  repeat
+    MinLeft := Min(MinLeft, View.Left);
+    MinTop := Min(MinTop, View.Top);
+    MinZOrder := Min(MinZOrder, View.ZOrder);
+    MaxRight := Max(MaxRight, View.Right);
+    MaxBottom := Max(MaxBottom, View.Bottom);
+    MaxZOrder := Max(MaxZOrder, View.ZOrder);
+    View := View.Next;
+  until View = FLayout.ActiveBranch;
+
+  X := (MaxRight - MinLeft) / 2 + View.Left;
+  Y := (MaxBottom - MinTop) / 2 + View.Top;
+  Z := (MaxZOrder - MinZOrder) / 2 + View.ZOrder;
 end;
 
 end.
