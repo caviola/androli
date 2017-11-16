@@ -13,7 +13,6 @@ type
   TMouseState = (msNone, msDown, msDragging);
 
   TZOrderAnimator = class;
-  TMode3DToggleAnimator = class;
 
   TActiveViewChangedEvent = procedure(NewView: TView) of object;
   TActiveBranchChangedEvent = procedure(NewBranch: TView) of object;
@@ -27,7 +26,7 @@ type
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
     FZOrderAnimator: TZOrderAnimator;
-    FMode3DToggleAnimator: TMode3DToggleAnimator;
+    FToggleMode3DAnimator: TFloatArrayAnimator;
     FScaleZAnimator: TFloatAnimator;
     FZoomLevelAnimator: TFloatAnimator;
     FCenterAnimator: TFloatArrayAnimator;
@@ -62,8 +61,8 @@ type
       const Values: array of single);
     procedure MouseLeaveHandler(Sender: TObject);
 
-    procedure Mode3DToggleAnimatorUpdate(Sender: TAnimator;
-      const InterpolatedFraction: single);
+    procedure ToggleMode3DAnimatorAnimate(Sender: TFloatArrayAnimator;
+      const Values: array of single);
 
     procedure MouseDownHandler(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: integer);
@@ -129,23 +128,6 @@ type
     procedure AddTarget(View: TView; const StartValue, EndValue: single);
   end;
 
-  { TMode3DToggleAnimator }
-
-  TMode3DToggleAnimator = class(TAnimator)
-  private
-    FRotationYStartValue: single;
-    FRotationYEndValue: single;
-    FScaleZStartValue: single;
-    FScateZEndValue: single;
-  public
-    procedure SetRotationYInterval(const StartValue, EndValue: single);
-    procedure SetScaleZInterval(const StartValue, EndValue: single);
-    property RotationYStartValue: single read FRotationYStartValue;
-    property RotationYEndValue: single read FRotationYEndValue;
-    property ScaleZStartValue: single read FScaleZStartValue;
-    property ScateZEndValue: single read FScateZEndValue;
-  end;
-
 implementation
 
 uses
@@ -189,21 +171,6 @@ const
 
   CanvasPaddingVertical = 50;
   CanvasPaddingHorizontal = 50;
-
-{ TMode3DToggleAnimator }
-
-procedure TMode3DToggleAnimator.SetRotationYInterval(
-  const StartValue, EndValue: single);
-begin
-  FRotationYStartValue := StartValue;
-  FRotationYEndValue := EndValue;
-end;
-
-procedure TMode3DToggleAnimator.SetScaleZInterval(const StartValue, EndValue: single);
-begin
-  FScaleZStartValue := StartValue;
-  FScateZEndValue := EndValue;
-end;
 
 { TZOrderAnimator }
 
@@ -254,9 +221,8 @@ begin
   glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
   FMode3D := True;
-  FMode3DToggleAnimator := TMode3DToggleAnimator.Create;
-  FMode3DToggleAnimator.Duration := 500;
-  FMode3DToggleAnimator.OnUpdate := @Mode3DToggleAnimatorUpdate;
+  FToggleMode3DAnimator := TFloatArrayAnimator.Create(2, @ToggleMode3DAnimatorAnimate);
+  FToggleMode3DAnimator.Duration := 500;
 
   FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
   FZoomLevelAnimator := TFloatAnimator.Create(@ZoomAnimateValueHandler);
@@ -273,7 +239,7 @@ begin
   FZOrderAnimator.Free;
   FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
-  FMode3DToggleAnimator.Free;
+  FToggleMode3DAnimator.Free;
   FCenterAnimator.Free;
   inherited Destroy;
 end;
@@ -389,9 +355,9 @@ begin
 
     if Mode3D then
     begin
-      FMode3DToggleAnimator.SetRotationYInterval(0, 0);
-      FMode3DToggleAnimator.SetScaleZInterval(0, Mode3DScaleZ);
-      FMode3DToggleAnimator.Restart;
+      FToggleMode3DAnimator.SetElementInterval(0, 0, 0);
+      FToggleMode3DAnimator.SetElementInterval(1, 0, Mode3DScaleZ);
+      FToggleMode3DAnimator.Restart;
     end
     else
       Invalidate;
@@ -484,16 +450,16 @@ begin
   if FMode3D then
   begin
     // Don't RotateY.
-    FMode3DToggleAnimator.SetRotationYInterval(0, 0);
-    FMode3DToggleAnimator.SetScaleZInterval(0, Mode3DScaleZ);
+    FToggleMode3DAnimator.SetElementInterval(0, 0, 0);
+    FToggleMode3DAnimator.SetElementInterval(1, 0, Mode3DScaleZ);
   end
   else
   begin
-    FMode3DToggleAnimator.SetRotationYInterval(RotationY, 0);
-    FMode3DToggleAnimator.SetScaleZInterval(ScaleZ, 0);
+    FToggleMode3DAnimator.SetElementInterval(0, RotationY, 0);
+    FToggleMode3DAnimator.SetElementInterval(1, ScaleZ, 0);
   end;
 
-  FMode3DToggleAnimator.Restart;
+  FToggleMode3DAnimator.Restart;
 end;
 
 procedure TLayoutViewer.SetHighlightedView(AValue: TView);
@@ -772,7 +738,7 @@ begin
     // 2. Invert our Y-axis.
     glScalef(1, -1, 1);
 
-    if FMode3DToggleAnimator.IsRunning then
+    if FToggleMode3DAnimator.IsRunning then
     begin
       // 3. Rotate and scale Z coords around (OriginX, OriginY, FOriginZ).
       glTranslatef(OriginX, OriginY, FOriginZ);
@@ -817,15 +783,11 @@ begin
   end;
 end;
 
-procedure TLayoutViewer.Mode3DToggleAnimatorUpdate(Sender: TAnimator;
-  const InterpolatedFraction: single);
-var
-  A: TMode3DToggleAnimator absolute Sender;
+procedure TLayoutViewer.ToggleMode3DAnimatorAnimate(Sender: TFloatArrayAnimator;
+  const Values: array of single);
 begin
-  ScaleZ := FloatEvaluator(InterpolatedFraction, A.ScaleZStartValue,
-    A.ScateZEndValue);
-  RotationY := FloatEvaluator(InterpolatedFraction, A.RotationYStartValue,
-    A.RotationYEndValue);
+  RotationY := Values[0];
+  ScaleZ := Values[1];
 end;
 
 procedure TLayoutViewer.MouseDownHandler(Sender: TObject; Button: TMouseButton;
@@ -928,7 +890,7 @@ end;
 procedure TLayoutViewer.MouseWheelHandler(Sender: TObject; Shift: TShiftState;
   WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
 begin
-  if (FMouseState = msDragging) or FMode3DToggleAnimator.IsRunning then
+  if (FMouseState = msDragging) or FToggleMode3DAnimator.IsRunning then
     Exit;
 
   WheelDelta := Sign(WheelDelta);
