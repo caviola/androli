@@ -252,12 +252,9 @@ begin
   FMode3DToggleAnimator.OnUpdate := @Mode3DToggleAnimatorUpdate;
 
   FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
-  FScaleZAnimator.Duration := 200;
   FZoomLevelAnimator := TFloatAnimator.Create(@ZoomAnimateValueHandler);
-  FZoomLevelAnimator.Duration := 200;
 
   FZOrderAnimator := TZOrderAnimator.Create;
-  FZOrderAnimator.Duration := 200;
   FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
 end;
 

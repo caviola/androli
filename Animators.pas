@@ -7,9 +7,6 @@ interface
 uses
   Classes;
 
-const
-  DefaultAnimationDuration = 300; // milliseconds
-
 type
   TAnimator = class;
 
@@ -113,6 +110,7 @@ uses
 
 const
   AnimationTickInterval = 10; // milliseconds
+  DefaultAnimationDuration = 200; // milliseconds
 
 function LinearInterpolator(const Fraction: single): single;
 begin
@@ -250,7 +248,6 @@ end;
 
 constructor TAnimator.Create;
 begin
-  inherited Create;
   FDuration := DefaultAnimationDuration;
   FInterpolator := @EaseOutQuadInterpolator;
 end;
