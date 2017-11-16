@@ -30,6 +30,7 @@ type
     FMode3DToggleAnimator: TMode3DToggleAnimator;
     FScaleZAnimator: TFloatAnimator;
     FZoomLevelAnimator: TFloatAnimator;
+    FCenterAnimator: TFloatArrayAnimator;
     FOriginX: single;
     FOriginY: single;
     FOriginZ: single;
@@ -48,6 +49,7 @@ type
     FActiveViewChangedTimer: TTimer;
     procedure SetMode3D(AValue: boolean);
     procedure SetHighlightedView(AValue: TView);
+    procedure SetOriginZ(AValue: single);
     procedure SetRotationX(Degres: single);
     procedure SetRotationY(Degres: single);
     procedure SetZoomLevel(AValue: single);
@@ -56,6 +58,8 @@ type
     procedure SetOriginY(AValue: single);
   protected
     procedure ActiveViewChangedTimerTimer(Sender: TObject);
+    procedure CenterAnimatorAnimate(Sender: TFloatArrayAnimator;
+      const Values: array of single);
     procedure MouseLeaveHandler(Sender: TObject);
 
     procedure Mode3DToggleAnimatorUpdate(Sender: TAnimator;
@@ -87,13 +91,14 @@ type
     procedure SetActiveBranch(AValue: TView);
     function SetActiveView(AValue: TView): boolean;
     procedure SetLayout(AValue: IViewLayout);
-    procedure Center;
+    procedure Center(Animate: boolean);
     property RotationX: single read FRotationX write SetRotationX;
     property RotationY: single read FRotationY write SetRotationY;
     property ZoomLevel: single read FZoomLevel write SetZoomLevel;
     property ScaleZ: single read FScaleZ write SetScaleZ;
     property OriginX: single read FOriginX write SetOriginX;
     property OriginY: single read FOriginY write SetOriginY;
+    property OriginZ: single read FOriginZ write SetOriginZ;
     property ActiveView: TView read FActiveView;
     property HighlightedView: TView read FHighlightedView write SetHighlightedView;
     // Fired when user changes active view.
@@ -256,6 +261,9 @@ begin
   FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
   FZoomLevelAnimator := TFloatAnimator.Create(@ZoomAnimateValueHandler);
 
+  FCenterAnimator := TFloatArrayAnimator.Create(3, @CenterAnimatorAnimate);
+  FCenterAnimator.Duration := 300;
+
   FZOrderAnimator := TZOrderAnimator.Create;
   FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
 end;
@@ -266,6 +274,7 @@ begin
   FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
   FMode3DToggleAnimator.Free;
+  FCenterAnimator.Free;
   inherited Destroy;
 end;
 
@@ -401,13 +410,24 @@ begin
   end;
 end;
 
-procedure TLayoutViewer.Center;
+procedure TLayoutViewer.Center(Animate: boolean);
+var
+  EndOriginX, EndOriginY, EndOriginZ: single;
 begin
   if Assigned(FLayout) then
-  begin
-    GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ);
-    Invalidate;
-  end;
+    if Animate then
+    begin
+      GetActiveBranchCenter(EndOriginX{%H-}, EndOriginY{%H-}, EndOriginZ{%H-});
+      FCenterAnimator.SetElementInterval(0, OriginX, EndOriginX);
+      FCenterAnimator.SetElementInterval(1, OriginY, EndOriginY);
+      FCenterAnimator.SetElementInterval(2, OriginZ, EndOriginZ);
+      FCenterAnimator.Restart;
+    end
+    else
+    begin
+      GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ);
+      Invalidate;
+    end;
 end;
 
 procedure TLayoutViewer.ActiveViewChangedTimerTimer(Sender: TObject);
@@ -418,6 +438,14 @@ begin
   DoActiveViewChanged;
 
   LogExitMethod('TLayoutViewer.ActiveViewChangedTimerTimer');
+end;
+
+procedure TLayoutViewer.CenterAnimatorAnimate(Sender: TFloatArrayAnimator;
+  const Values: array of single);
+begin
+  OriginX := Values[0];
+  OriginY := Values[1];
+  OriginZ := Values[2];
 end;
 
 procedure TLayoutViewer.MouseLeaveHandler(Sender: TObject);
@@ -473,6 +501,15 @@ begin
   if FHighlightedView <> AValue then
   begin
     FHighlightedView := AValue;
+    Invalidate;
+  end;
+end;
+
+procedure TLayoutViewer.SetOriginZ(AValue: single);
+begin
+  if FOriginZ <> AValue then
+  begin
+    FOriginZ := AValue;
     Invalidate;
   end;
 end;
@@ -840,7 +877,7 @@ begin
     FActiveViewChangedTimer.Enabled := False;
     if Assigned(FOnActiveBranchChanged) then
       FOnActiveBranchChanged(FLayout.ActiveBranch);
-    Center;
+    Center(True);
   end
   else if FActiveViewChangedTimer.Enabled then // active view changed?
   begin

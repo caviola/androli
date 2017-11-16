@@ -606,7 +606,7 @@ end;
 
 procedure TMainForm.MenuItemCenterHierarchyClick(Sender: TObject);
 begin
-  FLayoutViewer.Center;
+  FLayoutViewer.Center(True);
 end;
 
 procedure TMainForm.MenuItemClearBookmarksClick(Sender: TObject);
