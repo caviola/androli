@@ -193,7 +193,7 @@ function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
 implementation
 
 uses
-  Math, LazLogger, synsock;
+  LazLogger, synsock;
 
 const
   AdbServerPort = 5037;
@@ -355,116 +355,109 @@ function TViewServerClient.DumpWindow(const WindowHash: string;
 
   function CreateView(AParent: TView; Line: PChar; Depth: integer): TView;
   var
-    OX, OY, ScaleX, ScaleY: single;
+    OX, OY, ScaleX, ScaleY, TX, TY, TransformScaleX, TransformScaleY,
+    Left, Top, Right, Bottom, PaddingLeft, PaddingTop, PaddingRight,
+    PaddingBottom, MarginLeft, MarginTop, MarginRight, MarginBottom: single;
   begin
     Result := TView.Create;
     try
       ParseDumpLine(Line, Result);
 
-      with Result do
+      // These bounds are relative to parent view and untransformed.
+      // Since the bounds we must set in the view must be final window bounds,
+      // we have to apply all transformations first.
+      Left := Result.GetIntProp('layout:mLeft');
+      Top := Result.GetIntProp('layout:mTop');
+      Right := Result.GetIntProp('layout:mRight');
+      Bottom := Result.GetIntProp('layout:mBottom');
+
+      // Apply X and Y translation.
+      TX := Result.GetFloatProp('drawing:getTranslationX()');
+      TY := Result.GetFloatProp('drawing:getTranslationY()');
+      Left := Left + TX;
+      Top := Top + TY;
+      Right := Right + TX;
+      Bottom := Bottom + TY;
+
+      // Get the scale explicitly defined in the view.
+      ScaleX := Result.GetFloatProp('drawing:getScaleX()', 1);
+      ScaleY := Result.GetFloatProp('drawing:getScaleY()', 1);
+      // Compute the view's final scale, which takes into account
+      // the scale of its parents.
+      if Assigned(AParent) then
       begin
-        // These bounds are relative to parent.
-        SetBounds(
-          GetIntProp('layout:mLeft'),
-          GetIntProp('layout:mTop'),
-          GetIntProp('layout:mRight'),
-          GetIntProp('layout:mBottom'),
-          Depth);
-
-        Translate(
-          GetFloatProp('drawing:getTranslationX()'),
-          GetFloatProp('drawing:getTranslationY()'),
-          0);
-
-        SetPaddings(
-          GetIntProp('padding:mPaddingLeft'),
-          GetIntProp('padding:mPaddingTop'),
-          GetIntProp('padding:mPaddingRight'),
-          GetIntProp('padding:mPaddingBottom'));
-
-        // The constant -2147483648 is used by GridLayout and means UNDEFINED.
-        // For our rendering purposes we consider that to mean 0.
-        // See https://developer.android.com/reference/android/support/v7/widget/GridLayout.html
-        MarginLeft := GetIntProp('layout:layout_leftMargin');
-        if MarginLeft = UndefinedMargin then
-          MarginLeft := 0;
-
-        MarginTop := GetIntProp('layout:layout_topMargin');
-        if MarginTop = UndefinedMargin then
-          MarginTop := 0;
-
-        MarginRight := GetIntProp('layout:layout_rightMargin');
-        if MarginRight = UndefinedMargin then
-          MarginRight := 0;
-
-        MarginBottom := GetIntProp('layout:layout_bottomMargin');
-        if MarginBottom = UndefinedMargin then
-          MarginBottom := 0;
-
-        // This is the scale explicitly defined in this View.
-        ScaleX := GetFloatProp('drawing:getScaleX()', 1);
-        ScaleY := GetFloatProp('drawing:getScaleY()', 1);
-        if Assigned(AParent) then
-        begin
-          // This is the View's final scale, which also takes into account
-          // the scale of its parents.
-          TransformScaleX := AParent.TransformScaleX * ScaleX;
-          TransformScaleY := AParent.TransformScaleY * ScaleY;
-        end
-        else
-        begin
-          TransformScaleX := ScaleX;
-          TransformScaleY := ScaleY;
-        end;
-
-        if (ScaleX <> 1) or (ScaleY <> 1) then // View defines explicit scale?
-        begin
-          // Scale around explicit pivot point.
-          OX := Left + GetFloatProp('drawing:getPivotX()');
-          OY := Top + GetFloatProp('drawing:getPivotY()');
-          Left := (Left - OX) * TransformScaleX + OX;
-          Top := (Top - OY) * TransformScaleY + OY;
-          Right := (Right - OX) * TransformScaleX + OX;
-          Bottom := (Bottom - OY) * TransformScaleY + OY;
-        end
-        else
-        begin
-          // Scale around origin (0,0).
-          Left := Left * TransformScaleX;
-          Top := Top * TransformScaleY;
-          Right := Right * TransformScaleX;
-          Bottom := Bottom * TransformScaleY;
-        end;
-
-        PaddingLeft := PaddingLeft * TransformScaleX;
-        PaddingTop := PaddingTop * TransformScaleY;
-        PaddingRight := PaddingRight * TransformScaleX;
-        PaddingBottom := PaddingBottom * TransformScaleY;
-
-        MarginLeft := MarginLeft * TransformScaleX;
-        MarginTop := MarginTop * TransformScaleY;
-        MarginRight := MarginRight * TransformScaleX;
-        MarginBottom := MarginBottom * TransformScaleY;
-
-        if Assigned(AParent) then
-        begin
-          // Make bounds absolute.
-          Translate(AParent.Left, AParent.Top, 0);
-
-          ClippedLeft := EnsureRange(Left, AParent.ClippedLeft, AParent.ClippedRight);
-          ClippedTop := EnsureRange(Top, AParent.ClippedTop, AParent.ClippedBottom);
-          ClippedRight := EnsureRange(Right, AParent.ClippedLeft, AParent.ClippedRight);
-          ClippedBottom := EnsureRange(Bottom, AParent.ClippedTop,
-            AParent.ClippedBottom);
-        end
-        else
-        begin
-          ClippedLeft := Left;
-          ClippedTop := Top;
-          ClippedRight := Right;
-          ClippedBottom := Bottom;
-        end;
+        TransformScaleX := AParent.TransformScaleX * ScaleX;
+        TransformScaleY := AParent.TransformScaleY * ScaleY;
+      end
+      else
+      begin
+        TransformScaleX := ScaleX;
+        TransformScaleY := ScaleY;
       end;
+
+      if (ScaleX <> 1) or (ScaleY <> 1) then // view defines explicit scale?
+      begin
+        // Scale around provided pivot point.
+        OX := Left + Result.GetFloatProp('drawing:getPivotX()');
+        OY := Top + Result.GetFloatProp('drawing:getPivotY()');
+        Left := (Left - OX) * TransformScaleX + OX;
+        Top := (Top - OY) * TransformScaleY + OY;
+        Right := (Right - OX) * TransformScaleX + OX;
+        Bottom := (Bottom - OY) * TransformScaleY + OY;
+      end
+      else
+      begin
+        // Scale around origin (0,0).
+        Left := Left * TransformScaleX;
+        Top := Top * TransformScaleY;
+        Right := Right * TransformScaleX;
+        Bottom := Bottom * TransformScaleY;
+      end;
+
+      // Make bounds window absolute.
+      // These are the final bounds we'll set in the view.
+      if Assigned(AParent) then
+      begin
+        Left := Left + AParent.Left;
+        Top := Top + AParent.Top;
+        Right := Right + AParent.Left;
+        Bottom := Bottom + AParent.Top;
+      end;
+
+      PaddingLeft := Result.GetIntProp('padding:mPaddingLeft') * TransformScaleX;
+      PaddingTop := Result.GetIntProp('padding:mPaddingTop') * TransformScaleY;
+      PaddingRight := Result.GetIntProp('padding:mPaddingRight') * TransformScaleX;
+      PaddingBottom := Result.GetIntProp('padding:mPaddingBottom') * TransformScaleY;
+
+      // The constant -2147483648 is used by GridLayout and means UNDEFINED.
+      // For our rendering purposes we consider that to mean 0.
+      // See https://developer.android.com/reference/android/support/v7/widget/GridLayout.html
+      MarginLeft := Result.GetIntProp('layout:layout_leftMargin');
+      if MarginLeft = UndefinedMargin then
+        MarginLeft := 0;
+
+      MarginTop := Result.GetIntProp('layout:layout_topMargin');
+      if MarginTop = UndefinedMargin then
+        MarginTop := 0;
+
+      MarginRight := Result.GetIntProp('layout:layout_rightMargin');
+      if MarginRight = UndefinedMargin then
+        MarginRight := 0;
+
+      MarginBottom := Result.GetIntProp('layout:layout_bottomMargin');
+      if MarginBottom = UndefinedMargin then
+        MarginBottom := 0;
+
+      MarginLeft := MarginLeft * TransformScaleX;
+      MarginTop := MarginTop * TransformScaleY;
+      MarginRight := MarginRight * TransformScaleX;
+      MarginBottom := MarginBottom * TransformScaleY;
+
+      Result.SetBounds(Left, Top, Right, Bottom, Depth);
+      Result.SetPaddings(PaddingLeft, PaddingTop, PaddingRight, PaddingBottom);
+      Result.SetMargins(MarginLeft, MarginTop, MarginRight, MarginBottom);
+      Result.TransformScaleX := TransformScaleX;
+      Result.TransformScaleY := TransformScaleY;
 
       if Assigned(AParent) then
         AParent.AddChild(Result);

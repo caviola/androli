@@ -341,9 +341,9 @@ object MainForm: TMainForm
         Caption = 'Enable 3D Mode'
         OnClick = MenuItemToggleMode3DClick
       end
-      object MenuItemClipToParent: TMenuItem
+      object MenuItemClipBounds: TMenuItem
         Caption = 'Clip Bounds to Parent'
-        OnClick = MenuItemClipToParentClick
+        OnClick = MenuItemClipBoundsClick
       end
     end
     object MenuItemHelp: TMenuItem

@@ -24,7 +24,6 @@ type
   private
     FMode3D: boolean;
     FLayout: IViewLayout;
-    FClipBounds: boolean;
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
     FZOrderAnimator: TZOrderAnimator;
@@ -48,7 +47,6 @@ type
     FOnActiveBranchChanged: TActiveBranchChangedEvent;
     FActiveViewChangedTimer: TTimer;
     procedure SetMode3D(AValue: boolean);
-    procedure SetClipBounds(AValue: boolean);
     procedure SetHighlightedView(AValue: TView);
     procedure SetRotationX(Degres: single);
     procedure SetRotationY(Degres: single);
@@ -102,7 +100,6 @@ type
     // Fires when user changes active branch.
     property OnActiveBranchChanged: TActiveBranchChangedEvent
       write FOnActiveBranchChanged;
-    property ClipBounds: boolean read FClipBounds write SetClipBounds;
     property Mode3D: boolean read FMode3D write SetMode3D;
   end;
 
@@ -471,15 +468,6 @@ begin
   FMode3DToggleAnimator.Restart;
 end;
 
-procedure TLayoutViewer.SetClipBounds(AValue: boolean);
-begin
-  if FClipBounds <> AValue then
-  begin
-    FClipBounds := AValue;
-    Invalidate;
-  end;
-end;
-
 procedure TLayoutViewer.SetHighlightedView(AValue: TView);
 begin
   if FHighlightedView <> AValue then
@@ -692,6 +680,7 @@ procedure TLayoutViewer.DoOnPaint;
         C := clFilteredContentColor32
       else
         C := clContentColor32;
+
       if HighlightedView = V then
         PolyFill(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, C);
 
@@ -699,11 +688,8 @@ procedure TLayoutViewer.DoOnPaint;
         C := clFilteredBorderColor32
       else
         C := clBorderColor32;
-      if ClipBounds then
-        PolyLine(V.ClippedLeft, V.ClippedTop, V.ClippedRight,
-          V.ClippedBottom, V.ZOrder, C)
-      else
-        PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, C);
+
+      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, C);
     end;
 
     glGetDoublev(GL_MODELVIEW_MATRIX, ModelViewMatrix);
@@ -713,20 +699,10 @@ procedure TLayoutViewer.DoOnPaint;
     with V do
     begin
       // Store transformed points; we use them to perform hit test.
-      if ClipBounds then
-      begin
-        ViewportRect[0] := GetWindowPoint(ClippedLeft, ClippedTop, ZOrder);
-        ViewportRect[1] := GetWindowPoint(ClippedRight, ClippedTop, ZOrder);
-        ViewportRect[2] := GetWindowPoint(ClippedRight, ClippedBottom, ZOrder);
-        ViewportRect[3] := GetWindowPoint(ClippedLeft, ClippedBottom, ZOrder);
-      end
-      else
-      begin
-        ViewportRect[0] := GetWindowPoint(Left, Top, ZOrder);
-        ViewportRect[1] := GetWindowPoint(Right, Top, ZOrder);
-        ViewportRect[2] := GetWindowPoint(Right, Bottom, ZOrder);
-        ViewportRect[3] := GetWindowPoint(Left, Bottom, ZOrder);
-      end;
+      ViewportRect[0] := GetWindowPoint(Left, Top, ZOrder);
+      ViewportRect[1] := GetWindowPoint(Right, Top, ZOrder);
+      ViewportRect[2] := GetWindowPoint(Right, Bottom, ZOrder);
+      ViewportRect[3] := GetWindowPoint(Left, Bottom, ZOrder);
 
       // Keep track of the hierarchy's width and height.
       // We use this for "center fit" and determining how much can the
@@ -790,11 +766,8 @@ begin
     CurrentRoot := FLayout.ActiveBranch;
     View := CurrentRoot;
     repeat
-      // Skip views that won't be visible to the user.
+      // Skip views not visible to the user.
       if View.VisibilityGone or (View.Width = 0) or (View.Height = 0) then
-        View := View.Next // continue
-      else
-      if ClipBounds and ((View.ClippedWidth = 0) or (View.ClippedHeight = 0)) then
         View := View.Next // continue
       else
       begin
@@ -847,12 +820,12 @@ begin
     // OnActiveViewChanged and wait a little bit to see if OnDblClick is called.
     // OnActiveViewChanged will be fired later, either in ActiveViewChangedTimerTimer
     // or MouseDblClickHandler, whichever comes first.
-    ClickedView := FLayout.HitTest(FLastMouseX, FLastMouseY, ClipBounds);
+    ClickedView := FLayout.HitTest(FLastMouseX, FLastMouseY);
     if SetActiveView(ClickedView) then  // active view really changed?
       FActiveViewChangedTimer.Enabled := True
     else
-      Log('TLayoutViewer.MouseClickHandler: HitTest(%d,%d,%s)=%s',
-        [FLastMouseX, FLastMouseY, DbgS(ClipBounds), DbgS(ClickedView)]);
+      Log('TLayoutViewer.MouseClickHandler: HitTest(%d,%d)=%s',
+        [FLastMouseX, FLastMouseY, DbgS(ClickedView)]);
   end;
 
   LogExitMethod('TLayoutViewer.MouseClickHandler');
@@ -912,7 +885,7 @@ begin
     FLastMouseY := Y;
   end
   else
-    HighlightedView := FLayout.HitTest(X, Y, ClipBounds);
+    HighlightedView := FLayout.HitTest(X, Y);
 end;
 
 procedure TLayoutViewer.MouseWheelHandler(Sender: TObject; Shift: TShiftState;

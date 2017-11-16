@@ -12,7 +12,7 @@ function CreateDumpFileLoadTask(const FilePath: string): TLayoutLoadTask;
 implementation
 
 uses
-  SysUtils, LazUTF8, laz2_XMLRead, laz2_DOM, Logging, Math;
+  SysUtils, LazUTF8, laz2_XMLRead, laz2_DOM, Logging;
 
 type
   { TDeviceMonitorDumpLoadTask }
@@ -45,7 +45,7 @@ procedure TDeviceMonitorDumpLoadTask.Run;
       Result := EmptyStr;
   end;
 
-  function CreateView(Parent: TView; Node: TDOMNode; Depth: integer = 0): TView;
+  function CreateView(Node: TDOMNode; Depth: integer = 0): TView;
   var
     Left, Top, Right, Bottom: integer;
     S: string;
@@ -53,10 +53,12 @@ procedure TDeviceMonitorDumpLoadTask.Run;
   begin
     CheckCanceled;
 
+    // These bounds are provided right how we need them, that is,
+    // window absolute.
     SScanf(GetAttribute(Node, 'bounds'), '[%d,%d][%d,%d]',
       [@Left, @Top, @Right, @Bottom]);
 
-    Result := TView.Create;
+    Result := TView.Create(Left, Top, Right, Bottom, Depth);
     try
       Result.QualifiedClassName := GetAttribute(Node, 'class');
 
@@ -68,28 +70,9 @@ procedure TDeviceMonitorDumpLoadTask.Run;
       if S <> EmptyStr then
         Result.SetProperty('mID', S);
 
-      Result.SetBounds(Left, Top, Right, Bottom, Depth);
-
-      if Assigned(Parent) then
-      begin
-        Result.ClippedLeft := EnsureRange(Left, Parent.ClippedLeft, Parent.ClippedRight);
-        Result.ClippedTop := EnsureRange(Top, Parent.ClippedTop, Parent.ClippedBottom);
-        Result.ClippedRight :=
-          EnsureRange(Right, Parent.ClippedLeft, Parent.ClippedRight);
-        Result.ClippedBottom :=
-          EnsureRange(Bottom, Parent.ClippedTop, Parent.ClippedBottom);
-      end
-      else
-      begin
-        Result.ClippedLeft := Left;
-        Result.ClippedTop := Top;
-        Result.ClippedRight := Right;
-        Result.ClippedBottom := Bottom;
-      end;
-
       for ChildNode in Node do
         if ChildNode.NodeType <> COMMENT_NODE then
-          Result.AddChild(CreateView(Result, ChildNode, Depth + 1));
+          Result.AddChild(CreateView(ChildNode, Depth + 1));
     except
       Result.Free;
       raise;
@@ -120,7 +103,7 @@ begin
 
     // Since we already checked for the presence of at least the root node,
     // we'll always return at least one view.
-    SetResult(TViewLayout.Create(CreateView(nil, Node)));
+    SetResult(TViewLayout.Create(CreateView(Node)));
   finally
     Document.Free;
   end;

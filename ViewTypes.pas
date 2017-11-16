@@ -29,6 +29,35 @@ type
     FProperties: TStringList;
     FTextureName: cardinal;
     FInflightCaptureViewTask: ITask;
+    FParent: TView;
+    FOriginalLeft: single;
+    FOriginalTop: single;
+    FOriginalRight: single;
+    FOriginalBottom: single;
+    FOriginalZOrder: single;
+    FLeft: single;
+    FTop: single;
+    FRight: single;
+    FBottom: single;
+    FZOrder: single;
+    FPaddingLeft: single;
+    FPaddingTop: single;
+    FPaddingRight: single;
+    FPaddingBottom: single;
+    FMarginLeft: single;
+    FMarginTop: single;
+    FMarginRight: single;
+    FMarginBottom: single;
+    FTransformScaleX: single;
+    FTransformScaleY: single;
+    FNext: TView;
+    FPrevious: TView;
+    FFirstChild: TView;
+    FNextSibbling: TView;
+    FPrevSibbling: TView;
+    FHashCode: string;
+    FQualifiedClassName: string;
+    FTreeNodeText: string;
     function GetExpanded: boolean; inline;
     function GetMatchFilter: boolean; inline;
     function GetSimpleClassName: string;
@@ -41,45 +70,14 @@ type
     function GetViewportHeight: integer; inline;
     function GetWidth: single; inline;
     function GetHeight: single; inline;
-    function GetClippedWidth: single; inline;
-    function GetClippedHeight: single; inline;
   public
-    Parent: TView;
-    Next: TView;
-    Previous: TView;
-    FirstChild: TView;
-    NextSibbling: TView;
-    PrevSibbling: TView;
-    HashCode: string;
-    QualifiedClassName: string;
-    ZOrder: single;
-    ZOrderOriginal: single;
     ViewportRect: array[0..3] of TPoint;
-    Left: single;
-    Top: single;
-    Right: single;
-    Bottom: single;
-    PaddingLeft: single;
-    PaddingTop: single;
-    PaddingRight: single;
-    PaddingBottom: single;
-    MarginLeft: single;
-    MarginTop: single;
-    MarginRight: single;
-    MarginBottom: single;
-    ClippedLeft: single;
-    ClippedTop: single;
-    ClippedRight: single;
-    ClippedBottom: single;
-    TreeNodeText: string;
-    TransformScaleX: single;
-    TransformScaleY: single;
-    constructor Create;
+    constructor Create; overload;
+    constructor Create(ALeft, ATop, ARight, ABottom, AZOrder: integer); overload;
     destructor Destroy; override;
-    procedure SetBounds(ALeft, ATop, ARight, ABottom, AZ: integer);
-    procedure SetPaddings(ALeft, ATop, ARight, ABottom: integer);
-    procedure SetMargins(ALeft, ATop, ARight, ABottom: integer);
-    procedure Translate(const DX, DY, DZ: single);
+    procedure SetBounds(ALeft, ATop, ARight, ABottom, AZOrder: single);
+    procedure SetPaddings(ALeft, ATop, ARight, ABottom: single);
+    procedure SetMargins(ALeft, ATop, ARight, ABottom: single);
     function Contains(const X, Y: integer): boolean;
     procedure SetProperty(const Name, Value: string);
     procedure AddChild(AView: TView);
@@ -91,13 +89,37 @@ type
       DefaultValue: boolean = False): boolean;
     function GetPropCount: integer; inline;
     procedure GetPropNameValue(I: integer; out Name, Value: string); inline;
-    property ViewportWidth: integer read GetViewportWidth;
-    property ViewportHeight: integer read GetViewportHeight;
+    property Parent: TView read FParent;
+    property Next: TView read FNext;
+    property Previous: TView read FPrevious;
+    property FirstChild: TView read FFirstChild;
+    property NextSibbling: TView read FNextSibbling;
+    property PrevSibbling: TView read FPrevSibbling;
+    property Left: single read FLeft;
+    property Top: single read FTop;
+    property Right: single read FRight;
+    property Bottom: single read FBottom;
     property Width: single read GetWidth;
     property Height: single read GetHeight;
-    property ClippedWidth: single read GetClippedWidth;
-    property ClippedHeight: single read GetClippedHeight;
+    property PaddingLeft: single read FPaddingLeft;
+    property PaddingTop: single read FPaddingTop;
+    property PaddingRight: single read FPaddingRight;
+    property PaddingBottom: single read FPaddingBottom;
+    property MarginLeft: single read FMarginLeft;
+    property MarginTop: single read FMarginTop;
+    property MarginRight: single read FMarginRight;
+    property MarginBottom: single read FMarginBottom;
+    property TransformScaleX: single read FTransformScaleX write FTransformScaleX;
+    property TransformScaleY: single read FTransformScaleX write FTransformScaleY;
+    property ViewportWidth: integer read GetViewportWidth;
+    property ViewportHeight: integer read GetViewportHeight;
+    property HashCode: string read FHashCode write FHashCode;
+    property ZOrder: single read FZOrder write FZOrder;
+    property ZOrderOriginal: single read FOriginalZOrder;
+    property TreeNodeText: string read FTreeNodeText write FTreeNodeText;
     property ChildrenCount: integer read GetChildrenCount;
+    property QualifiedClassName: string read FQualifiedClassName
+      write FQualifiedClassName;
     property SimpleClassName: string read GetSimpleClassName;
     property Expanded: boolean read GetExpanded write SetExpanded;
     property TextureName: cardinal read FTextureName write FTextureName;
@@ -140,12 +162,14 @@ type
   IViewLayout = interface
     ['{16F9F11F-D19C-4830-A8EC-50DD658F4D96}']
     procedure Changed;
-    function HitTest(const X, Y: integer; ClipBounds: boolean): TView;
+    function HitTest(const X, Y: integer): TView;
     function GetActiveBranch: TView;
     function SetActiveBranch(AValue: TView): boolean;
     function GetRootView: TView;
+    procedure SetClipBounds(AValue: boolean);
     property ActiveBranch: TView read GetActiveBranch;
     property RootView: TView read GetRootView;
+    property ClipBounds: boolean write SetClipBounds;
   end;
 
   { TViewLayout }
@@ -155,8 +179,9 @@ type
     FRootView: TView;
     FActiveBranch: TView;
     FOnChange: TObjectProcedure;
+    FClipBounds: boolean;
     procedure Flatten;
-    function HitTest(const X, Y: integer; ClipBounds: boolean): TView;
+    function HitTest(const X, Y: integer): TView;
     function GetActiveBranch: TView; inline;
     function SetActiveBranch(AValue: TView): boolean; virtual;
     function GetRootView: TView; inline;
@@ -165,6 +190,7 @@ type
   public
     constructor Create(ARootView: TView);
     destructor Destroy; override;
+    procedure SetClipBounds(AValue: boolean);
     property OnChange: TObjectProcedure read FOnChange write FOnChange;
   end;
 
@@ -198,7 +224,7 @@ type
 implementation
 
 uses
-  SysUtils, LCLProc, Logging, contnrs;
+  SysUtils, LCLProc, Logging, contnrs, Math;
 
 { TViewLayout }
 
@@ -218,8 +244,8 @@ begin
     while Q.Count > 0 do
     begin
       View := TView(Q.Pop);
-      PreviousView.Next := View;
-      View.Previous := PreviousView;
+      PreviousView.FNext := View;
+      View.FPrevious := PreviousView;
       PreviousView := View;
 
       Inc(NextElementsToDepthIncreate, View.GetChildrenCount);
@@ -242,20 +268,17 @@ begin
   end;
 
   // Finish off by making the double-linked list circular.
-  PreviousView.Next := FActiveBranch;
-  FActiveBranch.Previous := PreviousView;
+  PreviousView.FNext := FActiveBranch;
+  FActiveBranch.FPrevious := PreviousView;
 end;
 
-function TViewLayout.HitTest(const X, Y: integer; ClipBounds: boolean): TView;
+function TViewLayout.HitTest(const X, Y: integer): TView;
 begin
   // Start at last view in ActiveBranch and traverse the list backwards.
   Result := FActiveBranch.Previous;
   repeat
-    // Don't take into account views that are not visible to the user.
+    // Skip views that are not visible to the user.
     if (Result.Width = 0) or (Result.Height = 0) then
-      Result := Result.Previous // continue
-    else
-    if ClipBounds and ((Result.ClippedWidth = 0) or (Result.ClippedHeight = 0)) then
       Result := Result.Previous // continue
     else
     if Result.Contains(X, Y) then
@@ -291,6 +314,55 @@ end;
 function TViewLayout.GetRootView: TView;
 begin
   Result := FRootView;
+end;
+
+procedure TViewLayout.SetClipBounds(AValue: boolean);
+
+  procedure Visit(AView: TView);
+  var
+    Child: TView;
+  begin
+    with AView do
+    begin
+      if AValue then // clip bounds?
+        if Assigned(Parent) then
+        begin
+          FLeft := EnsureRange(FLeft, Parent.Left, Parent.Right);
+          FTop := EnsureRange(FTop, Parent.Top, Parent.Bottom);
+          FRight := EnsureRange(FRight, Parent.Left, Parent.Right);
+          FBottom := EnsureRange(FBottom, Parent.Top, Parent.Bottom);
+        end
+        else
+        begin
+          FLeft := FOriginalLeft;
+          FTop := FOriginalTop;
+          FRight := FOriginalRight;
+          FBottom := FOriginalBottom;
+        end
+      else // restore original bounds
+      begin
+        FLeft := FOriginalLeft;
+        FTop := FOriginalTop;
+        FRight := FOriginalRight;
+        FBottom := FOriginalBottom;
+      end;
+
+      Child := FirstChild;
+      if Assigned(Child) then
+        repeat
+          Visit(Child);
+          Child := Child.NextSibbling;
+        until Child = FirstChild;
+    end;
+  end;
+
+begin
+  if FClipBounds <> AValue then
+  begin
+    FClipBounds := AValue;
+    Visit(FRootView);
+    DoOnChange;
+  end;
 end;
 
 procedure TViewLayout.DoOnChange;
@@ -461,9 +533,15 @@ begin
   FProperties := TStringList.Create;
   FProperties.Duplicates := dupIgnore;
   FProperties.Sorted := True;
-  TransformScaleX := 1;
-  TransformScaleY := 1;
+  FTransformScaleX := 1;
+  FTransformScaleY := 1;
   Expanded := True;
+end;
+
+constructor TView.Create(ALeft, ATop, ARight, ABottom, AZOrder: integer);
+begin
+  Create;
+  SetBounds(ALeft, ATop, ARight, ABottom, AZOrder);
 end;
 
 destructor TView.Destroy;
@@ -490,40 +568,38 @@ begin
   inherited;
 end;
 
-procedure TView.SetBounds(ALeft, ATop, ARight, ABottom, AZ: integer);
+procedure TView.SetBounds(ALeft, ATop, ARight, ABottom, AZOrder: single);
 begin
-  Left := ALeft;
-  Top := ATop;
-  Bottom := ABottom;
-  Right := ARight;
-  ZOrder := AZ;
-  ZOrderOriginal := AZ;
+  // Keep original bounds separate as we use them when clipping/unclipping.
+  // Original bounds must be provided window absolute, that is,
+  // relative to root view.
+  FOriginalLeft := ALeft;
+  FOriginalTop := ATop;
+  FOriginalRight := ARight;
+  FOriginalBottom := ABottom;
+  FOriginalZOrder := AZOrder;
+
+  FLeft := ALeft;
+  FTop := ATop;
+  FRight := ARight;
+  FBottom := ABottom;
+  FZOrder := AZOrder;
 end;
 
-procedure TView.SetPaddings(ALeft, ATop, ARight, ABottom: integer);
+procedure TView.SetPaddings(ALeft, ATop, ARight, ABottom: single);
 begin
-  PaddingLeft := ALeft;
-  PaddingTop := ATop;
-  PaddingRight := ARight;
-  PaddingBottom := ABottom;
+  FPaddingLeft := ALeft;
+  FPaddingTop := ATop;
+  FPaddingRight := ARight;
+  FPaddingBottom := ABottom;
 end;
 
-procedure TView.SetMargins(ALeft, ATop, ARight, ABottom: integer);
+procedure TView.SetMargins(ALeft, ATop, ARight, ABottom: single);
 begin
-  MarginLeft := ALeft;
-  MarginTop := ATop;
-  MarginRight := ARight;
-  MarginBottom := ABottom;
-end;
-
-procedure TView.Translate(const DX, DY, DZ: single);
-begin
-  Left := Left + DX;
-  Top := Top + DY;
-  Right := Right + DX;
-  Bottom := Bottom + DY;
-  ZOrder := ZOrder + DZ;
-  ZOrderOriginal := ZOrderOriginal + DZ;
+  FMarginLeft := ALeft;
+  FMarginTop := ATop;
+  FMarginRight := ARight;
+  FMarginBottom := ABottom;
 end;
 
 function TView.Contains(const X, Y: integer): boolean;
@@ -565,22 +641,22 @@ begin
   Assert(not Assigned(AView.NextSibbling), 'AView.NextSibbling must be nil');
   Assert(not Assigned(AView.PrevSibbling), 'AView.PrevSibbling must be nil');
 
-  AView.Parent := Self;
+  AView.FParent := Self;
 
   // Add the new child at the end of a circular, double-linked list.
-  if not Assigned(FirstChild) then
+  if not Assigned(FFirstChild) then
   begin
-    AView.NextSibbling := AView;
-    AView.PrevSibbling := AView;
-    FirstChild := AView;
+    AView.FNextSibbling := AView;
+    AView.FPrevSibbling := AView;
+    FFirstChild := AView;
   end
   else
   begin
-    LastChild := FirstChild.PrevSibbling;
-    LastChild.NextSibbling := AView;
-    AView.PrevSibbling := LastChild;
-    AView.NextSibbling := FirstChild;
-    FirstChild.PrevSibbling := AView;
+    LastChild := FFirstChild.PrevSibbling;
+    LastChild.FNextSibbling := AView;
+    AView.FPrevSibbling := LastChild;
+    AView.FNextSibbling := FirstChild;
+    FFirstChild.FPrevSibbling := AView;
   end;
 end;
 
@@ -629,22 +705,12 @@ end;
 
 function TView.GetWidth: single;
 begin
-  Result := Right - Left;
+  Result := FRight - FLeft;
 end;
 
 function TView.GetHeight: single;
 begin
-  Result := Bottom - Top;
-end;
-
-function TView.GetClippedWidth: single;
-begin
-  Result := ClippedRight - ClippedLeft;
-end;
-
-function TView.GetClippedHeight: single;
-begin
-  Result := ClippedBottom - ClippedTop;
+  Result := FBottom - FTop;
 end;
 
 end.

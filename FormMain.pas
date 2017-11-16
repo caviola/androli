@@ -60,7 +60,7 @@ type
     MenuItemGotoBookmark4: TMenuItem;
     MenuItemGotoBookmark: TMenuItem;
     MenuItemSearch: TMenuItem;
-    MenuItemClipToParent: TMenuItem;
+    MenuItemClipBounds: TMenuItem;
     MenuItemToggleMode3D: TMenuItem;
     MenuItemClose: TMenuItem;
     MenuItem3: TMenuItem;
@@ -86,7 +86,7 @@ type
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure MenuItemAboutClick(Sender: TObject);
     procedure MenuItemClearBookmarksClick(Sender: TObject);
-    procedure MenuItemClipToParentClick(Sender: TObject);
+    procedure MenuItemClipBoundsClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
     procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
@@ -169,7 +169,6 @@ begin
   SetControlIndex(FLayoutViewer, 0);
 
   MenuItemToggleMode3D.Checked := FLayoutViewer.Mode3D;
-  MenuItemClipToParent.Checked := FLayoutViewer.ClipBounds;
 
   KeyPreview := True;
 
@@ -430,6 +429,7 @@ begin
   LogEnterMethod('TMainForm.LayoutLoadResult');
 
   TheResult.OnChange := @LayoutChanged;
+  TheResult.SetClipBounds(MenuItemClipBounds.Checked);
   SetLayout(TheResult);
 
   Caption := Format(FormFileCaptionFormat, [FLayoutLoadTask.DisplayName]);
@@ -621,12 +621,13 @@ begin
     CancelLoadLayout;
 end;
 
-procedure TMainForm.MenuItemClipToParentClick(Sender: TObject);
+procedure TMainForm.MenuItemClipBoundsClick(Sender: TObject);
 var
   MenuItem: TMenuItem absolute Sender;
 begin
   MenuItem.Checked := not MenuItem.Checked;
-  FLayoutViewer.ClipBounds := MenuItem.Checked;
+  if Assigned(FLayout) then
+    FLayout.ClipBounds := MenuItem.Checked;
 end;
 
 procedure TMainForm.MenuItemCloseClick(Sender: TObject);
