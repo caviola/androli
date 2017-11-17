@@ -163,6 +163,7 @@ type
     ['{16F9F11F-D19C-4830-A8EC-50DD658F4D96}']
     procedure Changed;
     function GetActiveView: TView;
+    function GetTitle: string;
     function HitTest(const X, Y: integer): TView;
     function GetActiveBranch: TView;
     function SetActiveBranch(AValue: TView): boolean;
@@ -173,6 +174,7 @@ type
     property ActiveBranch: TView read GetActiveBranch;
     property RootView: TView read GetRootView;
     property ClipBounds: boolean write SetClipBounds;
+    property Title: string read GetTitle;
   end;
 
   { TViewLayout }
@@ -184,6 +186,7 @@ type
     FActiveView: TView;
     FOnChange: TObjectProcedure;
     FClipBounds: boolean;
+    FTitle: string;
     procedure Flatten;
     function HitTest(const X, Y: integer): TView;
     function GetActiveBranch: TView; inline;
@@ -191,21 +194,14 @@ type
     function GetRootView: TView; inline;
     function GetActiveView: TView; inline;
     function SetActiveView(AValue: TView): boolean;
+    function GetTitle: string;
     procedure Changed;
     procedure DoOnChange;
   public
-    constructor Create(ARootView: TView);
+    constructor Create(ARootView: TView; const ATitle: string);
     destructor Destroy; override;
     procedure SetClipBounds(AValue: boolean);
     property OnChange: TObjectProcedure read FOnChange write FOnChange;
-  end;
-
-  { ILayoutLoadTask }
-
-  ILayoutLoadTask = interface(ITask)
-    ['{F1CC2749-77DC-4AC4-A183-19ECDB4E3924}']
-    function GetDisplayName: string;
-    property DisplayName: string read GetDisplayName;
   end;
 
   TLayoutLoadResultEvent = procedure(const Task: ITask;
@@ -213,7 +209,7 @@ type
 
   { TLayoutLoadTask }
 
-  TLayoutLoadTask = class(TTask, ILayoutLoadTask)
+  TLayoutLoadTask = class(TTask)
   private
     FOnResult: TLayoutLoadResultEvent;
     FResult: TViewLayout;
@@ -222,7 +218,6 @@ type
     procedure DoOnSuccess; override;
   public
     destructor Destroy; override;
-    function GetDisplayName: string; virtual; abstract;
     property OnResult: TLayoutLoadResultEvent read FOnResult write FOnResult;
   end;
 
@@ -340,6 +335,11 @@ begin
     Result := False;
 end;
 
+function TViewLayout.GetTitle: string;
+begin
+  Result := FTitle;
+end;
+
 procedure TViewLayout.SetClipBounds(AValue: boolean);
 
   procedure Visit(AView: TView);
@@ -395,10 +395,11 @@ begin
     FOnChange;
 end;
 
-constructor TViewLayout.Create(ARootView: TView);
+constructor TViewLayout.Create(ARootView: TView; const ATitle: string);
 begin
   Assert(Assigned(ARootView), 'ARootView = nil');
   FRootView := ARootView;
+  FTitle := ATitle;
   SetActiveBranch(ARootView);
 end;
 

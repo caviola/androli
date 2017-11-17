@@ -24,7 +24,6 @@ type
     procedure Run; override;
   public
     constructor Create(const AFilePath: string);
-    function GetDisplayName: string; override;
   end;
 
 { TDeviceMonitorDumpLoadTask }
@@ -103,15 +102,10 @@ begin
 
     // Since we already checked for the presence of at least the root node,
     // we'll always return at least one view.
-    SetResult(TViewLayout.Create(CreateView(Node)));
+    SetResult(TViewLayout.Create(CreateView(Node), FFilePath));
   finally
     Document.Free;
   end;
-end;
-
-function TDeviceMonitorDumpLoadTask.GetDisplayName: string;
-begin
-  Result := FFilePath;
 end;
 
 function CreateDumpFileLoadTask(const FilePath: string): TLayoutLoadTask;

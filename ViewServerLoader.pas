@@ -26,7 +26,8 @@ type
     procedure CaptureViewResult(const Task: ITask; Image: TRasterImage; View: TView);
     procedure CaptureViews(AView: TView);
   public
-    constructor Create(const ADeviceSerial, AWindowHash: string; ARootView: TView);
+    constructor Create(ARootView: TView;
+      const ADeviceSerial, AWindowTitle, AWindowHash: string);
     destructor Destroy; override;
   end;
 
@@ -41,7 +42,6 @@ type
     procedure Run; override;
   public
     constructor Create(const ADeviceSerial, AWindowTitle, AWindowHash: string);
-    function GetDisplayName: string; override;
   end;
 
 
@@ -98,10 +98,10 @@ begin
   Changed;
 end;
 
-constructor TViewServerWindowLayout.Create(const ADeviceSerial, AWindowHash: string;
-  ARootView: TView);
+constructor TViewServerWindowLayout.Create(ARootView: TView;
+  const ADeviceSerial, AWindowTitle, AWindowHash: string);
 begin
-  inherited Create(ARootView);
+  inherited Create(ARootView, ADeviceSerial + ':' + AWindowTitle);
   FDeviceSerial := ADeviceSerial;
   FWindowHash := AWindowHash;
   CaptureViews(FRootView);
@@ -161,8 +161,9 @@ begin
   Log('TViewServerWindowLoadTask.Run: Device=''%s'', WindowTitle=''%s'', WindowHash=''%s''',
     [FDeviceSerial, FWindowTitle, FWindowHash]);
 
-  SetResult(TViewServerWindowLayout.Create(FDeviceSerial, FWindowHash,
-    CreateViewServerClient(FDeviceSerial).DumpWindow(FWindowHash, @CheckCanceled)));
+  SetResult(TViewServerWindowLayout.Create(
+    CreateViewServerClient(FDeviceSerial).DumpWindow(FWindowHash, @CheckCanceled),
+    FDeviceSerial, FWindowTitle, FWindowHash));
 end;
 
 constructor TViewServerWindowLoadTask.Create(
@@ -171,11 +172,6 @@ begin
   FDeviceSerial := ADeviceSerial;
   FWindowTitle := AWindowTitle;
   FWindowHash := AWindowHash;
-end;
-
-function TViewServerWindowLoadTask.GetDisplayName: string;
-begin
-  Result := FDeviceSerial + ':' + FWindowTitle;
 end;
 
 end.

@@ -131,7 +131,7 @@ type
     FLayout: IViewLayout;
     FLayoutViewer: TLayoutViewer;
     FScreenCursor: TCursor;
-    FLayoutLoadTask: ILayoutLoadTask;
+    FLayoutLoadTask: ITask;
     FIndexedBookmarkManager: TIndexedBookmarkManager;
     function GetTreeNodeText(View: TView): string;
     procedure SetLayout(AValue: IViewLayout);
@@ -330,7 +330,7 @@ begin
   if Assigned(AValue) then
   begin
     UpdateTreeView(AValue.ActiveBranch);
-    Caption := Format(FormFileCaptionFormat, [FLayoutLoadTask.DisplayName]);
+    Caption := Format(FormFileCaptionFormat, [AValue.Title]);
 
     MenuItemClose.Enabled := True;
     MenuItemZoomIn.Enabled := True;
@@ -500,7 +500,7 @@ begin
     OnResult := @LayoutLoadResult;
     OnError := @LayoutLoadError;
     OnStopped := @LayoutLoadStopped;
-    FLayoutLoadTask := Start as ILayoutLoadTask;
+    FLayoutLoadTask := Start;
   end;
 
   LogExitMethod('TMainForm.StartOpenLayout');
