@@ -345,6 +345,14 @@ object MainForm: TMainForm
         Caption = 'Clip Bounds to Parent'
         OnClick = MenuItemClipBoundsClick
       end
+      object MenuItemShowWireframes: TMenuItem
+        Caption = 'Show Wireframes'
+        Checked = True
+        OnClick = MenuItemShowWireframesClick
+      end
+      object MenuItem6: TMenuItem
+        Caption = '-'
+      end
       object MenuItemCenterHierarchy: TMenuItem
         Caption = 'Center &Hierarchy'
         ShortCut = 16456

@@ -25,6 +25,7 @@ type
     FLayout: IViewLayout;
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
+    FShowWireframes: boolean;
     FZOrderAnimator: TZOrderAnimator;
     FToggleMode3DAnimator: TFloatArrayAnimator;
     FScaleZAnimator: TFloatAnimator;
@@ -51,6 +52,7 @@ type
     procedure SetOriginZ(AValue: single);
     procedure SetRotationX(Degres: single);
     procedure SetRotationY(Degres: single);
+    procedure SetShowWireFrames(AValue: boolean);
     procedure SetZoomLevel(AValue: single);
     procedure SetScaleZ(AValue: single);
     procedure SetOriginX(AValue: single);
@@ -107,6 +109,7 @@ type
     property OnActiveBranchChanged: TActiveBranchChangedEvent
       write FOnActiveBranchChanged;
     property Mode3D: boolean read FMode3D write SetMode3D;
+    property ShowWireframes: boolean read FShowWireframes write SetShowWireframes;
   end;
 
 
@@ -141,7 +144,6 @@ const
   clBorderColor32 = TColorABGR($C0636363);
   clActiveBorderColor32 = TColorABGR($FFFF9430);
   clFilteredBorderColor32 = TColorABGR($C091EEFF);
-  clFilteredContentColor32 = TColorABGR($2062E5FC);
   clPaddingColor32 = TColorABGR($50C3DEB7);
   clMarginColor32 = TColorABGR($50A0C5E8);
   clContentColor32 = TColorABGR($70FF824A);
@@ -208,6 +210,7 @@ begin
   inherited;
 
   FMouseState := msNone;
+  FShowWireFrames := True;
 
   FActiveViewChangedTimer := TTimer.Create(Self);
   FActiveViewChangedTimer.Enabled := False;
@@ -489,6 +492,15 @@ begin
   end;
 end;
 
+procedure TLayoutViewer.SetShowWireframes(AValue: boolean);
+begin
+  if FShowWireframes <> AValue then
+  begin
+    FShowWireframes := AValue;
+    Invalidate;
+  end;
+end;
+
 procedure TLayoutViewer.SetZoomLevel(AValue: single);
 begin
   if FZoomLevel <> AValue then
@@ -661,8 +673,6 @@ procedure TLayoutViewer.DoOnPaint;
       Result.Y := Round(ViewportRect[3] - WinY);
     end;
 
-  var
-    C: TColorABGR;
   begin
     if Texture > 0 then
       DrawTexture(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, Texture);
@@ -677,23 +687,15 @@ procedure TLayoutViewer.DoOnPaint;
         V.Right - V.PaddingRight, V.Bottom - V.PaddingBottom, V.ZOrder,
         clActiveBorderColor32);
     end
-    else
+    else if HighlightedView = V then
     begin
-      if V.MatchFilter then
-        C := clFilteredContentColor32
-      else
-        C := clContentColor32;
-
-      if HighlightedView = V then
-        PolyFill(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, C);
-
-      if V.MatchFilter then
-        C := clFilteredBorderColor32
-      else
-        C := clBorderColor32;
-
-      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, C);
-    end;
+      PolyFill(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, clContentColor32);
+      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, clBorderColor32);
+    end
+    else if V.MatchFilter then
+      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, clFilteredBorderColor32)
+    else if FShowWireframes then
+      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, clBorderColor32);
 
     glGetDoublev(GL_MODELVIEW_MATRIX, ModelViewMatrix);
     glGetDoublev(GL_PROJECTION_MATRIX, ProjectionMatrix);
