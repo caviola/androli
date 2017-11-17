@@ -374,6 +374,21 @@ object MainForm: TMainForm
     end
     object MenuItem8: TMenuItem
       Caption = '&Navigate'
+      object MenuItemSelectParent: TMenuItem
+        Caption = 'Select Parent'
+        Enabled = False
+        ShortCut = 24764
+        OnClick = MenuItemSelectParentClick
+      end
+      object MenuItemSelectFirstChild: TMenuItem
+        Caption = 'Select First Child'
+        Enabled = False
+        ShortCut = 16572
+        OnClick = MenuItemSelectFirstChildClick
+      end
+      object MenuItem9: TMenuItem
+        Caption = '-'
+      end
       object MenuItemSelectPreviousSibbling: TMenuItem
         Caption = 'Select Previous Sibbling'
         Enabled = False

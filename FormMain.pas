@@ -33,6 +33,9 @@ type
     MainMenu: TMainMenu;
     MenuItem1: TMenuItem;
     MenuItemCenterHierarchy: TMenuItem;
+    MenuItemSelectFirstChild: TMenuItem;
+    MenuItemSelectParent: TMenuItem;
+    MenuItem9: TMenuItem;
     MenuItemSelectNextSibbling: TMenuItem;
     MenuItem6: TMenuItem;
     MenuItem7: TMenuItem;
@@ -99,10 +102,12 @@ type
     procedure MenuItemClipBoundsClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
     procedure MenuItemFilterClick(Sender: TObject);
+    procedure MenuItemSelectFirstChildClick(Sender: TObject);
     procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
     procedure MenuItemSelectNextSibblingClick(Sender: TObject);
     procedure MenuItemOpenViewServerWindowClick(Sender: TObject);
+    procedure MenuItemSelectParentClick(Sender: TObject);
     procedure MenuItemSelectPreviousSibblingClick(Sender: TObject);
     procedure MenuItemSetBookmarkClick(Sender: TObject);
     procedure MenuItemShowContentClick(Sender: TObject);
@@ -364,7 +369,7 @@ begin
   else
     UpdateTreeView(NewBranch, NewBranch);
 
-  UpdateActiveViewMenuItems(NewBranch);
+  UpdateActiveViewMenuItems(FLayout.ActiveView);
 end;
 
 procedure TMainForm.LayoutChanged;
@@ -674,6 +679,12 @@ begin
   end;
 end;
 
+procedure TMainForm.MenuItemSelectFirstChildClick(Sender: TObject);
+begin
+  if FLayoutViewer.SetActiveView(FLayout.ActiveView.FirstChild) then
+    UpdateTreeViewSelection(FLayout.ActiveView);
+end;
+
 procedure TMainForm.MenuItemGotoNextBookmarkClick(Sender: TObject);
 begin
   FIndexedBookmarkManager.GoNext;
@@ -729,6 +740,12 @@ begin
     finally
       Free;
     end;
+end;
+
+procedure TMainForm.MenuItemSelectParentClick(Sender: TObject);
+begin
+  if FLayoutViewer.SetActiveView(FLayout.ActiveView.Parent) then
+    UpdateTreeViewSelection(FLayout.ActiveView);
 end;
 
 procedure TMainForm.MenuItemSelectPreviousSibblingClick(Sender: TObject);
@@ -821,6 +838,10 @@ procedure TMainForm.UpdateActiveViewMenuItems(ActiveView: TView);
 begin
   if Assigned(ActiveView) then
   begin
+    MenuItemSelectFirstChild.Enabled := Assigned(ActiveView.FirstChild);
+    MenuItemSelectParent.Enabled :=
+      Assigned(ActiveView.Parent) and (ActiveView <> FLayout.ActiveBranch);
+
     if ActiveView = FLayout.ActiveBranch then
     begin
       // ActiveBranch sibblings are not displayed to the user.
@@ -838,6 +859,8 @@ begin
     // Disable items as ActiveView=nil.
     MenuItemSelectPreviousSibbling.Enabled := False;
     MenuItemSelectNextSibbling.Enabled := False;
+    MenuItemSelectParent.Enabled := False;
+    MenuItemSelectFirstChild.Enabled := False;
   end;
 end;
 
