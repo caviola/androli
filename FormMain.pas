@@ -34,6 +34,8 @@ type
     MenuItem1: TMenuItem;
     MenuItemCenterHierarchy: TMenuItem;
     MenuItem6: TMenuItem;
+    MenuItem7: TMenuItem;
+    MenuItemFilter: TMenuItem;
     MenuItemShowContent: TMenuItem;
     MenuItemShowWireframes: TMenuItem;
     MenuItemToggleBookmark4: TMenuItem;
@@ -93,6 +95,7 @@ type
     procedure MenuItemClearBookmarksClick(Sender: TObject);
     procedure MenuItemClipBoundsClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
+    procedure MenuItemFilterClick(Sender: TObject);
     procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
     procedure MenuItemOpenViewServerWindowClick(Sender: TObject);
@@ -446,6 +449,7 @@ begin
   MenuItemZoomIn.Enabled := True;
   MenuItemZoomOut.Enabled := True;
   MenuItemCenterHierarchy.Enabled := True;
+  MenuItemFilter.Enabled := True;
   FIndexedBookmarkManager.Clear;
 
   LogExitMethod('TMainForm.LayoutLoadResult');
@@ -519,6 +523,7 @@ begin
   MenuItemZoomIn.Enabled := False;
   MenuItemZoomOut.Enabled := False;
   MenuItemCenterHierarchy.Enabled := False;
+  MenuItemFilter.Enabled := False;
   FIndexedBookmarkManager.Clear;
 
   LogExitMethod('TMainForm.CloseLayout');
@@ -649,6 +654,15 @@ end;
 procedure TMainForm.MenuItemCloseClick(Sender: TObject);
 begin
   CloseLayout;
+end;
+
+procedure TMainForm.MenuItemFilterClick(Sender: TObject);
+begin
+  if TreeFilterEdit.Enabled then
+  begin
+    TreeFilterEdit.SetFocus;
+    TreeFilterEdit.SelectAll;
+  end;
 end;
 
 procedure TMainForm.MenuItemGotoNextBookmarkClick(Sender: TObject);

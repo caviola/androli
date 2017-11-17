@@ -173,6 +173,14 @@ object MainForm: TMainForm
     end
     object MenuItemSearch: TMenuItem
       Caption = 'Search'
+      object MenuItemFilter: TMenuItem
+        Caption = '&Filter'
+        ShortCut = 16454
+        OnClick = MenuItemFilterClick
+      end
+      object MenuItem7: TMenuItem
+        Caption = '-'
+      end
       object MenuItemGotoBookmark: TMenuItem
         Caption = 'Goto Bookmark'
         object MenuItemGotoBookmark0: TMenuItem
