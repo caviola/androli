@@ -165,14 +165,14 @@ object MainForm: TMainForm
       object MenuItem3: TMenuItem
         Caption = '-'
       end
-      object MenuItemQuit: TMenuItem
-        Caption = '&Quit'
-        ShortCut = 16465
-        OnClick = MenuItemQuitClick
+      object MenuItemExit: TMenuItem
+        Caption = 'E&xit'
+        ShortCut = 32856
+        OnClick = MenuItemExitClick
       end
     end
     object MenuItemSearch: TMenuItem
-      Caption = 'Search'
+      Caption = '&Search'
       object MenuItemFilter: TMenuItem
         Caption = '&Filter'
         ShortCut = 16454
@@ -182,7 +182,7 @@ object MainForm: TMainForm
         Caption = '-'
       end
       object MenuItemGotoBookmark: TMenuItem
-        Caption = 'Goto Bookmark'
+        Caption = '&Goto Bookmark'
         object MenuItemGotoBookmark0: TMenuItem
           Caption = 'Bookmark 0'
           Enabled = False
@@ -254,7 +254,7 @@ object MainForm: TMainForm
         end
       end
       object MenuItem5: TMenuItem
-        Caption = 'Toggle Bookmark'
+        Caption = '&Toggle Bookmark'
         object MenuItemToggleBookmark0: TMenuItem
           Caption = 'Toggle Bookmark 0'
           ShortCut = 24624
@@ -315,7 +315,7 @@ object MainForm: TMainForm
       end
     end
     object MenuItem1: TMenuItem
-      Caption = 'View'
+      Caption = '&Layout'
       object MenuItemZoomIn: TMenuItem
         Caption = 'Zoom In'
         Enabled = False
@@ -328,13 +328,13 @@ object MainForm: TMainForm
         ShortCut = 16493
         OnClick = MenuItemZoomOutClick
       end
-      object MenuItemZoomZIn: TMenuItem
-        Caption = 'Zoom Z In'
+      object MenuItemIncreaseZ: TMenuItem
+        Caption = 'Increase View Separation'
         Enabled = False
         ShortCut = 24683
       end
-      object MenuItemZoomZOut: TMenuItem
-        Caption = 'Zoom Z Out'
+      object MenuItemDecreaseZ: TMenuItem
+        Caption = 'Decrease View Separation'
         Enabled = False
         ShortCut = 24685
       end
@@ -346,21 +346,25 @@ object MainForm: TMainForm
         Caption = '-'
       end
       object MenuItemToggleMode3D: TMenuItem
-        Caption = 'Enable 3D Mode'
+        Caption = '&3D Mode'
+        ShortCut = 49203
         OnClick = MenuItemToggleMode3DClick
       end
       object MenuItemClipBounds: TMenuItem
-        Caption = 'Clip Bounds to Parent'
+        Caption = 'Clip &Bounds to Parent'
+        ShortCut = 49218
         OnClick = MenuItemClipBoundsClick
       end
       object MenuItemShowWireframes: TMenuItem
-        Caption = 'Show Wireframes'
+        Caption = 'Show &Wireframes'
         Checked = True
+        ShortCut = 49239
         OnClick = MenuItemShowWireframesClick
       end
       object MenuItemShowContent: TMenuItem
-        Caption = 'Show Content'
+        Caption = 'Show &Content'
         Checked = True
+        ShortCut = 49219
         OnClick = MenuItemShowContentClick
       end
       object MenuItem6: TMenuItem
@@ -375,13 +379,13 @@ object MainForm: TMainForm
     object MenuItem8: TMenuItem
       Caption = '&Navigate'
       object MenuItemSelectParent: TMenuItem
-        Caption = 'Select Parent'
+        Caption = 'Select &Parent'
         Enabled = False
         ShortCut = 24764
         OnClick = MenuItemSelectParentClick
       end
       object MenuItemSelectFirstChild: TMenuItem
-        Caption = 'Select First Child'
+        Caption = 'Select First &Child'
         Enabled = False
         ShortCut = 16572
         OnClick = MenuItemSelectFirstChildClick

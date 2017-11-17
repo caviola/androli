@@ -77,8 +77,8 @@ type
     MenuItemClose: TMenuItem;
     MenuItem3: TMenuItem;
     MenuItemNormalSize: TMenuItem;
-    MenuItemZoomZOut: TMenuItem;
-    MenuItemZoomZIn: TMenuItem;
+    MenuItemDecreaseZ: TMenuItem;
+    MenuItemIncreaseZ: TMenuItem;
     MenuItemZoomOut: TMenuItem;
     MenuItemZoomIn: TMenuItem;
     MenuItemFile: TMenuItem;
@@ -86,7 +86,7 @@ type
     MenuItemOpenFile: TMenuItem;
     MenuItemOpenViewServerWindow: TMenuItem;
     MenuItem4: TMenuItem;
-    MenuItemQuit: TMenuItem;
+    MenuItemExit: TMenuItem;
     MenuItemHelp: TMenuItem;
     TreeFilterEdit: TTreeFilterEdit;
     PanelTreeView: TPanel;
@@ -113,7 +113,7 @@ type
     procedure MenuItemShowContentClick(Sender: TObject);
     procedure MenuItemShowWireframesClick(Sender: TObject);
     procedure MenuItemToggleMode3DClick(Sender: TObject);
-    procedure MenuItemQuitClick(Sender: TObject);
+    procedure MenuItemExitClick(Sender: TObject);
     procedure MenuItemOpenFileClick(Sender: TObject);
     procedure MenuItemZoomInClick(Sender: TObject);
     procedure MenuItemZoomOutClick(Sender: TObject);
@@ -620,7 +620,7 @@ begin
     StartLoadLayout(CreateDumpFileLoadTask(DialogOpenFile.FileName));
 end;
 
-procedure TMainForm.MenuItemQuitClick(Sender: TObject);
+procedure TMainForm.MenuItemExitClick(Sender: TObject);
 begin
   Application.Terminate;
 end;
