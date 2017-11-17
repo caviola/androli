@@ -34,6 +34,7 @@ type
     MenuItem1: TMenuItem;
     MenuItemCenterHierarchy: TMenuItem;
     MenuItem6: TMenuItem;
+    MenuItemShowContent: TMenuItem;
     MenuItemShowWireframes: TMenuItem;
     MenuItemToggleBookmark4: TMenuItem;
     MenuItemToggleBookmark5: TMenuItem;
@@ -96,6 +97,7 @@ type
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
     procedure MenuItemOpenViewServerWindowClick(Sender: TObject);
     procedure MenuItemSetBookmarkClick(Sender: TObject);
+    procedure MenuItemShowContentClick(Sender: TObject);
     procedure MenuItemShowWireframesClick(Sender: TObject);
     procedure MenuItemToggleMode3DClick(Sender: TObject);
     procedure MenuItemQuitClick(Sender: TObject);
@@ -175,6 +177,7 @@ begin
 
   MenuItemToggleMode3D.Checked := FLayoutViewer.Mode3D;
   MenuItemShowWireframes.Checked := FLayoutViewer.ShowWireframes;
+  MenuItemShowContent.Checked := FLayoutViewer.ShowContent;
 
   KeyPreview := True;
 
@@ -661,6 +664,14 @@ end;
 procedure TMainForm.MenuItemSetBookmarkClick(Sender: TObject);
 begin
   FIndexedBookmarkManager.SetFree;
+end;
+
+procedure TMainForm.MenuItemShowContentClick(Sender: TObject);
+var
+  MenuItem: TMenuItem absolute Sender;
+begin
+  MenuItem.Checked := not MenuItem.Checked;
+  FLayoutViewer.ShowContent := MenuItem.Checked;
 end;
 
 procedure TMainForm.MenuItemShowWireframesClick(Sender: TObject);

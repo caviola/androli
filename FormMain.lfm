@@ -350,6 +350,11 @@ object MainForm: TMainForm
         Checked = True
         OnClick = MenuItemShowWireframesClick
       end
+      object MenuItemShowContent: TMenuItem
+        Caption = 'Show Content'
+        Checked = True
+        OnClick = MenuItemShowContentClick
+      end
       object MenuItem6: TMenuItem
         Caption = '-'
       end

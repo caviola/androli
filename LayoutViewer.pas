@@ -25,6 +25,7 @@ type
     FLayout: IViewLayout;
     FHierarchyWidth: integer;
     FHierarchyHeight: integer;
+    FShowContent: boolean;
     FShowWireframes: boolean;
     FZOrderAnimator: TZOrderAnimator;
     FToggleMode3DAnimator: TFloatArrayAnimator;
@@ -52,6 +53,7 @@ type
     procedure SetOriginZ(AValue: single);
     procedure SetRotationX(Degres: single);
     procedure SetRotationY(Degres: single);
+    procedure SetShowContent(AValue: boolean);
     procedure SetShowWireFrames(AValue: boolean);
     procedure SetZoomLevel(AValue: single);
     procedure SetScaleZ(AValue: single);
@@ -110,6 +112,7 @@ type
       write FOnActiveBranchChanged;
     property Mode3D: boolean read FMode3D write SetMode3D;
     property ShowWireframes: boolean read FShowWireframes write SetShowWireframes;
+    property ShowContent: boolean read FShowContent write SetShowContent;
   end;
 
 
@@ -211,6 +214,7 @@ begin
 
   FMouseState := msNone;
   FShowWireFrames := True;
+  FShowContent := True;
 
   FActiveViewChangedTimer := TTimer.Create(Self);
   FActiveViewChangedTimer.Enabled := False;
@@ -492,7 +496,16 @@ begin
   end;
 end;
 
-procedure TLayoutViewer.SetShowWireframes(AValue: boolean);
+procedure TLayoutViewer.SetShowContent(AValue: boolean);
+begin
+  if FShowContent <> AValue then
+  begin
+    FShowContent := AValue;
+    Invalidate;
+  end;
+end;
+
+procedure TLayoutViewer.SetShowWireFrames(AValue: boolean);
 begin
   if FShowWireframes <> AValue then
   begin
@@ -674,7 +687,7 @@ procedure TLayoutViewer.DoOnPaint;
     end;
 
   begin
-    if Texture > 0 then
+    if (Texture > 0) and FShowContent then
       DrawTexture(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, Texture);
 
     if ActiveView = V then
