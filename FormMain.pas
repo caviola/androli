@@ -33,8 +33,11 @@ type
     MainMenu: TMainMenu;
     MenuItem1: TMenuItem;
     MenuItemCenterHierarchy: TMenuItem;
+    MenuItemSelectNextSibbling: TMenuItem;
     MenuItem6: TMenuItem;
     MenuItem7: TMenuItem;
+    MenuItem8: TMenuItem;
+    MenuItemSelectPreviousSibbling: TMenuItem;
     MenuItemFilter: TMenuItem;
     MenuItemShowContent: TMenuItem;
     MenuItemShowWireframes: TMenuItem;
@@ -98,7 +101,9 @@ type
     procedure MenuItemFilterClick(Sender: TObject);
     procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
+    procedure MenuItemSelectNextSibblingClick(Sender: TObject);
     procedure MenuItemOpenViewServerWindowClick(Sender: TObject);
+    procedure MenuItemSelectPreviousSibblingClick(Sender: TObject);
     procedure MenuItemSetBookmarkClick(Sender: TObject);
     procedure MenuItemShowContentClick(Sender: TObject);
     procedure MenuItemShowWireframesClick(Sender: TObject);
@@ -111,6 +116,7 @@ type
     procedure TreeViewExpanded(Sender: TObject; Node: TTreeNode);
     procedure TreeViewMouseLeave(Sender: TObject);
     procedure UpdateTreeViewLabels(Sender: TObject);
+    procedure UpdateActiveViewMenuItems(ActiveView: TView = nil);
     procedure FormCreate(Sender: TObject);
     procedure TreeFilterEditAfterFilter(Sender: TObject);
     function TreeFilterEditFilterItem(Item: TObject; out Done: boolean): boolean;
@@ -252,20 +258,25 @@ end;
 
 procedure TMainForm.TreeViewSelectionChanged(Sender: TObject);
 var
-  SelectedTreeNode: TTreeNode;
+  SelectedNode: TTreeNode;
   SelectedView: TView;
 begin
   LogEnterMethod('TMainForm.TreeViewSelectionChanged');
 
-  SelectedTreeNode := TreeView.Selected;
-  if Assigned(SelectedTreeNode) then
+  SelectedNode := TreeView.Selected;
+  if Assigned(SelectedNode) then
   begin
-    SelectedView := TView(SelectedTreeNode.Data);
+    SelectedView := TView(SelectedNode.Data);
     FLayoutViewer.SetActiveView(SelectedView);
+    FLayoutViewer.HighlightedView := nil;
     UpdatePropertyInspector(SelectedView);
+    UpdateActiveViewMenuItems(SelectedView);
   end
   else
+  begin
     UpdatePropertyInspector;
+    UpdateActiveViewMenuItems;
+  end;
 
   LogExitMethod('TMainForm.TreeViewSelectionChanged');
 end;
@@ -312,11 +323,31 @@ begin
   FLayoutViewer.SetLayout(AValue);
 
   if Assigned(AValue) then
-    UpdateTreeView(AValue.ActiveBranch)
-  else
-    UpdateTreeView;
+  begin
+    UpdateTreeView(AValue.ActiveBranch);
+    Caption := Format(FormFileCaptionFormat, [FLayoutLoadTask.DisplayName]);
 
+    MenuItemClose.Enabled := True;
+    MenuItemZoomIn.Enabled := True;
+    MenuItemZoomOut.Enabled := True;
+    MenuItemCenterHierarchy.Enabled := True;
+    MenuItemFilter.Enabled := True;
+  end
+  else
+  begin
+    UpdateTreeView;
+    Caption := AppName;
+
+    MenuItemClose.Enabled := False;
+    MenuItemZoomIn.Enabled := False;
+    MenuItemZoomOut.Enabled := False;
+    MenuItemCenterHierarchy.Enabled := False;
+    MenuItemFilter.Enabled := False;
+  end;
+
+  FIndexedBookmarkManager.Clear;
   UpdatePropertyInspector;
+  UpdateActiveViewMenuItems;
 
   LogExitMethod('TMainForm.SetViewLayout');
 end;
@@ -332,6 +363,8 @@ begin
     UpdateTreeView(NewBranch) // don't select RootView
   else
     UpdateTreeView(NewBranch, NewBranch);
+
+  UpdateActiveViewMenuItems(NewBranch);
 end;
 
 procedure TMainForm.LayoutChanged;
@@ -438,21 +471,9 @@ end;
 
 procedure TMainForm.LayoutLoadResult(const Task: ITask; TheResult: TViewLayout);
 begin
-  LogEnterMethod('TMainForm.LayoutLoadResult');
-
   TheResult.OnChange := @LayoutChanged;
   TheResult.SetClipBounds(MenuItemClipBounds.Checked);
   SetLayout(TheResult);
-
-  Caption := Format(FormFileCaptionFormat, [FLayoutLoadTask.DisplayName]);
-  MenuItemClose.Enabled := True;
-  MenuItemZoomIn.Enabled := True;
-  MenuItemZoomOut.Enabled := True;
-  MenuItemCenterHierarchy.Enabled := True;
-  MenuItemFilter.Enabled := True;
-  FIndexedBookmarkManager.Clear;
-
-  LogExitMethod('TMainForm.LayoutLoadResult');
 end;
 
 procedure TMainForm.LayoutLoadStopped(const Task: ITask);
@@ -514,19 +535,7 @@ end;
 
 procedure TMainForm.CloseLayout;
 begin
-  LogEnterMethod('TMainForm.CloseLayout');
-
   SetLayout(nil);
-
-  Caption := AppName;
-  MenuItemClose.Enabled := False;
-  MenuItemZoomIn.Enabled := False;
-  MenuItemZoomOut.Enabled := False;
-  MenuItemCenterHierarchy.Enabled := False;
-  MenuItemFilter.Enabled := False;
-  FIndexedBookmarkManager.Clear;
-
-  LogExitMethod('TMainForm.CloseLayout');
 end;
 
 procedure TMainForm.CancelLoadLayout;
@@ -566,7 +575,7 @@ begin
   Result := TBookmark.Create;
   with TBookmark(Result) do
   begin
-    ActiveView := FLayoutViewer.ActiveView;
+    ActiveView := FLayout.ActiveView;
     ActiveBranch := FLayout.ActiveBranch;
     OriginX := FLayoutViewer.OriginX;
     OriginY := FLayoutViewer.OriginY;
@@ -675,6 +684,12 @@ begin
   FIndexedBookmarkManager.GoPrevious;
 end;
 
+procedure TMainForm.MenuItemSelectNextSibblingClick(Sender: TObject);
+begin
+  if FLayoutViewer.SetActiveView(FLayout.ActiveView.NextSibbling) then
+    UpdateTreeViewSelection(FLayout.ActiveView);
+end;
+
 procedure TMainForm.MenuItemSetBookmarkClick(Sender: TObject);
 begin
   FIndexedBookmarkManager.SetFree;
@@ -714,6 +729,12 @@ begin
     finally
       Free;
     end;
+end;
+
+procedure TMainForm.MenuItemSelectPreviousSibblingClick(Sender: TObject);
+begin
+  if FLayoutViewer.SetActiveView(FLayout.ActiveView.PrevSibbling) then
+    UpdateTreeViewSelection(FLayout.ActiveView);
 end;
 
 procedure TMainForm.MenuItemZoomInClick(Sender: TObject);
@@ -793,6 +814,30 @@ begin
     end;
   finally
     TreeView.EndUpdate;
+  end;
+end;
+
+procedure TMainForm.UpdateActiveViewMenuItems(ActiveView: TView);
+begin
+  if Assigned(ActiveView) then
+  begin
+    if ActiveView = FLayout.ActiveBranch then
+    begin
+      // ActiveBranch sibblings are not displayed to the user.
+      MenuItemSelectPreviousSibbling.Enabled := False;
+      MenuItemSelectNextSibbling.Enabled := False;
+    end
+    else if ActiveView.NextSibbling <> ActiveView then // has sibblings?
+    begin
+      MenuItemSelectPreviousSibbling.Enabled := True;
+      MenuItemSelectNextSibbling.Enabled := True;
+    end;
+  end
+  else
+  begin
+    // Disable items as ActiveView=nil.
+    MenuItemSelectPreviousSibbling.Enabled := False;
+    MenuItemSelectNextSibbling.Enabled := False;
   end;
 end;
 

@@ -372,6 +372,21 @@ object MainForm: TMainForm
         OnClick = MenuItemCenterHierarchyClick
       end
     end
+    object MenuItem8: TMenuItem
+      Caption = '&Navigate'
+      object MenuItemSelectPreviousSibbling: TMenuItem
+        Caption = 'Select Previous Sibbling'
+        Enabled = False
+        ShortCut = 24766
+        OnClick = MenuItemSelectPreviousSibblingClick
+      end
+      object MenuItemSelectNextSibbling: TMenuItem
+        Caption = 'Select Next Sibbling'
+        Enabled = False
+        ShortCut = 16574
+        OnClick = MenuItemSelectNextSibblingClick
+      end
+    end
     object MenuItemHelp: TMenuItem
       Caption = '&Help'
       object MenuItemAbout: TMenuItem

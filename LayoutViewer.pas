@@ -35,7 +35,6 @@ type
     FOriginX: single;
     FOriginY: single;
     FOriginZ: single;
-    FActiveView: TView;
     FHighlightedView: TView;
     FMouseState: TMouseState;
     FLastMouseX: integer;
@@ -102,7 +101,6 @@ type
     property OriginX: single read FOriginX write SetOriginX;
     property OriginY: single read FOriginY write SetOriginY;
     property OriginZ: single read FOriginZ write SetOriginZ;
-    property ActiveView: TView read FActiveView;
     property HighlightedView: TView read FHighlightedView write SetHighlightedView;
     // Fired when user changes active view.
     property OnActiveViewChanged: TActiveViewChangedEvent
@@ -339,7 +337,6 @@ begin
   // TODO: center fit initially
 
   FLayout := AValue;
-  FActiveView := nil;
 
   FRotationY := 0;
   FRotationX := 0;
@@ -437,10 +434,8 @@ end;
 
 function TLayoutViewer.SetActiveView(AValue: TView): boolean;
 begin
-  if FActiveView <> AValue then
+  if FLayout.SetActiveView(AValue) then
   begin
-    Log('TLayoutViewer.SetActiveView %s', [DbgS(AValue)]);
-    FActiveView := AValue;
     Invalidate;
     Result := True;
   end
@@ -690,7 +685,7 @@ procedure TLayoutViewer.DoOnPaint;
     if (Texture > 0) and FShowContent then
       DrawTexture(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, Texture);
 
-    if ActiveView = V then
+    if FLayout.ActiveView = V then
     begin
       DrawMargin(V);
       DrawPadding(V);
@@ -849,7 +844,7 @@ procedure TLayoutViewer.MouseDblClickHandler(Sender: TObject);
 begin
   LogEnterMethod('TLayoutViewer.MouseDblClickHandler');
 
-  if FLayout.SetActiveBranch(ActiveView) then // active branch changed?
+  if FLayout.SetActiveBranch(FLayout.ActiveView) then // active branch changed?
   begin
     FActiveViewChangedTimer.Enabled := False;
     if Assigned(FOnActiveBranchChanged) then
@@ -930,7 +925,7 @@ end;
 procedure TLayoutViewer.DoActiveViewChanged;
 begin
   if Assigned(FOnActiveViewChanged) then
-    FOnActiveViewChanged(FActiveView);
+    FOnActiveViewChanged(FLayout.ActiveView);
 end;
 
 procedure TLayoutViewer.ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);

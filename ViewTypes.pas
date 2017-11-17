@@ -162,11 +162,14 @@ type
   IViewLayout = interface
     ['{16F9F11F-D19C-4830-A8EC-50DD658F4D96}']
     procedure Changed;
+    function GetActiveView: TView;
     function HitTest(const X, Y: integer): TView;
     function GetActiveBranch: TView;
     function SetActiveBranch(AValue: TView): boolean;
     function GetRootView: TView;
+    function SetActiveView(AValue: TView): boolean;
     procedure SetClipBounds(AValue: boolean);
+    property ActiveView: TView read GetActiveView;
     property ActiveBranch: TView read GetActiveBranch;
     property RootView: TView read GetRootView;
     property ClipBounds: boolean write SetClipBounds;
@@ -178,6 +181,7 @@ type
   protected
     FRootView: TView;
     FActiveBranch: TView;
+    FActiveView: TView;
     FOnChange: TObjectProcedure;
     FClipBounds: boolean;
     procedure Flatten;
@@ -185,6 +189,8 @@ type
     function GetActiveBranch: TView; inline;
     function SetActiveBranch(AValue: TView): boolean; virtual;
     function GetRootView: TView; inline;
+    function GetActiveView: TView; inline;
+    function SetActiveView(AValue: TView): boolean;
     procedure Changed;
     procedure DoOnChange;
   public
@@ -303,6 +309,7 @@ begin
   if FActiveBranch <> AValue then
   begin
     Log('TViewLayout.SetActiveBranch %s', [DbgS(AValue)]);
+    FActiveView := nil;
     FActiveBranch := AValue;
     Flatten;
     Result := True;
@@ -314,6 +321,23 @@ end;
 function TViewLayout.GetRootView: TView;
 begin
   Result := FRootView;
+end;
+
+function TViewLayout.GetActiveView: TView;
+begin
+  Result := FActiveView;
+end;
+
+function TViewLayout.SetActiveView(AValue: TView): boolean;
+begin
+  if FActiveView <> AValue then
+  begin
+    Log('TViewLayout.SetActiveView %s', [DbgS(AValue)]);
+    FActiveView := AValue;
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 procedure TViewLayout.SetClipBounds(AValue: boolean);
