@@ -32,6 +32,9 @@ type
     DialogOpenFile: TOpenDialog;
     MainMenu: TMainMenu;
     MenuItem1: TMenuItem;
+    MenuItem10: TMenuItem;
+    MenuItemToogleTreePanel: TMenuItem;
+    MenuItemTogglePropertyInspector: TMenuItem;
     MenuItemCenterHierarchy: TMenuItem;
     MenuItemSelectFirstChild: TMenuItem;
     MenuItemSelectParent: TMenuItem;
@@ -88,6 +91,8 @@ type
     MenuItem4: TMenuItem;
     MenuItemExit: TMenuItem;
     MenuItemHelp: TMenuItem;
+    PanelCenter: TPanel;
+    PanelPropertyInspector: TPanel;
     TreeFilterEdit: TTreeFilterEdit;
     PanelTreeView: TPanel;
     SplitterLeft: TSplitter;
@@ -115,6 +120,8 @@ type
     procedure MenuItemToggleMode3DClick(Sender: TObject);
     procedure MenuItemExitClick(Sender: TObject);
     procedure MenuItemOpenFileClick(Sender: TObject);
+    procedure MenuItemTogglePropertyInspectorClick(Sender: TObject);
+    procedure MenuItemToggleTreePanelClick(Sender: TObject);
     procedure MenuItemZoomInClick(Sender: TObject);
     procedure MenuItemZoomOutClick(Sender: TObject);
     procedure TreeViewCollapsed(Sender: TObject; Node: TTreeNode);
@@ -179,21 +186,22 @@ const
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
-  FLayoutViewer := TLayoutViewer.Create(Self);
-  FLayoutViewer.Parent := Self;
-  FLayoutViewer.Align := alClient;
-  FLayoutViewer.OnActiveViewChanged := @LayoutViewerActiveViewChanged;
-  FLayoutViewer.OnActiveBranchChanged := @LayoutViewerActiveBranchChanged;
+  FLayoutViewer := TLayoutViewer.Create(PanelCenter);
+  with FLayoutViewer do
+  begin
+    Parent := PanelCenter;
+    Align := alClient;
+    OnActiveViewChanged := @LayoutViewerActiveViewChanged;
+    OnActiveBranchChanged := @LayoutViewerActiveBranchChanged;
+  end;
+
   {$IFDEF DEBUG}
   StartLoadLayout(CreateDumpFileLoadTask('dumps/dump3.uix'));
   {$ENDIF}
-  SetControlIndex(FLayoutViewer, 0);
 
   MenuItemToggleMode3D.Checked := FLayoutViewer.Mode3D;
   MenuItemShowWireframes.Checked := FLayoutViewer.ShowWireframes;
   MenuItemShowContent.Checked := FLayoutViewer.ShowContent;
-
-  KeyPreview := True;
 
   FIndexedBookmarkManager := TIndexedBookmarkManager.Create(10, Self);
 
@@ -618,6 +626,16 @@ procedure TMainForm.MenuItemOpenFileClick(Sender: TObject);
 begin
   if DialogOpenFile.Execute then
     StartLoadLayout(CreateDumpFileLoadTask(DialogOpenFile.FileName));
+end;
+
+procedure TMainForm.MenuItemTogglePropertyInspectorClick(Sender: TObject);
+begin
+  PanelPropertyInspector.Visible := not PanelPropertyInspector.Visible;
+end;
+
+procedure TMainForm.MenuItemToggleTreePanelClick(Sender: TObject);
+begin
+  PanelTreeView.Visible := not PanelTreeView.Visible;
 end;
 
 procedure TMainForm.MenuItemExitClick(Sender: TObject);

@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, Controls, Graphics, Menus, ExtCtrls, ViewTypes, Animators, OpenGLContext,
-  TaskRunner;
+  TaskRunner, LMessages;
 
 type
 
@@ -83,6 +83,7 @@ type
     procedure ZOrderAnimatorUpdateHandler(Sender: TAnimator;
       const {%H-}InterpolatedFraction: single);
     procedure GetActiveBranchCenter(var X, Y, Z: single);
+    procedure WMSize(var Message: TLMSize); message LM_SIZE;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -981,6 +982,11 @@ begin
   X := (MaxRight - MinLeft) / 2 + View.Left;
   Y := (MaxBottom - MinTop) / 2 + View.Top;
   Z := (MaxZOrder - MinZOrder) / 2 + View.ZOrder;
+end;
+
+procedure TLayoutViewer.WMSize(var Message: TLMSize);
+begin
+  Update;
 end;
 
 end.
