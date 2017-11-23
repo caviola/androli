@@ -175,6 +175,15 @@ const
   CanvasPaddingVertical = 50;
   CanvasPaddingHorizontal = 50;
 
+  // FToggleMode3DAnimator element indexes.
+  t3daRotationY = 0;
+  t3daScaleZ = 1;
+
+  // FCenterAnimator element indexes.
+  caOriginX = 0;
+  caOriginY = 1;
+  caOriginZ = 2;
+
 { TZOrderAnimator }
 
 procedure TZOrderAnimator.DoFrameUpdate(const InterpolatedFraction: single);
@@ -359,8 +368,8 @@ begin
 
     if Mode3D then
     begin
-      FToggleMode3DAnimator.SetElementInterval(0, 0, 0);
-      FToggleMode3DAnimator.SetElementInterval(1, 0, Mode3DScaleZ);
+      FToggleMode3DAnimator.SetElementInterval(t3daRotationY, 0, 0);
+      FToggleMode3DAnimator.SetElementInterval(t3daScaleZ, 0, Mode3DScaleZ);
       FToggleMode3DAnimator.Restart;
     end
     else
@@ -388,9 +397,9 @@ begin
     if Animate then
     begin
       GetActiveBranchCenter(EndOriginX{%H-}, EndOriginY{%H-}, EndOriginZ{%H-});
-      FCenterAnimator.SetElementInterval(0, OriginX, EndOriginX);
-      FCenterAnimator.SetElementInterval(1, OriginY, EndOriginY);
-      FCenterAnimator.SetElementInterval(2, OriginZ, EndOriginZ);
+      FCenterAnimator.SetElementInterval(caOriginX, OriginX, EndOriginX);
+      FCenterAnimator.SetElementInterval(caOriginY, OriginY, EndOriginY);
+      FCenterAnimator.SetElementInterval(caOriginZ, OriginZ, EndOriginZ);
       FCenterAnimator.Restart;
     end
     else
@@ -452,13 +461,13 @@ begin
   if FMode3D then
   begin
     // Don't RotateY.
-    FToggleMode3DAnimator.SetElementInterval(0, 0, 0);
-    FToggleMode3DAnimator.SetElementInterval(1, 0, Mode3DScaleZ);
+    FToggleMode3DAnimator.SetElementInterval(t3daRotationY, 0, 0);
+    FToggleMode3DAnimator.SetElementInterval(t3daScaleZ, 0, Mode3DScaleZ);
   end
   else
   begin
-    FToggleMode3DAnimator.SetElementInterval(0, RotationY, 0);
-    FToggleMode3DAnimator.SetElementInterval(1, ScaleZ, 0);
+    FToggleMode3DAnimator.SetElementInterval(t3daRotationY, RotationY, 0);
+    FToggleMode3DAnimator.SetElementInterval(t3daScaleZ, ScaleZ, 0);
   end;
 
   FToggleMode3DAnimator.Restart;
@@ -796,8 +805,8 @@ end;
 procedure TLayoutViewer.ToggleMode3DAnimatorAnimate(Sender: TFloatArrayAnimator;
   const Values: array of single);
 begin
-  RotationY := Values[0];
-  ScaleZ := Values[1];
+  RotationY := Values[t3daRotationY];
+  ScaleZ := Values[t3daScaleZ];
 end;
 
 procedure TLayoutViewer.MouseDownHandler(Sender: TObject; Button: TMouseButton;
