@@ -2,23 +2,24 @@
 
 Explore the view layout of Android apps in 3D.
 
-![Silentcast](media/silentcast.gif)
+![Silentcast](media/screencast.gif)
 
-Androli is a cross-platform, experimental tool written in Object Pascal.
+Androli is a cross-platform, experimental tool developed with [Lazarus](http://www.lazarus-ide.org/).
 
 ## Features
 
 - Inspect any active Android window
 - Inspect Device Monitor dump files
-- Switch between 2D and 3D layout modes
-- Snapshot of common UI widgets
+- 2D/3D view modes
+- Show content (bitmap) of leaf views
+- Focus on any layout branch
 - Filterable and customizable tree view
-- Inspect view properties
+- View property inspector
+- Save/restore the workspace state (Bookmarks)
 - Rotate/scale/pan
-- Hide/show/collapse/expand layout sections
-- Clip views to parent
-- Easy installation, just copy/launch a binary
-- Pre-compiled binaries for Windows and Linux (64 bits)
+- Collapse/expand layout branches
+- Portable installation; copy anywhere and run the binary
+- Pre-compiled binary for Windows (32 bits)
 
 ## Installing
 
@@ -42,8 +43,8 @@ Download the latest release package from the [releases page](../../releases), un
 ## Getting Started
 
 1. Launch Androli's binary
-2. From `File` menu select `Open Dump File` or `Open Device Window`
-3. Explore the view layout and its properties.
+2. From `File` menu select `Open Dump File` or `Open View Server Window`
+3. Explore the view layout.
 
 ## Known Limitations
 
@@ -58,5 +59,3 @@ Androli works only on emulators and rooted devices.
 This project is licensed under the [MIT License](LICENSE).
 
 ## Hire Me!
-
-I'm based in Pembroke Pines (FL). I'm a process-oriented, no-silver-bullet, tinkerer kind-of-guy. If you think we may have common values/vision and might be a good fit in your team don't hesitate to drop me a line. This is my [LinkedIn profile](https://www.linkedin.com/in/elmago).
