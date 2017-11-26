@@ -690,6 +690,7 @@ end;
 
 procedure TMainForm.MenuItemFilterClick(Sender: TObject);
 begin
+  PanelTreeView.Visible := True;
   if TreeFilterEdit.Enabled then
   begin
     TreeFilterEdit.SetFocus;
