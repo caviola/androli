@@ -272,24 +272,18 @@ end;
 procedure TMainForm.TreeViewSelectionChanged(Sender: TObject);
 var
   SelectedNode: TTreeNode;
-  SelectedView: TView;
+  SelectedView: TView = nil;
 begin
   LogEnterMethod('TMainForm.TreeViewSelectionChanged');
 
   SelectedNode := TreeView.Selected;
   if Assigned(SelectedNode) then
-  begin
     SelectedView := TView(SelectedNode.Data);
-    FLayoutViewer.SetActiveView(SelectedView);
-    FLayoutViewer.HighlightedView := nil;
-    UpdatePropertyInspector(SelectedView);
-    UpdateActiveViewMenuItems(SelectedView);
-  end
-  else
-  begin
-    UpdatePropertyInspector;
-    UpdateActiveViewMenuItems;
-  end;
+
+  FLayoutViewer.HighlightedView := nil;
+  FLayoutViewer.SetActiveView(SelectedView);
+  UpdatePropertyInspector(SelectedView);
+  UpdateActiveViewMenuItems(SelectedView);
 
   LogExitMethod('TMainForm.TreeViewSelectionChanged');
 end;

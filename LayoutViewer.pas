@@ -332,7 +332,7 @@ end;
 
 procedure TLayoutViewer.SetActiveBranch(AValue: TView);
 begin
-  if FLayout.SetActiveBranch(AValue) then
+  if Assigned(FLayout) and FLayout.SetActiveBranch(AValue) then
     Invalidate;
 end;
 
@@ -444,7 +444,7 @@ end;
 
 function TLayoutViewer.SetActiveView(AValue: TView): boolean;
 begin
-  if FLayout.SetActiveView(AValue) then
+  if Assigned(FLayout) and FLayout.SetActiveView(AValue) then
   begin
     Invalidate;
     Result := True;
@@ -934,7 +934,7 @@ end;
 
 procedure TLayoutViewer.DoActiveViewChanged;
 begin
-  if Assigned(FOnActiveViewChanged) then
+  if Assigned(FLayout) and Assigned(FOnActiveViewChanged) then
     FOnActiveViewChanged(FLayout.ActiveView);
 end;
 
