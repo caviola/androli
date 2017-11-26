@@ -110,6 +110,8 @@ type
     procedure MenuItemSelectFirstChildClick(Sender: TObject);
     procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
+    procedure MenuItemGotoBookmarkClick(Sender: TObject);
+    procedure MenuItemToggleBookmarkClick(Sender: TObject);
     procedure MenuItemSelectNextSibblingClick(Sender: TObject);
     procedure MenuItemOpenViewServerWindowClick(Sender: TObject);
     procedure MenuItemSelectParentClick(Sender: TObject);
@@ -143,9 +145,7 @@ type
     function GetTreeNodeText(View: TView): string;
     procedure SetLayout(AValue: IViewLayout);
   protected
-    procedure GotoBookmarkHandler(Sender: TObject);
     procedure LayoutChanged;
-    procedure ToggleBookmarkHandler(Sender: TObject);
     procedure LayoutViewerActiveViewChanged(NewView: TView);
     procedure LayoutViewerActiveBranchChanged(NewBranch: TView);
     procedure UpdateTreeView(RootView: TView = nil; SelectedView: TView = nil;
@@ -161,10 +161,10 @@ type
     procedure CancelLoadLayout;
 
     // IIndexedBookmarkListener
-    procedure OnBookmarkSet(I: integer);
-    procedure OnBookmarkUnset(I: integer);
     function SaveBookmark: TObject;
     procedure RestoreBookmark(Which: TObject);
+    procedure OnIndexedBookmarkSet(Index, SetCount, Total: integer);
+    procedure OnIndexedBookmarkUnset(Index, SetCount, Total: integer);
   end;
 
 var
@@ -204,28 +204,6 @@ begin
   MenuItemShowContent.Checked := FLayoutViewer.ShowContent;
 
   FIndexedBookmarkManager := TIndexedBookmarkManager.Create(10, Self);
-
-  MenuItemToggleBookmark0.OnClick := @ToggleBookmarkHandler;
-  MenuItemToggleBookmark1.OnClick := @ToggleBookmarkHandler;
-  MenuItemToggleBookmark2.OnClick := @ToggleBookmarkHandler;
-  MenuItemToggleBookmark3.OnClick := @ToggleBookmarkHandler;
-  MenuItemToggleBookmark4.OnClick := @ToggleBookmarkHandler;
-  MenuItemToggleBookmark5.OnClick := @ToggleBookmarkHandler;
-  MenuItemToggleBookmark6.OnClick := @ToggleBookmarkHandler;
-  MenuItemToggleBookmark7.OnClick := @ToggleBookmarkHandler;
-  MenuItemToggleBookmark8.OnClick := @ToggleBookmarkHandler;
-  MenuItemToggleBookmark9.OnClick := @ToggleBookmarkHandler;
-
-  MenuItemGotoBookmark0.OnClick := @GotoBookmarkHandler;
-  MenuItemGotoBookmark1.OnClick := @GotoBookmarkHandler;
-  MenuItemGotoBookmark2.OnClick := @GotoBookmarkHandler;
-  MenuItemGotoBookmark3.OnClick := @GotoBookmarkHandler;
-  MenuItemGotoBookmark4.OnClick := @GotoBookmarkHandler;
-  MenuItemGotoBookmark5.OnClick := @GotoBookmarkHandler;
-  MenuItemGotoBookmark6.OnClick := @GotoBookmarkHandler;
-  MenuItemGotoBookmark7.OnClick := @GotoBookmarkHandler;
-  MenuItemGotoBookmark8.OnClick := @GotoBookmarkHandler;
-  MenuItemGotoBookmark9.OnClick := @GotoBookmarkHandler;
 end;
 
 procedure TMainForm.TreeFilterEditAfterFilter(Sender: TObject);
@@ -339,6 +317,19 @@ begin
     MenuItemZoomOut.Enabled := True;
     MenuItemCenterHierarchy.Enabled := True;
     MenuItemFilter.Enabled := True;
+
+    MenuItemToggleBookmark0.Enabled := True;
+    MenuItemToggleBookmark1.Enabled := True;
+    MenuItemToggleBookmark2.Enabled := True;
+    MenuItemToggleBookmark3.Enabled := True;
+    MenuItemToggleBookmark4.Enabled := True;
+    MenuItemToggleBookmark5.Enabled := True;
+    MenuItemToggleBookmark6.Enabled := True;
+    MenuItemToggleBookmark7.Enabled := True;
+    MenuItemToggleBookmark8.Enabled := True;
+    MenuItemToggleBookmark9.Enabled := True;
+
+    MenuItemSetBookmark.Enabled := True;
   end
   else
   begin
@@ -350,6 +341,19 @@ begin
     MenuItemZoomOut.Enabled := False;
     MenuItemCenterHierarchy.Enabled := False;
     MenuItemFilter.Enabled := False;
+
+    MenuItemToggleBookmark0.Enabled := False;
+    MenuItemToggleBookmark1.Enabled := False;
+    MenuItemToggleBookmark2.Enabled := False;
+    MenuItemToggleBookmark3.Enabled := False;
+    MenuItemToggleBookmark4.Enabled := False;
+    MenuItemToggleBookmark5.Enabled := False;
+    MenuItemToggleBookmark6.Enabled := False;
+    MenuItemToggleBookmark7.Enabled := False;
+    MenuItemToggleBookmark8.Enabled := False;
+    MenuItemToggleBookmark9.Enabled := False;
+
+    MenuItemSetBookmark.Enabled := False;
   end;
 
   FIndexedBookmarkManager.Clear;
@@ -359,7 +363,7 @@ begin
   LogExitMethod('TMainForm.SetViewLayout');
 end;
 
-procedure TMainForm.GotoBookmarkHandler(Sender: TObject);
+procedure TMainForm.MenuItemGotoBookmarkClick(Sender: TObject);
 begin
   FIndexedBookmarkManager.Go(TMenuItem(Sender).Tag);
 end;
@@ -379,7 +383,7 @@ begin
   FLayoutViewer.Invalidate;
 end;
 
-procedure TMainForm.ToggleBookmarkHandler(Sender: TObject);
+procedure TMainForm.MenuItemToggleBookmarkClick(Sender: TObject);
 begin
   FIndexedBookmarkManager.Toggle(TMenuItem(Sender).Tag);
 end;
@@ -508,9 +512,12 @@ begin
   LogExitMethod('TMainForm.StartOpenLayout');
 end;
 
-procedure TMainForm.OnBookmarkSet(I: integer);
+procedure TMainForm.OnIndexedBookmarkSet(Index, SetCount, Total: integer);
 begin
-  case I of
+  Log('TMainForm.OnIndexedBookmarkSet: Index=%d, SetCount=%d, Total=%d',
+    [Index, SetCount, Total]);
+
+  case Index of
     0: MenuItemGotoBookmark0.Enabled := True;
     1: MenuItemGotoBookmark1.Enabled := True;
     2: MenuItemGotoBookmark2.Enabled := True;
@@ -521,12 +528,22 @@ begin
     7: MenuItemGotoBookmark7.Enabled := True;
     8: MenuItemGotoBookmark8.Enabled := True;
     9: MenuItemGotoBookmark9.Enabled := True;
+    else;
   end;
+
+  MenuItemClearBookmarks.Enabled := True;
+  MenuItemGotoNextBookmark.Enabled := True;
+  MenuItemGotoPreviousBookmark.Enabled := True;
+
+  MenuItemSetBookmark.Enabled := SetCount <> Total;
 end;
 
-procedure TMainForm.OnBookmarkUnset(I: integer);
+procedure TMainForm.OnIndexedBookmarkUnset(Index, SetCount, Total: integer);
 begin
-  case I of
+  Log('TMainForm.OnIndexedBookmarkUnset: Index=%d, SetCount=%d, Total=%d',
+    [Index, SetCount, Total]);
+
+  case Index of
     0: MenuItemGotoBookmark0.Enabled := False;
     1: MenuItemGotoBookmark1.Enabled := False;
     2: MenuItemGotoBookmark2.Enabled := False;
@@ -537,7 +554,17 @@ begin
     7: MenuItemGotoBookmark7.Enabled := False;
     8: MenuItemGotoBookmark8.Enabled := False;
     9: MenuItemGotoBookmark9.Enabled := False;
+    else;
   end;
+
+  if SetCount = 0 then
+  begin
+    MenuItemClearBookmarks.Enabled := False;
+    MenuItemGotoNextBookmark.Enabled := False;
+    MenuItemGotoPreviousBookmark.Enabled := False;
+  end;
+
+  MenuItemSetBookmark.Enabled := SetCount <> Total;
 end;
 
 procedure TMainForm.CloseLayout;
@@ -699,13 +726,19 @@ begin
 end;
 
 procedure TMainForm.MenuItemGotoNextBookmarkClick(Sender: TObject);
+var
+  I: integer;
 begin
-  FIndexedBookmarkManager.GoNext;
+  I := FIndexedBookmarkManager.GoNext;
+  Log('TMainForm.MenuItemGotoNextBookmarkClick: GoNext=%d', [I]);
 end;
 
 procedure TMainForm.MenuItemGotoPreviousBookmarkClick(Sender: TObject);
+var
+  I: integer;
 begin
-  FIndexedBookmarkManager.GoPrevious;
+  I := FIndexedBookmarkManager.GoPrevious;
+  Log('TMainForm.MenuItemGotoPreviousBookmarkClick: GoPrevious=%d', [I]);
 end;
 
 procedure TMainForm.MenuItemSelectNextSibblingClick(Sender: TObject);
@@ -715,8 +748,11 @@ begin
 end;
 
 procedure TMainForm.MenuItemSetBookmarkClick(Sender: TObject);
+var
+  I: integer;
 begin
-  FIndexedBookmarkManager.SetFree;
+  I := FIndexedBookmarkManager.SetFree;
+  Log('TMainForm.MenuItemSetBookmarkClick: SetFree=%d', [I]);
 end;
 
 procedure TMainForm.MenuItemShowContentClick(Sender: TObject);
