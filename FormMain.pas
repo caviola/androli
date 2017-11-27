@@ -35,7 +35,7 @@ type
     MenuItem10: TMenuItem;
     MenuItemToogleTreePanel: TMenuItem;
     MenuItemTogglePropertyInspector: TMenuItem;
-    MenuItemCenterHierarchy: TMenuItem;
+    MenuItemCenter: TMenuItem;
     MenuItemSelectFirstChild: TMenuItem;
     MenuItemSelectParent: TMenuItem;
     MenuItem9: TMenuItem;
@@ -79,12 +79,11 @@ type
     MenuItemToggleMode3D: TMenuItem;
     MenuItemClose: TMenuItem;
     MenuItem3: TMenuItem;
-    MenuItemNormalSize: TMenuItem;
     MenuItemDecreaseZ: TMenuItem;
     MenuItemIncreaseZ: TMenuItem;
     MenuItemZoomOut: TMenuItem;
     MenuItemZoomIn: TMenuItem;
-    MenuItemFile: TMenuItem;
+    MenuItemLayout: TMenuItem;
     MenuItemAbout: TMenuItem;
     MenuItemOpenFile: TMenuItem;
     MenuItemOpenViewServerWindow: TMenuItem;
@@ -101,7 +100,7 @@ type
     ValueListEditor: TValueListEditor;
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
-    procedure MenuItemCenterHierarchyClick(Sender: TObject);
+    procedure MenuItemCenterClick(Sender: TObject);
     procedure MenuItemClearBookmarksClick(Sender: TObject);
     procedure MenuItemClipBoundsClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
@@ -314,7 +313,7 @@ begin
     MenuItemClose.Enabled := True;
     MenuItemZoomIn.Enabled := True;
     MenuItemZoomOut.Enabled := True;
-    MenuItemCenterHierarchy.Enabled := True;
+    MenuItemCenter.Enabled := True;
     MenuItemFilter.Enabled := True;
 
     MenuItemToggleBookmark0.Enabled := True;
@@ -338,7 +337,7 @@ begin
     MenuItemClose.Enabled := False;
     MenuItemZoomIn.Enabled := False;
     MenuItemZoomOut.Enabled := False;
-    MenuItemCenterHierarchy.Enabled := False;
+    MenuItemCenter.Enabled := False;
     MenuItemFilter.Enabled := False;
 
     MenuItemToggleBookmark0.Enabled := False;
@@ -663,7 +662,7 @@ begin
   Application.Terminate;
 end;
 
-procedure TMainForm.MenuItemCenterHierarchyClick(Sender: TObject);
+procedure TMainForm.MenuItemCenterClick(Sender: TObject);
 begin
   FLayoutViewer.Center(True);
 end;
