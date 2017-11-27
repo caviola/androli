@@ -101,7 +101,6 @@ type
     ValueListEditor: TValueListEditor;
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
-    procedure MenuItemAboutClick(Sender: TObject);
     procedure MenuItemCenterHierarchyClick(Sender: TObject);
     procedure MenuItemClearBookmarksClick(Sender: TObject);
     procedure MenuItemClipBoundsClick(Sender: TObject);
@@ -152,10 +151,10 @@ type
       const FilterText: string = '');
     procedure UpdateTreeViewSelection(AView: TView);
     procedure UpdatePropertyInspector(AView: TView = nil);
-    procedure LayoutLoadError(const Task: ITask; Error: Exception);
-    procedure LayoutLoadStarted(const Task: ITask);
-    procedure LayoutLoadResult(const Task: ITask; TheResult: TViewLayout);
-    procedure LayoutLoadStopped(const Task: ITask);
+    procedure LayoutLoadError(const {%H-}Task: ITask; Error: Exception);
+    procedure LayoutLoadStarted(const {%H-}Task: ITask);
+    procedure LayoutLoadResult(const {%H-}Task: ITask; TheResult: TViewLayout);
+    procedure LayoutLoadStopped(const {%H-}Task: ITask);
     procedure StartLoadLayout(const Task: TLayoutLoadTask);
     procedure CloseLayout;
     procedure CancelLoadLayout;
@@ -662,11 +661,6 @@ end;
 procedure TMainForm.MenuItemExitClick(Sender: TObject);
 begin
   Application.Terminate;
-end;
-
-procedure TMainForm.MenuItemAboutClick(Sender: TObject);
-begin
-  //TODO:
 end;
 
 procedure TMainForm.MenuItemCenterHierarchyClick(Sender: TObject);

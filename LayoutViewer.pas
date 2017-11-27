@@ -82,8 +82,8 @@ type
     procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
     procedure ZOrderAnimatorUpdateHandler(Sender: TAnimator;
       const {%H-}InterpolatedFraction: single);
-    procedure GetActiveBranchCenter(var X, Y, Z: single);
-    procedure WMSize(var Message: TLMSize); message LM_SIZE;
+    procedure GetActiveBranchCenter(out X, Y, Z: single);
+    procedure WMSize(var {%H-}Message: TLMSize); message LM_SIZE;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -153,8 +153,6 @@ const
   InitialZoomLevel = 1;
 
   Mode3DScaleZ = 20;
-  Mode3DRotationX = 0;
-  Mode3DRotationY = 30;
 
   StepZoomLevel = 0.1;
   StepScaleZ = 20;
@@ -344,8 +342,6 @@ begin
   else
     Log('TLayoutViewer.SetViewLayout nil');
 
-  // TODO: center fit initially
-
   FLayout := AValue;
 
   FRotationY := 0;
@@ -365,6 +361,7 @@ begin
     OnClick := @MouseClickHandler;
     OnDblClick := @MouseDblClickHandler;
 
+    // TODO: resize to fit
     GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ);
 
     if Mode3D then
@@ -385,7 +382,6 @@ begin
     OnMouseLeave := nil;
     OnClick := nil;
     OnDblClick := nil;
-    PopupMenu := nil;
     Invalidate;
   end;
 end;
@@ -955,7 +951,7 @@ begin
   Invalidate;
 end;
 
-procedure TLayoutViewer.GetActiveBranchCenter(var X, Y, Z: single);
+procedure TLayoutViewer.GetActiveBranchCenter(out X, Y, Z: single);
 var
   View: TView;
   MinLeft, MinTop, MaxRight, MaxBottom, MinZOrder, MaxZOrder: single;
