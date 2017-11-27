@@ -135,13 +135,18 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="androli-$(TargetCPU)-$(TargetOS)"/>
+      <Filename Value="androli"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <OtherUnitFiles Value="third-party/synapse"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <IncludeAssertionCode Value="True"/>
+      </SyntaxOptions>
+    </Parsing>
     <Linking>
       <Options>
         <Win32>
