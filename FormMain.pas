@@ -33,6 +33,8 @@ type
     MainMenu: TMainMenu;
     MenuItem1: TMenuItem;
     MenuItem10: TMenuItem;
+    MenuItem11: TMenuItem;
+    MenuItemSetActiveBranch: TMenuItem;
     MenuItemToogleTreePanel: TMenuItem;
     MenuItemTogglePropertyInspector: TMenuItem;
     MenuItemCenter: TMenuItem;
@@ -105,6 +107,7 @@ type
     procedure MenuItemClipBoundsClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
     procedure MenuItemFilterClick(Sender: TObject);
+    procedure MenuItemSetActiveBranchClick(Sender: TObject);
     procedure MenuItemSelectFirstChildClick(Sender: TObject);
     procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
@@ -714,6 +717,17 @@ begin
   end;
 end;
 
+procedure TMainForm.MenuItemSetActiveBranchClick(Sender: TObject);
+var
+  ActiveView: TView;
+begin
+  ActiveView := FLayout.ActiveView;
+  FLayoutViewer.SetActiveBranch(ActiveView);
+  UpdateTreeView(ActiveView, ActiveView);
+  UpdateActiveViewMenuItems(ActiveView);
+  FLayoutViewer.Center(True);
+end;
+
 procedure TMainForm.MenuItemSelectFirstChildClick(Sender: TObject);
 begin
   if FLayoutViewer.SetActiveView(FLayout.ActiveView.FirstChild) then
@@ -886,6 +900,8 @@ begin
     MenuItemSelectParent.Enabled :=
       Assigned(ActiveView.Parent) and (ActiveView <> FLayout.ActiveBranch);
 
+    MenuItemSetActiveBranch.Enabled := MenuItemSelectParent.Enabled;
+
     if ActiveView = FLayout.ActiveBranch then
     begin
       // ActiveBranch sibblings are not displayed to the user.
@@ -905,6 +921,7 @@ begin
     MenuItemSelectNextSibbling.Enabled := False;
     MenuItemSelectParent.Enabled := False;
     MenuItemSelectFirstChild.Enabled := False;
+    MenuItemSetActiveBranch.Enabled := False;
   end;
 end;
 

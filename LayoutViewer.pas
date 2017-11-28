@@ -393,7 +393,7 @@ begin
   if Assigned(FLayout) then
     if Animate then
     begin
-      GetActiveBranchCenter(EndOriginX{%H-}, EndOriginY{%H-}, EndOriginZ{%H-});
+      GetActiveBranchCenter(EndOriginX, EndOriginY, EndOriginZ);
       FCenterAnimator.SetElementInterval(caOriginX, OriginX, EndOriginX);
       FCenterAnimator.SetElementInterval(caOriginY, OriginY, EndOriginY);
       FCenterAnimator.SetElementInterval(caOriginZ, OriginZ, EndOriginZ);

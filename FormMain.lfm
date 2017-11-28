@@ -473,6 +473,15 @@ object MainForm: TMainForm
         ShortCut = 16574
         OnClick = MenuItemSelectNextSibblingClick
       end
+      object MenuItem11: TMenuItem
+        Caption = '-'
+      end
+      object MenuItemSetActiveBranch: TMenuItem
+        Caption = 'Set &Active Branch'
+        Enabled = False
+        ShortCut = 16397
+        OnClick = MenuItemSetActiveBranchClick
+      end
     end
     object MenuItemHelp: TMenuItem
       Caption = '&Help'
