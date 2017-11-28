@@ -193,15 +193,17 @@ begin
     OnActiveBranchChanged := @LayoutViewerActiveBranchChanged;
   end;
 
-  {$IFDEF DEBUG}
-  StartLoadLayout(CreateDumpFileLoadTask('dumps/dump3.uix'));
-  {$ENDIF}
-
   MenuItemToggleMode3D.Checked := FLayoutViewer.Mode3D;
   MenuItemShowWireframes.Checked := FLayoutViewer.ShowWireframes;
   MenuItemShowContent.Checked := FLayoutViewer.ShowContent;
 
   FIndexedBookmarkManager := TIndexedBookmarkManager.Create(10, Self);
+
+  {$IFDEF DEBUG}
+  StartLoadLayout(CreateDumpFileLoadTask('dumps/dump3.uix'));
+  {$ELSE}
+  SetLayout(nil);
+  {$ENDIF}
 end;
 
 procedure TMainForm.TreeFilterEditAfterFilter(Sender: TObject);

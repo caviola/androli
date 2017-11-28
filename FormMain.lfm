@@ -6,7 +6,6 @@ object MainForm: TMainForm
   HorzScrollBar.Visible = False
   VertScrollBar.Visible = False
   Anchors = []
-  Caption = 'Androli'
   ClientHeight = 535
   ClientWidth = 1019
   Constraints.MinHeight = 500
