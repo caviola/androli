@@ -37,7 +37,7 @@ type
     MenuItemSetActiveBranch: TMenuItem;
     MenuItemToogleTreePanel: TMenuItem;
     MenuItemTogglePropertyInspector: TMenuItem;
-    MenuItemCenter: TMenuItem;
+    MenuItemResetCamera: TMenuItem;
     MenuItemSelectFirstChild: TMenuItem;
     MenuItemSelectParent: TMenuItem;
     MenuItem9: TMenuItem;
@@ -102,7 +102,7 @@ type
     ValueListEditor: TValueListEditor;
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
-    procedure MenuItemCenterClick(Sender: TObject);
+    procedure MenuItemResetCameraClick(Sender: TObject);
     procedure MenuItemClearBookmarksClick(Sender: TObject);
     procedure MenuItemClipBoundsClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
@@ -318,7 +318,7 @@ begin
     MenuItemClose.Enabled := True;
     MenuItemZoomIn.Enabled := True;
     MenuItemZoomOut.Enabled := True;
-    MenuItemCenter.Enabled := True;
+    MenuItemResetCamera.Enabled := True;
     MenuItemFilter.Enabled := True;
 
     MenuItemToggleBookmark0.Enabled := True;
@@ -342,7 +342,7 @@ begin
     MenuItemClose.Enabled := False;
     MenuItemZoomIn.Enabled := False;
     MenuItemZoomOut.Enabled := False;
-    MenuItemCenter.Enabled := False;
+    MenuItemResetCamera.Enabled := False;
     MenuItemFilter.Enabled := False;
 
     MenuItemToggleBookmark0.Enabled := False;
@@ -667,9 +667,9 @@ begin
   Application.Terminate;
 end;
 
-procedure TMainForm.MenuItemCenterClick(Sender: TObject);
+procedure TMainForm.MenuItemResetCameraClick(Sender: TObject);
 begin
-  FLayoutViewer.Center(True);
+  FLayoutViewer.ResetCamera(True);
 end;
 
 procedure TMainForm.MenuItemClearBookmarksClick(Sender: TObject);
@@ -725,7 +725,7 @@ begin
   FLayoutViewer.SetActiveBranch(ActiveView);
   UpdateTreeView(ActiveView, ActiveView);
   UpdateActiveViewMenuItems(ActiveView);
-  FLayoutViewer.Center(True);
+  FLayoutViewer.ResetCamera(False);
 end;
 
 procedure TMainForm.MenuItemSelectFirstChildClick(Sender: TObject);

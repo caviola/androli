@@ -31,7 +31,7 @@ type
     FToggleMode3DAnimator: TFloatArrayAnimator;
     FScaleZAnimator: TFloatAnimator;
     FZoomLevelAnimator: TFloatAnimator;
-    FCenterAnimator: TFloatArrayAnimator;
+    FResetCameraAnimator: TFloatArrayAnimator;
     FOriginX: single;
     FOriginY: single;
     FOriginZ: single;
@@ -60,7 +60,7 @@ type
     procedure SetOriginY(AValue: single);
   protected
     procedure ActiveViewChangedTimerTimer(Sender: TObject);
-    procedure CenterAnimatorAnimate(Sender: TFloatArrayAnimator;
+    procedure ResetCameraAnimate(Sender: TFloatArrayAnimator;
       const Values: array of single);
     procedure MouseLeaveHandler(Sender: TObject);
 
@@ -94,7 +94,7 @@ type
     procedure SetActiveBranch(AValue: TView);
     function SetActiveView(AValue: TView): boolean;
     procedure SetLayout(AValue: IViewLayout);
-    procedure Center(Animate: boolean);
+    procedure ResetCamera(ResetRotation: boolean; Animate: boolean = True);
     property RotationX: single read FRotationX write SetRotationX;
     property RotationY: single read FRotationY write SetRotationY;
     property ZoomLevel: single read FZoomLevel write SetZoomLevel;
@@ -151,6 +151,7 @@ const
   clContentColor32 = TColorABGR($70FF824A);
 
   InitialZoomLevel = 1;
+  InitialRotationY = 0;
 
   Mode3DScaleZ = 20;
 
@@ -178,10 +179,11 @@ const
   t3daRotationY = 0;
   t3daScaleZ = 1;
 
-  // FCenterAnimator element indexes.
-  caOriginX = 0;
-  caOriginY = 1;
-  caOriginZ = 2;
+  // FResetCameraAnimator element indexes.
+  rcaOriginX = 0;
+  rcaOriginY = 1;
+  rcaOriginZ = 2;
+  rcaRotationY = 3;
 
 { TZOrderAnimator }
 
@@ -240,8 +242,8 @@ begin
   FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
   FZoomLevelAnimator := TFloatAnimator.Create(@ZoomAnimateValueHandler);
 
-  FCenterAnimator := TFloatArrayAnimator.Create(3, @CenterAnimatorAnimate);
-  FCenterAnimator.Duration := 300;
+  FResetCameraAnimator := TFloatArrayAnimator.Create(4, @ResetCameraAnimate);
+  FResetCameraAnimator.Duration := 300;
 
   FZOrderAnimator := TZOrderAnimator.Create;
   FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
@@ -253,7 +255,7 @@ begin
   FZoomLevelAnimator.Free;
   FScaleZAnimator.Free;
   FToggleMode3DAnimator.Free;
-  FCenterAnimator.Free;
+  FResetCameraAnimator.Free;
   inherited Destroy;
 end;
 
@@ -386,7 +388,7 @@ begin
   end;
 end;
 
-procedure TLayoutViewer.Center(Animate: boolean);
+procedure TLayoutViewer.ResetCamera(ResetRotation: boolean; Animate: boolean);
 var
   EndOriginX, EndOriginY, EndOriginZ: single;
 begin
@@ -394,14 +396,21 @@ begin
     if Animate then
     begin
       GetActiveBranchCenter(EndOriginX, EndOriginY, EndOriginZ);
-      FCenterAnimator.SetElementInterval(caOriginX, OriginX, EndOriginX);
-      FCenterAnimator.SetElementInterval(caOriginY, OriginY, EndOriginY);
-      FCenterAnimator.SetElementInterval(caOriginZ, OriginZ, EndOriginZ);
-      FCenterAnimator.Restart;
+      FResetCameraAnimator.SetElementInterval(rcaOriginX, OriginX, EndOriginX);
+      FResetCameraAnimator.SetElementInterval(rcaOriginY, OriginY, EndOriginY);
+      FResetCameraAnimator.SetElementInterval(rcaOriginZ, OriginZ, EndOriginZ);
+      if ResetRotation then
+        FResetCameraAnimator.SetElementInterval(rcaRotationY, RotationY,
+          InitialRotationY)
+      else
+        FResetCameraAnimator.SetElementInterval(rcaRotationY, RotationY, RotationY);
+      FResetCameraAnimator.Restart;
     end
     else
     begin
       GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ);
+      if ResetRotation then
+        RotationY := InitialRotationY;
       Invalidate;
     end;
 end;
@@ -416,12 +425,13 @@ begin
   LogExitMethod('TLayoutViewer.ActiveViewChangedTimerTimer');
 end;
 
-procedure TLayoutViewer.CenterAnimatorAnimate(Sender: TFloatArrayAnimator;
+procedure TLayoutViewer.ResetCameraAnimate(Sender: TFloatArrayAnimator;
   const Values: array of single);
 begin
-  OriginX := Values[0];
-  OriginY := Values[1];
-  OriginZ := Values[2];
+  OriginX := Values[rcaOriginX];
+  OriginY := Values[rcaOriginY];
+  OriginZ := Values[rcaOriginZ];
+  RotationY := Values[rcaRotationY];
 end;
 
 procedure TLayoutViewer.MouseLeaveHandler(Sender: TObject);
@@ -855,7 +865,7 @@ begin
     FActiveViewChangedTimer.Enabled := False;
     if Assigned(FOnActiveBranchChanged) then
       FOnActiveBranchChanged(FLayout.ActiveBranch);
-    Center(True);
+    ResetCamera(False);
   end
   else if FActiveViewChangedTimer.Enabled then // active view changed?
   begin

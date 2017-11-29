@@ -430,10 +430,10 @@ object MainForm: TMainForm
       object MenuItem6: TMenuItem
         Caption = '-'
       end
-      object MenuItemCenter: TMenuItem
-        Caption = 'C&enter'
+      object MenuItemResetCamera: TMenuItem
+        Caption = '&Reset Camera'
         ShortCut = 16453
-        OnClick = MenuItemCenterClick
+        OnClick = MenuItemResetCameraClick
       end
     end
     object MenuItem8: TMenuItem
