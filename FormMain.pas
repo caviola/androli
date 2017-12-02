@@ -26,7 +26,7 @@ type
 
   { TMainForm }
 
-  TMainForm = class(TForm, IIndexedBookmarkListener)
+  TMainForm = class(TForm, IIndexedBookmarkListener, IBookmarkHistoryListener)
     CheckBoxShowFullClassNames: TCheckBox;
     CheckBoxShowViewIDs: TCheckBox;
     DialogOpenFile: TOpenDialog;
@@ -34,6 +34,9 @@ type
     MenuItem1: TMenuItem;
     MenuItem10: TMenuItem;
     MenuItem11: TMenuItem;
+    MenuItem12: TMenuItem;
+    MenuItemBackFocusHistory: TMenuItem;
+    MenuItemForwardFocusHistory: TMenuItem;
     MenuItemSelectPreviousMatch: TMenuItem;
     MenuItemSelectNextMatch: TMenuItem;
     MenuItemSetActiveBranch: TMenuItem;
@@ -104,6 +107,8 @@ type
     ValueListEditor: TValueListEditor;
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
+    procedure MenuItemBackFocusHistoryClick(Sender: TObject);
+    procedure MenuItemForwardFocusHistoryClick(Sender: TObject);
     procedure MenuItemResetCameraClick(Sender: TObject);
     procedure MenuItemClearBookmarksClick(Sender: TObject);
     procedure MenuItemClipBoundsClick(Sender: TObject);
@@ -148,12 +153,15 @@ type
     FScreenCursor: TCursor;
     FLayoutLoadTask: ITask;
     FIndexedBookmarkManager: TIndexedBookmarkManager;
+    FFocusHistoryManager: TBookmarkHistoryManager;
     function GetTreeNodeText(View: TView): string;
     procedure SetLayout(AValue: IViewLayout);
   protected
     procedure LayoutChanged;
     procedure LayoutViewerActiveViewChanged(NewView: TView);
     procedure LayoutViewerActiveBranchChanged(NewBranch: TView);
+    procedure RestoreFocusBookmark(Which: TObject);
+    function SaveFocusBookmark: TObject;
     procedure UpdateTreeView(RootView: TView = nil; SelectedView: TView = nil;
       const FilterText: string = '');
     procedure UpdateTreeViewSelection(AView: TView);
@@ -171,6 +179,8 @@ type
     procedure RestoreBookmark(Which: TObject);
     procedure OnIndexedBookmarkSet(Index, SetCount, Total: integer);
     procedure OnIndexedBookmarkUnset(Index, SetCount, Total: integer);
+    // IBookmarkListener
+    procedure OnBookmarkHistoryChanged(CurrentIndex, Total: integer);
   end;
 
 var
@@ -206,6 +216,8 @@ begin
   MenuItemShowContent.Checked := FLayoutViewer.ShowContent;
 
   FIndexedBookmarkManager := TIndexedBookmarkManager.Create(10, Self);
+  FFocusHistoryManager := TBookmarkHistoryManager.Create(@SaveFocusBookmark,
+    @RestoreFocusBookmark, Self);
 
   {$IFDEF DEBUG}
   StartLoadLayout(CreateDumpFileLoadTask('dumps/dump3.uix'));
@@ -344,6 +356,9 @@ begin
     MenuItemToggleBookmark9.Enabled := True;
 
     MenuItemSetBookmark.Enabled := True;
+
+    // Initial branch becomes first bookmark (index=0).
+    FFocusHistoryManager.Add;
   end
   else
   begin
@@ -368,6 +383,7 @@ begin
     MenuItemToggleBookmark9.Enabled := False;
 
     MenuItemSetBookmark.Enabled := False;
+    FFocusHistoryManager.Clear;
   end;
 
   FIndexedBookmarkManager.Clear;
@@ -390,6 +406,47 @@ begin
     UpdateTreeView(NewBranch, NewBranch);
 
   UpdateActiveViewMenuItems(FLayout.ActiveView);
+  FFocusHistoryManager.Add;
+end;
+
+procedure TMainForm.RestoreFocusBookmark(Which: TObject);
+begin
+  LogEnterMethod('TMainForm.RestoreFocusBookmark');
+
+  with TBookmark(Which) do
+  begin
+    FLayoutViewer.SetActiveBranch(ActiveBranch);
+    FLayoutViewer.HighlightedView := nil;
+    FLayoutViewer.OriginX := OriginX;
+    FLayoutViewer.OriginY := OriginY;
+    FLayoutViewer.RotationX := RotationX;
+    FLayoutViewer.RotationY := RotationY;
+    FLayoutViewer.ScaleZ := ScaleZ;
+    FLayoutViewer.ZoomLevel := ZoomLevel;
+    if ActiveBranch = FLayout.RootView then
+      UpdateTreeView(ActiveBranch) // don't select RootView
+    else
+      UpdateTreeView(ActiveBranch, ActiveBranch);
+  end;
+
+  LogExitMethod('TMainForm.RestoreFocusBookmark');
+end;
+
+function TMainForm.SaveFocusBookmark: TObject;
+begin
+  Result := TBookmark.Create;
+  with TBookmark(Result) do
+  begin
+    ActiveBranch := FLayout.ActiveBranch;
+    OriginX := FLayoutViewer.OriginX;
+    OriginY := FLayoutViewer.OriginY;
+    RotationX := FLayoutViewer.RotationX;
+    RotationY := FLayoutViewer.RotationY;
+    ScaleZ := FLayoutViewer.ScaleZ;
+    ZoomLevel := FLayoutViewer.ZoomLevel;
+  end;
+
+  Log('TMainForm.SaveFocusBookmark: Result=%s', [DbgS(Result)]);
 end;
 
 procedure TMainForm.LayoutChanged;
@@ -582,6 +639,14 @@ begin
   MenuItemSetBookmark.Enabled := SetCount <> Total;
 end;
 
+procedure TMainForm.OnBookmarkHistoryChanged(CurrentIndex, Total: integer);
+begin
+  // Don't allow going back bookmark 0, which is the initial display
+  // when a layout is loaded (see SetLayout).
+  MenuItemBackFocusHistory.Enabled := CurrentIndex > 0;
+  MenuItemForwardFocusHistory.Enabled := CurrentIndex < Pred(Total);
+end;
+
 procedure TMainForm.CloseLayout;
 begin
   SetLayout(nil);
@@ -692,6 +757,7 @@ end;
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
   FIndexedBookmarkManager.Free;
+  FFocusHistoryManager.Free;
 
   FLayout := nil;
 
@@ -703,6 +769,16 @@ procedure TMainForm.FormKeyPress(Sender: TObject; var Key: char);
 begin
   if (Ord(Key) = VK_ESCAPE) then
     CancelLoadLayout;
+end;
+
+procedure TMainForm.MenuItemBackFocusHistoryClick(Sender: TObject);
+begin
+  FFocusHistoryManager.GoBack;
+end;
+
+procedure TMainForm.MenuItemForwardFocusHistoryClick(Sender: TObject);
+begin
+  FFocusHistoryManager.GoForward;
 end;
 
 procedure TMainForm.MenuItemClipBoundsClick(Sender: TObject);
@@ -756,6 +832,7 @@ begin
   UpdateTreeView(ActiveView, ActiveView);
   UpdateActiveViewMenuItems(ActiveView);
   FLayoutViewer.ResetCamera(False);
+  FFocusHistoryManager.Add;
 end;
 
 procedure TMainForm.MenuItemSelectFirstChildClick(Sender: TObject);

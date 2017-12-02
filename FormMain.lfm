@@ -366,6 +366,21 @@ object MainForm: TMainForm
         Enabled = False
         OnClick = MenuItemClearBookmarksClick
       end
+      object MenuItem12: TMenuItem
+        Caption = '-'
+      end
+      object MenuItemBackFocusHistory: TMenuItem
+        Caption = '&Back in Focus History'
+        Enabled = False
+        ShortCut = 24648
+        OnClick = MenuItemBackFocusHistoryClick
+      end
+      object MenuItemForwardFocusHistory: TMenuItem
+        Caption = '&Forward in Focus History'
+        Enabled = False
+        ShortCut = 16456
+        OnClick = MenuItemForwardFocusHistoryClick
+      end
     end
     object MenuItem10: TMenuItem
       Caption = '&View'
