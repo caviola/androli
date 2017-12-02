@@ -95,6 +95,8 @@ type
     function SetActiveView(AValue: TView): boolean;
     procedure SetLayout(AValue: IViewLayout);
     procedure ResetCamera(ResetRotation: boolean; Animate: boolean = True);
+    function SelectNextMatch: TView;
+    function SelectPreviousMatch: TView;
     property RotationX: single read FRotationX write SetRotationX;
     property RotationY: single read FRotationY write SetRotationY;
     property ZoomLevel: single read FZoomLevel write SetZoomLevel;
@@ -422,6 +424,60 @@ begin
         RotationY := InitialRotationY;
       Invalidate;
     end;
+end;
+
+function TLayoutViewer.SelectNextMatch: TView;
+var
+  FirstView, Current: TView;
+begin
+  Result := nil;
+  if not Assigned(FLayout) then
+    Exit;
+
+  if Assigned(FLayout.ActiveView) then
+    FirstView := FLayout.ActiveView
+  else
+    FirstView := FLayout.ActiveBranch;
+
+  Current := FirstView.Next;
+  while Current <> FirstView do
+  begin
+    if Current.MatchFilter then
+    begin
+      SetActiveView(Current);
+      Result := Current;
+      Break;
+    end;
+
+    Current := Current.Next;
+  end;
+end;
+
+function TLayoutViewer.SelectPreviousMatch: TView;
+var
+  FirstView, Current: TView;
+begin
+  Result := nil;
+  if not Assigned(FLayout) then
+    Exit;
+
+  if Assigned(FLayout.ActiveView) then
+    FirstView := FLayout.ActiveView
+  else
+    FirstView := FLayout.ActiveBranch;
+
+  Current := FirstView.Previous;
+  while Current <> FirstView do
+  begin
+    if Current.MatchFilter then
+    begin
+      SetActiveView(Current);
+      Result := Current;
+      Break;
+    end;
+
+    Current := Current.Previous;
+  end;
 end;
 
 procedure TLayoutViewer.ActiveViewChangedTimerTimer(Sender: TObject);

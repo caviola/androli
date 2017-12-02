@@ -34,6 +34,8 @@ type
     MenuItem1: TMenuItem;
     MenuItem10: TMenuItem;
     MenuItem11: TMenuItem;
+    MenuItemSelectPreviousMatch: TMenuItem;
+    MenuItemSelectNextMatch: TMenuItem;
     MenuItemSetActiveBranch: TMenuItem;
     MenuItemToogleTreePanel: TMenuItem;
     MenuItemTogglePropertyInspector: TMenuItem;
@@ -107,6 +109,8 @@ type
     procedure MenuItemClipBoundsClick(Sender: TObject);
     procedure MenuItemCloseClick(Sender: TObject);
     procedure MenuItemFilterClick(Sender: TObject);
+    procedure MenuItemSelectNextMatchClick(Sender: TObject);
+    procedure MenuItemSelectPreviousMatchClick(Sender: TObject);
     procedure MenuItemSetActiveBranchClick(Sender: TObject);
     procedure MenuItemSelectFirstChildClick(Sender: TObject);
     procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
@@ -132,6 +136,7 @@ type
     procedure TreeViewMouseLeave(Sender: TObject);
     procedure UpdateTreeViewLabels(Sender: TObject);
     procedure UpdateActiveViewMenuItems(ActiveView: TView = nil);
+    procedure UpdateFilterMenuItems(const FilterText: string);
     procedure FormCreate(Sender: TObject);
     procedure TreeFilterEditAfterFilter(Sender: TObject);
     function TreeFilterEditFilterItem(Item: TObject; out Done: boolean): boolean;
@@ -211,6 +216,12 @@ end;
 
 procedure TMainForm.TreeFilterEditAfterFilter(Sender: TObject);
 begin
+  // Make sure the active view is one which matches the filter.
+  if Assigned(FLayout.ActiveView) then
+    if not FLayout.ActiveView.MatchFilter then
+      FLayoutViewer.SelectNextMatch;
+
+  UpdateFilterMenuItems(TreeFilterEdit.Filter);
   FLayout.Changed;
 end;
 
@@ -443,6 +454,7 @@ begin
     TreeFilterEdit.ForceFilter(FilterText);
     TreeFilterEdit.Text := FilterText;
 
+    UpdateFilterMenuItems(FilterText);
     UpdateTreeViewSelection(SelectedView);
   finally
     TreeView.EndUpdate;
@@ -717,6 +729,24 @@ begin
   end;
 end;
 
+procedure TMainForm.MenuItemSelectNextMatchClick(Sender: TObject);
+var
+  Match: TView;
+begin
+  Match := FLayoutViewer.SelectNextMatch;
+  if Assigned(Match) then
+    UpdateTreeViewSelection(Match);
+end;
+
+procedure TMainForm.MenuItemSelectPreviousMatchClick(Sender: TObject);
+var
+  Match: TView;
+begin
+  Match := FLayoutViewer.SelectPreviousMatch;
+  if Assigned(Match) then
+    UpdateTreeViewSelection(Match);
+end;
+
 procedure TMainForm.MenuItemSetActiveBranchClick(Sender: TObject);
 var
   ActiveView: TView;
@@ -922,6 +952,20 @@ begin
     MenuItemSelectParent.Enabled := False;
     MenuItemSelectFirstChild.Enabled := False;
     MenuItemSetActiveBranch.Enabled := False;
+  end;
+end;
+
+procedure TMainForm.UpdateFilterMenuItems(const FilterText: string);
+begin
+  if FilterText = EmptyStr then
+  begin
+    MenuItemSelectNextMatch.Enabled := False;
+    MenuItemSelectPreviousMatch.Enabled := False;
+  end
+  else
+  begin
+    MenuItemSelectNextMatch.Enabled := True;
+    MenuItemSelectPreviousMatch.Enabled := True;
   end;
 end;
 

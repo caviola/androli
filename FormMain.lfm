@@ -443,6 +443,18 @@ object MainForm: TMainForm
         ShortCut = 16454
         OnClick = MenuItemFilterClick
       end
+      object MenuItemSelectNextMatch: TMenuItem
+        Caption = 'Select Next Match'
+        Enabled = False
+        ShortCut = 114
+        OnClick = MenuItemSelectNextMatchClick
+      end
+      object MenuItemSelectPreviousMatch: TMenuItem
+        Caption = 'Select Previous Match'
+        Enabled = False
+        ShortCut = 8306
+        OnClick = MenuItemSelectPreviousMatchClick
+      end
       object MenuItem7: TMenuItem
         Caption = '-'
       end
