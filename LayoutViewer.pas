@@ -139,16 +139,25 @@ uses
   SysUtils, LCLIntf, LCLProc, Math, gl, glu, Logging;
 
 type
-  TColorABGR = cardinal;
+  TColorRGBA = record
+    case integer of
+      0: (ABGR: GLuint);
+      1: (
+        R: GLubyte;
+        G: GLubyte;
+        B: GLubyte;
+        A: GLubyte;
+      );
+  end;
 
 const
-  clBackgroundCanvas32 = TColorABGR($FF212121);
-  clBorderColor32 = TColorABGR($C0636363);
-  clActiveBorderColor32 = TColorABGR($FFFF9430);
-  clFilteredBorderColor32 = TColorABGR($C091EEFF);
-  clPaddingColor32 = TColorABGR($50C3DEB7);
-  clMarginColor32 = TColorABGR($50A0C5E8);
-  clContentColor32 = TColorABGR($70FF824A);
+  rgbaCanvasColor: TColorRGBA = (ABGR: $FF000000);
+  rgbaActiveRectColor: TColorRGBA = (ABGR: $FFFF9430);
+  rgbaFilterMatchRectColor: TColorRGBA = (ABGR: $C091EEFF);
+  rgbaRectColor: TColorRGBA = (ABGR: $C0636363);
+  rgbaFillColor: TColorRGBA = (ABGR: $70FF824A);
+  rgbaPaddingColor: TColorRGBA = (ABGR: $50C3DEB7);
+  rgbaMarginColor: TColorRGBA = (ABGR: $50A0C5E8);
 
   InitialZoomLevel = 1;
   InitialRotationY = 0;
@@ -587,9 +596,9 @@ procedure TLayoutViewer.DoOnPaint;
     glDisable(GL_TEXTURE_2D);
   end;
 
-  procedure PolyFill(Left, Top, Right, Bottom, Z: single; Color: TColorABGR); inline;
+  procedure PolyFill(Left, Top, Right, Bottom, Z: single; Color: TColorRGBA); inline;
   begin
-    glColor4ubv(@Color);
+    glColor4ubv(@Color.ABGR);
     glBegin(GL_POLYGON);
     glVertex3f(Left, Top, Z);
     glVertex3f(Right, Top, Z);
@@ -598,9 +607,9 @@ procedure TLayoutViewer.DoOnPaint;
     glEnd;
   end;
 
-  procedure PolyLine(Left, Top, Right, Bottom, Z: single; Color: TColorABGR); inline;
+  procedure PolyLine(Left, Top, Right, Bottom, Z: single; Color: TColorRGBA); inline;
   begin
-    glColor4ubv(@Color);
+    glColor4ubv(@Color.ABGR);
     glBegin(GL_LINE_LOOP);
     glVertex3f(Left, Top, Z);
     glVertex3f(Right, Top, Z);
@@ -614,35 +623,35 @@ procedure TLayoutViewer.DoOnPaint;
     with View do
     begin
       if PaddingLeft <> 0 then
-        PolyFill(Left, Top, Left + PaddingLeft, Bottom, ZOrder, clPaddingColor32);
+        PolyFill(Left, Top, Left + PaddingLeft, Bottom, ZOrder, rgbaPaddingColor);
 
       if PaddingRight <> 0 then
-        PolyFill(Right - PaddingRight, Top, Right, Bottom, ZOrder, clPaddingColor32);
+        PolyFill(Right - PaddingRight, Top, Right, Bottom, ZOrder, rgbaPaddingColor);
 
       // Don't draw top paddig over left/right paddings.
       if PaddingTop <> 0 then
         if PaddingLeft <> 0 then
           if PaddingRight <> 0 then
             PolyFill(Left + PaddingLeft, Top, Right - PaddingRight,
-              Top + PaddingTop, ZOrder, clPaddingColor32)
+              Top + PaddingTop, ZOrder, rgbaPaddingColor)
           else
             PolyFill(Left + PaddingLeft, Top, Right, Top + PaddingTop,
-              ZOrder, clPaddingColor32)
+              ZOrder, rgbaPaddingColor)
         else
-          PolyFill(Left, Top, Right, Top + PaddingTop, ZOrder, clPaddingColor32);
+          PolyFill(Left, Top, Right, Top + PaddingTop, ZOrder, rgbaPaddingColor);
 
       // Don't draw bottom paddig over left/right paddings.
       if PaddingBottom <> 0 then
         if PaddingLeft <> 0 then
           if PaddingRight <> 0 then
             PolyFill(Left + PaddingLeft, Bottom, Right - PaddingRight,
-              Bottom - PaddingBottom, ZOrder, clPaddingColor32)
+              Bottom - PaddingBottom, ZOrder, rgbaPaddingColor)
           else
             PolyFill(Left + PaddingLeft, Bottom, Right, Bottom -
-              PaddingBottom, ZOrder, clPaddingColor32)
+              PaddingBottom, ZOrder, rgbaPaddingColor)
         else
           PolyFill(Left, Bottom - PaddingBottom, Right, Bottom,
-            ZOrder, clPaddingColor32);
+            ZOrder, rgbaPaddingColor);
     end;
   end;
 
@@ -651,34 +660,34 @@ procedure TLayoutViewer.DoOnPaint;
     with View do
     begin
       if MarginLeft <> 0 then
-        PolyFill(Left - MarginLeft, Top, Left, Bottom, ZOrder, clMarginColor32);
+        PolyFill(Left - MarginLeft, Top, Left, Bottom, ZOrder, rgbaMarginColor);
 
       if MarginRight <> 0 then
-        PolyFill(Right, Top, Right + MarginRight, Bottom, ZOrder, clMarginColor32);
+        PolyFill(Right, Top, Right + MarginRight, Bottom, ZOrder, rgbaMarginColor);
 
       // Don't draw top margin over left/right margins.
       if MarginTop <> 0 then
         if MarginLeft <> 0 then
           if MarginRight <> 0 then
             PolyFill(Left - MarginLeft, Top - MarginTop, Right +
-              MarginRight, Top, ZOrder, clMarginColor32)
+              MarginRight, Top, ZOrder, rgbaMarginColor)
           else
             PolyFill(Left - MarginLeft, Top - MarginTop, Right, Top,
-              ZOrder, clMarginColor32)
+              ZOrder, rgbaMarginColor)
         else
-          PolyFill(Left, Top - MarginTop, Right, Top, ZOrder, clMarginColor32);
+          PolyFill(Left, Top - MarginTop, Right, Top, ZOrder, rgbaMarginColor);
 
       // Don't draw bottom margin over left/right margins.
       if MarginBottom <> 0 then
         if MarginLeft <> 0 then
           if MarginRight <> 0 then
             PolyFill(Left - MarginLeft, Bottom, Right + MarginRight,
-              Bottom + MarginBottom, ZOrder, clMarginColor32)
+              Bottom + MarginBottom, ZOrder, rgbaMarginColor)
           else
             PolyFill(Left - MarginLeft, Bottom, Right, Bottom +
-              MarginBottom, ZOrder, clMarginColor32)
+              MarginBottom, ZOrder, rgbaMarginColor)
         else
-          PolyFill(Left, Bottom, Right, Bottom + MarginBottom, ZOrder, clMarginColor32);
+          PolyFill(Left, Bottom, Right, Bottom + MarginBottom, ZOrder, rgbaMarginColor);
     end;
   end;
 
@@ -706,29 +715,29 @@ procedure TLayoutViewer.DoOnPaint;
       DrawMargin(V);
       DrawPadding(V);
       PolyFill(V.Left + V.PaddingLeft, V.Top + V.PaddingTop, V.Right -
-        V.PaddingRight, V.Bottom - V.PaddingBottom, V.ZOrder, clContentColor32);
+        V.PaddingRight, V.Bottom - V.PaddingBottom, V.ZOrder, rgbaFillColor);
       PolyLine(V.Left + V.PaddingLeft, V.Top + V.PaddingTop,
         V.Right - V.PaddingRight, V.Bottom - V.PaddingBottom, V.ZOrder,
-        clActiveBorderColor32);
+        rgbaActiveRectColor);
     end
     else if HighlightedView = V then
     begin
-      PolyFill(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, clContentColor32);
-      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, clBorderColor32);
+      PolyFill(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, rgbaFillColor);
+      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, rgbaRectColor);
     end
     else if V.MatchFilter then
-      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, clFilteredBorderColor32)
+      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, rgbaFilterMatchRectColor)
     else if FShowWireframes then
-      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, clBorderColor32);
+      PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, rgbaRectColor);
 
-    glGetDoublev(GL_MODELVIEW_MATRIX, ModelViewMatrix);
-    glGetDoublev(GL_PROJECTION_MATRIX, ProjectionMatrix);
-    glGetIntegerv(GL_VIEWPORT, ViewportRect);
+    glGetDoublev(GL_MODELVIEW_MATRIX, ModelViewMatrix{%H-});
+    glGetDoublev(GL_PROJECTION_MATRIX, ProjectionMatrix{%H-});
+    glGetIntegerv(GL_VIEWPORT, ViewportRect{%H-});
 
     with V do
     begin
       // Store transformed points; we use them to perform hit test.
-      ViewportRect[0] := GetWindowPoint(Left, Top, ZOrder);
+      ViewportRect[0] := {%H-}GetWindowPoint(Left, Top, ZOrder);
       ViewportRect[1] := GetWindowPoint(Right, Top, ZOrder);
       ViewportRect[2] := GetWindowPoint(Right, Bottom, ZOrder);
       ViewportRect[3] := GetWindowPoint(Left, Bottom, ZOrder);
@@ -746,7 +755,8 @@ procedure TLayoutViewer.DoOnPaint;
 var
   View, CurrentRoot: TView;
 begin
-  glClearColor(0, 0, 0, 1);
+  with rgbaCanvasColor do
+    glClearColor(R / 255, G / 255, B / 255, A / 255);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
 
   try
