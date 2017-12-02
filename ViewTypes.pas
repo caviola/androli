@@ -245,6 +245,7 @@ begin
     while Q.Count > 0 do
     begin
       View := TView(Q.Pop);
+      View.MatchFilter := False;
       PreviousView.FNext := View;
       View.FPrevious := PreviousView;
       PreviousView := View;
