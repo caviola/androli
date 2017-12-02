@@ -285,11 +285,13 @@ object MainForm: TMainForm
         object MenuItemGotoNextBookmark: TMenuItem
           Caption = 'Goto Next Bookmark'
           Enabled = False
+          ShortCut = 16450
           OnClick = MenuItemGotoNextBookmarkClick
         end
         object MenuItemGotoPreviousBookmark: TMenuItem
           Caption = 'Goto Previous Bookmark'
           Enabled = False
+          ShortCut = 24642
           OnClick = MenuItemGotoPreviousBookmarkClick
         end
       end
