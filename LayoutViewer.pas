@@ -27,6 +27,7 @@ type
     FHierarchyHeight: integer;
     FShowContent: boolean;
     FShowWireframes: boolean;
+    FCurrentAnimator: TAnimator;
     FZOrderAnimator: TZOrderAnimator;
     FToggleMode3DAnimator: TFloatArrayAnimator;
     FScaleZAnimator: TFloatAnimator;
@@ -47,6 +48,13 @@ type
     FOnActiveViewChanged: TActiveViewChangedEvent;
     FOnActiveBranchChanged: TActiveBranchChangedEvent;
     FActiveViewChangedTimer: TTimer;
+    function GetFinalOriginX: single; inline;
+    function GetFinalOriginY: single; inline;
+    function GetFinalOriginZ: single; inline;
+    function GetFinalRotationX: single; inline;
+    function GetFinalRotationY: single; inline;
+    function GetFinalScaleZ: single; inline;
+    function GetFinalZoomLevel: single; inline;
     procedure SetMode3D(AValue: boolean);
     procedure SetHighlightedView(AValue: TView);
     procedure SetOriginZ(AValue: single);
@@ -60,6 +68,7 @@ type
     procedure SetOriginY(AValue: single);
   protected
     procedure ActiveViewChangedTimerTimer(Sender: TObject);
+    procedure LayoutAnimationStart(Sender: TObject);
     procedure ResetCameraAnimate(Sender: TFloatArrayAnimator;
       const Values: array of single);
     procedure MouseLeaveHandler(Sender: TObject);
@@ -114,6 +123,18 @@ type
     property Mode3D: boolean read FMode3D write SetMode3D;
     property ShowWireframes: boolean read FShowWireframes write SetShowWireframes;
     property ShowContent: boolean read FShowContent write SetShowContent;
+
+    // The following properties return the equivalent property's value
+    // (without the "Final" suffix) after any running animation have finished.
+    // The idea is to get a property's value, eg. OriginX, as if
+    // layout transitions occurred immediately, that is, without animations.
+    property FinalRotationX: single read GetFinalRotationX;
+    property FinalRotationY: single read GetFinalRotationY;
+    property FinalZoomLevel: single read GetFinalZoomLevel;
+    property FinalScaleZ: single read GetFinalScaleZ;
+    property FinalOriginX: single read GetFinalOriginX;
+    property FinalOriginY: single read GetFinalOriginY;
+    property FinalOriginZ: single read GetFinalOriginZ;
   end;
 
 
@@ -249,15 +270,21 @@ begin
   FMode3D := True;
   FToggleMode3DAnimator := TFloatArrayAnimator.Create(2, @ToggleMode3DAnimatorAnimate);
   FToggleMode3DAnimator.Duration := 500;
+  FToggleMode3DAnimator.OnStart := @LayoutAnimationStart;
 
   FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
+  FScaleZAnimator.OnStart := @LayoutAnimationStart;
+
   FZoomLevelAnimator := TFloatAnimator.Create(@ZoomAnimateValueHandler);
+  FZoomLevelAnimator.OnStart := @LayoutAnimationStart;
 
   FResetCameraAnimator := TFloatArrayAnimator.Create(4, @ResetCameraAnimate);
   FResetCameraAnimator.Duration := 300;
+  FResetCameraAnimator.OnStart := @LayoutAnimationStart;
 
   FZOrderAnimator := TZOrderAnimator.Create;
   FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
+  FZOrderAnimator.OnStart := @LayoutAnimationStart;
 end;
 
 destructor TLayoutViewer.Destroy;
@@ -490,6 +517,24 @@ begin
   LogExitMethod('TLayoutViewer.ActiveViewChangedTimerTimer');
 end;
 
+procedure TLayoutViewer.LayoutAnimationStart(Sender: TObject);
+begin
+  // Keep track of current animation.
+  // Whenever a layout animation is started, we "cancel" any active
+  // animation so that only one is running at any given time.
+  // We do this to prevent animations from interfering with each other.
+  if Assigned(FCurrentAnimator) then
+  begin
+    if FCurrentAnimator <> Sender then
+    begin
+      FCurrentAnimator.Cancel;
+      FCurrentAnimator := TAnimator(Sender);
+    end;
+  end
+  else
+    FCurrentAnimator := TAnimator(Sender);
+end;
+
 procedure TLayoutViewer.ResetCameraAnimate(Sender: TFloatArrayAnimator;
   const Values: array of single);
 begin
@@ -543,6 +588,63 @@ begin
   end;
 
   FToggleMode3DAnimator.Restart;
+end;
+
+function TLayoutViewer.GetFinalOriginX: single;
+begin
+  if FResetCameraAnimator.IsRunning then
+    Result := FResetCameraAnimator.EndValues[rcaOriginX]
+  else
+    Result := OriginX;
+end;
+
+function TLayoutViewer.GetFinalOriginY: single;
+begin
+  if FResetCameraAnimator.IsRunning then
+    Result := FResetCameraAnimator.EndValues[rcaOriginY]
+  else
+    Result := OriginY;
+end;
+
+function TLayoutViewer.GetFinalOriginZ: single;
+begin
+  if FResetCameraAnimator.IsRunning then
+    Result := FResetCameraAnimator.EndValues[rcaOriginZ]
+  else
+    Result := OriginZ;
+end;
+
+function TLayoutViewer.GetFinalRotationX: single;
+begin
+  Result := RotationX;
+end;
+
+function TLayoutViewer.GetFinalRotationY: single;
+begin
+  if FToggleMode3DAnimator.IsRunning then
+    Result := FToggleMode3DAnimator.EndValues[t3daRotationY]
+  else if FResetCameraAnimator.IsRunning then
+    Result := FResetCameraAnimator.EndValues[rcaRotationY]
+  else
+    Result := RotationY;
+end;
+
+function TLayoutViewer.GetFinalScaleZ: single;
+begin
+  if FToggleMode3DAnimator.IsRunning then
+    Result := FToggleMode3DAnimator.EndValues[t3daScaleZ]
+  else if FScaleZAnimator.IsRunning then
+    Result := FScaleZAnimator.EndValue
+  else
+    Result := ScaleZ;
+end;
+
+function TLayoutViewer.GetFinalZoomLevel: single;
+begin
+  if FZoomLevelAnimator.IsRunning then
+    Result := FZoomLevelAnimator.EndValue
+  else
+    Result := ZoomLevel;
 end;
 
 procedure TLayoutViewer.SetHighlightedView(AValue: TView);
@@ -825,26 +927,26 @@ begin
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity;
     // Note that the order in which we apply transformations is important.
-    // 1. Move to (-OriginX, OriginY, -FCameraZ).
-    glTranslatef(-OriginX, OriginY, -FCameraZ);
+    // 1. Move to (-FOriginX, FOriginY, -FCameraZ).
+    glTranslatef(-FOriginX, FOriginY, -FCameraZ);
     // 2. Invert our Y-axis.
     glScalef(1, -1, 1);
 
     if FToggleMode3DAnimator.IsRunning then
     begin
-      // 3. Rotate and scale Z coords around (OriginX, OriginY, FOriginZ).
-      glTranslatef(OriginX, OriginY, FOriginZ);
-      glRotatef(RotationY, 0, 1, 0);
-      glScalef(1, 1, ScaleZ);
-      glTranslatef(-OriginX, -OriginY, -FOriginZ);
+      // 3. Rotate and scale Z coords around (FOriginX, FOriginY, FOriginZ).
+      glTranslatef(FOriginX, FOriginY, FOriginZ);
+      glRotatef(FRotationY, 0, 1, 0);
+      glScalef(1, 1, FScaleZ);
+      glTranslatef(-FOriginX, -FOriginY, -FOriginZ);
     end
     else if Mode3D then
     begin
-      // 3. Rotate and scale Z coords around (OriginX, OriginY, FOriginZ).
-      glTranslatef(OriginX, OriginY, FOriginZ);
-      glRotatef(RotationY, 0, 1, 0);
-      glScalef(1, 1, ScaleZ);
-      glTranslatef(-OriginX, -OriginY, -FOriginZ);
+      // 3. Rotate and scale Z coords around (FOriginX, FOriginY, FOriginZ).
+      glTranslatef(FOriginX, FOriginY, FOriginZ);
+      glRotatef(FRotationY, 0, 1, 0);
+      glScalef(1, 1, FScaleZ);
+      glTranslatef(-FOriginX, -FOriginY, -FOriginZ);
     end
     else
       glScalef(1, 1, 0); // 2D mode, drop Z coord
@@ -852,7 +954,7 @@ begin
     // 4. Perspective projection.
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity;
-    glScalef(ZoomLevel, ZoomLevel, 1);
+    glScalef(FZoomLevel, FZoomLevel, 1);
     gluPerspective(45, Width / Height, 0, FCameraZ);
 
     FHierarchyWidth := 0;

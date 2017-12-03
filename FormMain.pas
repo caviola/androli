@@ -17,6 +17,7 @@ type
     ActiveBranch: TView;
     OriginX: single;
     OriginY: single;
+    OriginZ: single;
     RotationX: single;
     RotationY: single;
     ScaleZ: single;
@@ -420,6 +421,7 @@ begin
     FLayoutViewer.HighlightedView := nil;
     FLayoutViewer.OriginX := OriginX;
     FLayoutViewer.OriginY := OriginY;
+    FLayoutViewer.OriginZ := OriginZ;
     FLayoutViewer.RotationX := RotationX;
     FLayoutViewer.RotationY := RotationY;
     FLayoutViewer.ScaleZ := ScaleZ;
@@ -439,12 +441,13 @@ begin
   with TBookmark(Result) do
   begin
     ActiveBranch := FLayout.ActiveBranch;
-    OriginX := FLayoutViewer.OriginX;
-    OriginY := FLayoutViewer.OriginY;
-    RotationX := FLayoutViewer.RotationX;
-    RotationY := FLayoutViewer.RotationY;
-    ScaleZ := FLayoutViewer.ScaleZ;
-    ZoomLevel := FLayoutViewer.ZoomLevel;
+    OriginX := FLayoutViewer.FinalOriginX;
+    OriginY := FLayoutViewer.FinalOriginY;
+    OriginZ := FLayoutViewer.FinalOriginZ;
+    RotationX := FLayoutViewer.FinalRotationX;
+    RotationY := FLayoutViewer.FinalRotationY;
+    ScaleZ := FLayoutViewer.FinalScaleZ;
+    ZoomLevel := FLayoutViewer.FinalZoomLevel;
   end;
 
   Log('TMainForm.SaveFocusBookmark: Result=%s', [DbgS(Result)]);
@@ -692,12 +695,13 @@ begin
   begin
     ActiveView := FLayout.ActiveView;
     ActiveBranch := FLayout.ActiveBranch;
-    OriginX := FLayoutViewer.OriginX;
-    OriginY := FLayoutViewer.OriginY;
-    RotationX := FLayoutViewer.RotationX;
-    RotationY := FLayoutViewer.RotationY;
-    ScaleZ := FLayoutViewer.ScaleZ;
-    ZoomLevel := FLayoutViewer.ZoomLevel;
+    OriginX := FLayoutViewer.FinalOriginX;
+    OriginY := FLayoutViewer.FinalOriginY;
+    OriginZ := FLayoutViewer.FinalOriginZ;
+    RotationX := FLayoutViewer.FinalRotationX;
+    RotationY := FLayoutViewer.FinalRotationY;
+    ScaleZ := FLayoutViewer.FinalScaleZ;
+    ZoomLevel := FLayoutViewer.FinalZoomLevel;
     FilterText := TreeFilterEdit.Text;
   end;
 
@@ -714,6 +718,7 @@ begin
     FLayoutViewer.HighlightedView := nil;
     FLayoutViewer.OriginX := OriginX;
     FLayoutViewer.OriginY := OriginY;
+    FLayoutViewer.OriginZ := OriginZ;
     FLayoutViewer.RotationX := RotationX;
     FLayoutViewer.RotationY := RotationY;
     FLayoutViewer.ScaleZ := ScaleZ;

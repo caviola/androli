@@ -84,6 +84,7 @@ type
   public
     constructor Create(AOnAnimateValue: TAnimateFloatValueEvent = nil);
     procedure SetValueInterval(StartValue, EndValue: single);
+    property EndValue: single read FEndValue;
     property OnAnimateValue: TAnimateFloatValueEvent
       read FOnAnimateValue write FOnAnimateValue;
   end;
@@ -101,6 +102,7 @@ type
     FStartValues: array of single;
     FEndValues: array of single;
     FInterpolatedValues: array of single;
+    function GetEndValues(I: integer): single; inline;
   protected
     procedure DoFrameUpdate(const InterpolatedFraction: single); override;
   public
@@ -108,6 +110,7 @@ type
       AOnAnimateArray: TAnimateFloatArrayEvent = nil);
     procedure SetElementInterval(Index: integer;
       const StartValue, EndValue: single); inline;
+    property EndValues[I: integer]: single read GetEndValues;
     property OnAnimateArray: TAnimateFloatArrayEvent
       read FOnAnimateArray write FOnAnimateArray;
   end;
@@ -186,6 +189,11 @@ var
   AnimationTickTimer: TAnimatorTickTimer;
 
 { TFloatArrayAnimator }
+
+function TFloatArrayAnimator.GetEndValues(I: integer): single;
+begin
+  Result := FEndValues[I];
+end;
 
 procedure TFloatArrayAnimator.DoFrameUpdate(const InterpolatedFraction: single);
 var
