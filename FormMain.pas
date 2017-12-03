@@ -215,7 +215,8 @@ begin
   MenuItemShowWireframes.Checked := FLayoutViewer.ShowWireframes;
   MenuItemShowContent.Checked := FLayoutViewer.ShowContent;
 
-  FIndexedBookmarkManager := TIndexedBookmarkManager.Create(10, Self);
+  FIndexedBookmarkManager := TIndexedBookmarkManager.Create(10,
+    @SaveBookmark, @RestoreBookmark, Self);
   FFocusHistoryManager := TBookmarkHistoryManager.Create(@SaveFocusBookmark,
     @RestoreFocusBookmark, Self);
 

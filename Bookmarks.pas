@@ -28,17 +28,9 @@ type
     procedure DoRestoreBookmark(Which: TObject);
   end;
 
-  { IBookmarkListener }
-
-  IBookmarkListener = interface
-    ['{88F1ED7A-BFFA-4FDC-A310-4271B6086C1E}']
-    function SaveBookmark: TObject;
-    procedure RestoreBookmark(Which: TObject);
-  end;
-
   { IIndexedBookmarkListener }
 
-  IIndexedBookmarkListener = interface(IBookmarkListener)
+  IIndexedBookmarkListener = interface
     ['{B25B4CDB-C46A-4083-8144-6A76AE1BDC0B}']
     procedure OnIndexedBookmarkSet(Index, SetCount, Total: integer);
     procedure OnIndexedBookmarkUnset(Index, SetCount, Total: integer);
@@ -46,7 +38,7 @@ type
 
   { TIndexedBookmarkManager }
 
-  TIndexedBookmarkManager = class
+  TIndexedBookmarkManager = class(TBookmarkManager)
   private
     FSetBookmarkCount: integer;
     FCurrentBookmarkIndex: integer;
@@ -56,10 +48,9 @@ type
     procedure CheckBounds(I: integer);
     procedure DoOnBookmarkSet(I: integer);
     procedure DoOnBookmarkUnset(I: integer);
-    function DoSaveBookmark: TObject;
-    procedure DoRestoreBookmark(I: integer);
   public
-    constructor Create(Capacity: integer; const AListener: IIndexedBookmarkListener);
+    constructor Create(Capacity: integer; AOnSaveBookmark: TSaveBookmarkEvent;
+      AOnRestoreBookmark: TRestoreBookmarkEvent; AListener: IIndexedBookmarkListener);
     destructor Destroy; override;
     procedure Clear;
     function SetFree: integer;
@@ -213,20 +204,11 @@ begin
   FListener.OnIndexedBookmarkUnset(I, FSetBookmarkCount, Length(FBookmarks));
 end;
 
-function TIndexedBookmarkManager.DoSaveBookmark: TObject;
-begin
-  Result := FListener.SaveBookmark;
-end;
-
-procedure TIndexedBookmarkManager.DoRestoreBookmark(I: integer);
-begin
-  FListener.RestoreBookmark(FBookmarks[I]);
-  FCurrentBookmarkIndex := I;
-end;
-
 constructor TIndexedBookmarkManager.Create(Capacity: integer;
-  const AListener: IIndexedBookmarkListener);
+  AOnSaveBookmark: TSaveBookmarkEvent; AOnRestoreBookmark: TRestoreBookmarkEvent;
+  AListener: IIndexedBookmarkListener);
 begin
+  inherited Create(AOnSaveBookmark, AOnRestoreBookmark);
   Assert(Assigned(AListener), 'AListener must be assigned');
   FListener := AListener;
   FCurrentBookmarkIndex := ibmNone;
@@ -293,7 +275,10 @@ procedure TIndexedBookmarkManager.Go(I: integer);
 begin
   CheckBounds(I);
   if Assigned(FBookmarks[I]) then
-    DoRestoreBookmark(I);
+  begin
+    DoRestoreBookmark(FBookmarks[I]);
+    FCurrentBookmarkIndex := I;
+  end;
 end;
 
 function TIndexedBookmarkManager.GoNext: integer;
@@ -312,7 +297,8 @@ begin
 
     if Assigned(FBookmarks[Next]) then
     begin
-      DoRestoreBookmark(Next);
+      DoRestoreBookmark(FBookmarks[Next]);
+      FCurrentBookmarkIndex := Next;
       Break;
     end;
 
@@ -338,7 +324,8 @@ begin
 
     if Assigned(FBookmarks[Previous]) then
     begin
-      DoRestoreBookmark(Previous);
+      DoRestoreBookmark(FBookmarks[Previous]);
+      FCurrentBookmarkIndex := Previous;
       Break;
     end;
 
