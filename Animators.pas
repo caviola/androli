@@ -22,7 +22,6 @@ type
     FStartTick: QWord;
     FDuration: cardinal;
     FInterpolator: TInterpolatorFunction;
-    FOnCancel: TNotifyEvent;
     FOnFinish: TNotifyEvent;
     FOnStart: TNotifyEvent;
     FOnUpdate: TAnimatorFrameUpdateEvent;
@@ -43,7 +42,6 @@ type
     property OnStart: TNotifyEvent read FOnStart write FOnStart;
     property OnUpdate: TAnimatorFrameUpdateEvent read FOnUpdate write FOnUpdate;
     property OnFinish: TNotifyEvent read FOnFinish write FOnFinish;
-    property OnCancel: TNotifyEvent read FOnCancel write FOnCancel;
   end;
 
   TIntegerAnimator = class;
@@ -357,8 +355,6 @@ procedure TAnimator.Cancel;
 begin
   if FStartTick <> 0 then // animation started?
   begin
-    if Assigned(FOnCancel) then
-      FOnCancel(Self);
     if Assigned(FOnFinish) then
       FOnFinish(Self);
     AnimationTickTimer.RemoveTickHandler(@DoFrameTick);
