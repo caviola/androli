@@ -87,8 +87,8 @@ type
     MenuItemToggleMode3D: TMenuItem;
     MenuItemClose: TMenuItem;
     MenuItem3: TMenuItem;
-    MenuItemDecreaseZ: TMenuItem;
-    MenuItemIncreaseZ: TMenuItem;
+    MenuItemDecreaseViewSeparation: TMenuItem;
+    MenuItemIncreaseViewSeparation: TMenuItem;
     MenuItemZoomOut: TMenuItem;
     MenuItemZoomIn: TMenuItem;
     MenuItemLayout: TMenuItem;
@@ -109,7 +109,9 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure MenuItemBackFocusHistoryClick(Sender: TObject);
+    procedure MenuItemDecreaseViewSeparationClick(Sender: TObject);
     procedure MenuItemForwardFocusHistoryClick(Sender: TObject);
+    procedure MenuItemIncreaseViewSeparationClick(Sender: TObject);
     procedure MenuItemResetCameraClick(Sender: TObject);
     procedure MenuItemClearBookmarksClick(Sender: TObject);
     procedure MenuItemClipBoundsClick(Sender: TObject);
@@ -343,6 +345,8 @@ begin
     MenuItemClose.Enabled := True;
     MenuItemZoomIn.Enabled := True;
     MenuItemZoomOut.Enabled := True;
+    MenuItemIncreaseViewSeparation.Enabled := True;
+    MenuItemDecreaseViewSeparation.Enabled := True;
     MenuItemResetCamera.Enabled := True;
     MenuItemFilter.Enabled := True;
 
@@ -370,6 +374,8 @@ begin
     MenuItemClose.Enabled := False;
     MenuItemZoomIn.Enabled := False;
     MenuItemZoomOut.Enabled := False;
+    MenuItemIncreaseViewSeparation.Enabled := False;
+    MenuItemDecreaseViewSeparation.Enabled := False;
     MenuItemResetCamera.Enabled := False;
     MenuItemFilter.Enabled := False;
 
@@ -782,9 +788,19 @@ begin
   FFocusHistoryManager.GoBack;
 end;
 
+procedure TMainForm.MenuItemDecreaseViewSeparationClick(Sender: TObject);
+begin
+  FLayoutViewer.SetViewSeparation(-1);
+end;
+
 procedure TMainForm.MenuItemForwardFocusHistoryClick(Sender: TObject);
 begin
   FFocusHistoryManager.GoForward;
+end;
+
+procedure TMainForm.MenuItemIncreaseViewSeparationClick(Sender: TObject);
+begin
+  FLayoutViewer.SetViewSeparation(1);
 end;
 
 procedure TMainForm.MenuItemClipBoundsClick(Sender: TObject);

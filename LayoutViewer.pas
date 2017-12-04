@@ -106,6 +106,7 @@ type
     procedure ResetCamera(ResetRotation: boolean; Animate: boolean = True);
     function SelectNextMatch: TView;
     function SelectPreviousMatch: TView;
+    procedure SetViewSeparation(Delta: integer);
     property RotationX: single read FRotationX write SetRotationX;
     property RotationY: single read FRotationY write SetRotationY;
     property ZoomLevel: single read FZoomLevel write SetZoomLevel;
@@ -504,6 +505,16 @@ begin
     end;
 
     Current := Current.Previous;
+  end;
+end;
+
+procedure TLayoutViewer.SetViewSeparation(Delta: integer);
+begin
+  if Mode3D then
+  begin
+    FScaleZAnimator.SetValueInterval(ScaleZ,
+      EnsureRange(FScaleZ + Delta * StepScaleZ, MinScaleZ, MaxScaleZ));
+    FScaleZAnimator.Restart;
   end;
 end;
 

@@ -409,15 +409,15 @@ object MainForm: TMainForm
         ShortCut = 16493
         OnClick = MenuItemZoomOutClick
       end
-      object MenuItemIncreaseZ: TMenuItem
+      object MenuItemIncreaseViewSeparation: TMenuItem
         Caption = 'Increase View Separation'
-        Enabled = False
         ShortCut = 24683
+        OnClick = MenuItemIncreaseViewSeparationClick
       end
-      object MenuItemDecreaseZ: TMenuItem
+      object MenuItemDecreaseViewSeparation: TMenuItem
         Caption = 'Decrease View Separation'
-        Enabled = False
         ShortCut = 24685
+        OnClick = MenuItemDecreaseViewSeparationClick
       end
       object MenuItem2: TMenuItem
         Caption = '-'
