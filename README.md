@@ -11,15 +11,11 @@ Androli is a cross-platform, experimental tool developed with [Lazarus](http://w
 - Inspect any active Android window
 - Inspect Device Monitor dump files
 - 2D/3D view modes
-- Show content (bitmap) of leaf views
-- Focus on any layout branch
+- Focus on any layout branch; navigate focus history
 - Filterable and customizable tree view
 - View property inspector
 - Save/restore the workspace state (Bookmarks)
-- Rotate/scale/pan
-- Collapse/expand layout branches
-- Portable installation; copy anywhere and run the binary
-- Pre-compiled binary for Windows (32 bits)
+- Portable installation
 
 ## Installing
 
