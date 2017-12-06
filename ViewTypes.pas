@@ -26,6 +26,8 @@ type
   TView = class
   private
     FFlags: TViewFlags;
+    FNextDown: TView;
+    FPreviousUp: TView;
     FProperties: TStringList;
     FTextureName: cardinal;
     FInflightCaptureViewTask: ITask;
@@ -92,6 +94,8 @@ type
     property Parent: TView read FParent;
     property Next: TView read FNext;
     property Previous: TView read FPrevious;
+    property NextDown: TView read FNextDown;
+    property PreviousUp: TView read FPreviousUp;
     property FirstChild: TView read FFirstChild;
     property NextSibbling: TView read FNextSibbling;
     property PrevSibbling: TView read FPrevSibbling;
@@ -187,7 +191,12 @@ type
     FOnChange: TObjectProcedure;
     FClipBounds: boolean;
     FTitle: string;
-    procedure Flatten;
+    // Link views starting at FActiveBranch in a circular, double-linked list
+    // by their Next/Previous properties in breadth-first order.
+    procedure LinkBreadthFirst;
+    // Link views starting at FActiveBranch in a circular, double-linked list
+    // by their NextDown/PreviousUp properties in depth-first, pre-order.
+    procedure LinkDepthFirst;
     function HitTest(const X, Y: integer): TView;
     function GetActiveBranch: TView; inline;
     function SetActiveBranch(AValue: TView): boolean; virtual;
@@ -229,15 +238,13 @@ uses
 
 { TViewLayout }
 
-procedure TViewLayout.Flatten;
+procedure TViewLayout.LinkBreadthFirst;
 var
   Q: TQueue;
   PreviousView, View, ViewChild: TView;
   ElementsToDepthIncrease: integer = 1;
   NextElementsToDepthIncreate: integer = 0;
 begin
-  // Link views in ActiveBranch in a circular, double-linked list
-  // by their Next/Previous properties in breadth-first order.
   PreviousView := FActiveBranch;
   Q := TQueue.Create;
   try
@@ -274,6 +281,34 @@ begin
   FActiveBranch.FPrevious := PreviousView;
 end;
 
+procedure TViewLayout.LinkDepthFirst;
+var
+  LastVisited: TView = nil;
+
+  procedure VisitPreOrder(View: TView);
+  var
+    Child: TView;
+  begin
+    View.FPreviousUp := LastVisited;
+    if Assigned(LastVisited) then
+      LastVisited.FNextDown := View;
+
+    LastVisited := View;
+    Child := View.FirstChild;
+    if Assigned(Child) then
+      repeat
+        VisitPreOrder(Child);
+        Child := Child.NextSibbling;
+      until Child = View.FirstChild;
+  end;
+
+begin
+  VisitPreOrder(FActiveBranch);
+  // Make list circular.
+  LastVisited.FNextDown := FActiveBranch;
+  FActiveBranch.FPreviousUp := LastVisited;
+end;
+
 function TViewLayout.HitTest(const X, Y: integer): TView;
 begin
   // Start at last view in ActiveBranch and traverse the list backwards.
@@ -307,7 +342,8 @@ begin
     Log('TViewLayout.SetActiveBranch %s', [DbgS(AValue)]);
     FActiveView := nil;
     FActiveBranch := AValue;
-    Flatten;
+    LinkDepthFirst;
+    LinkBreadthFirst;
     Result := True;
   end
   else

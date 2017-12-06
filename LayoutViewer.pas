@@ -467,17 +467,16 @@ begin
   else
     FirstView := FLayout.ActiveBranch;
 
-  Current := FirstView.Next;
+  Current := FirstView.NextDown;
   while Current <> FirstView do
   begin
     if Current.MatchFilter then
     begin
-      SetActiveView(Current);
-      Result := Current;
+      if SetActiveView(Current) then
+        Result := Current;
       Break;
     end;
-
-    Current := Current.Next;
+    Current := Current.NextDown;
   end;
 end;
 
@@ -494,17 +493,16 @@ begin
   else
     FirstView := FLayout.ActiveBranch;
 
-  Current := FirstView.Previous;
+  Current := FirstView.PreviousUp;
   while Current <> FirstView do
   begin
     if Current.MatchFilter then
     begin
-      SetActiveView(Current);
-      Result := Current;
+      if SetActiveView(Current) then
+        Result := Current;
       Break;
     end;
-
-    Current := Current.Previous;
+    Current := Current.PreviousUp;
   end;
 end;
 
