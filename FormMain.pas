@@ -35,18 +35,17 @@ type
     MenuItem1: TMenuItem;
     MenuItem10: TMenuItem;
     MenuItem11: TMenuItem;
-    MenuItem12: TMenuItem;
+    MenuItem13: TMenuItem;
     MenuItemBackFocusHistory: TMenuItem;
     MenuItemForwardFocusHistory: TMenuItem;
     MenuItemSelectPreviousMatch: TMenuItem;
     MenuItemSelectNextMatch: TMenuItem;
-    MenuItemSetActiveBranch: TMenuItem;
+    MenuItemFocusBranch: TMenuItem;
     MenuItemToogleTreePanel: TMenuItem;
     MenuItemTogglePropertyInspector: TMenuItem;
     MenuItemResetCamera: TMenuItem;
     MenuItemSelectFirstChild: TMenuItem;
     MenuItemSelectParent: TMenuItem;
-    MenuItem9: TMenuItem;
     MenuItemSelectNextSibbling: TMenuItem;
     MenuItem6: TMenuItem;
     MenuItem7: TMenuItem;
@@ -82,7 +81,6 @@ type
     MenuItemGotoBookmark3: TMenuItem;
     MenuItemGotoBookmark4: TMenuItem;
     MenuItemGotoBookmark: TMenuItem;
-    MenuItemSearch: TMenuItem;
     MenuItemClipBounds: TMenuItem;
     MenuItemToggleMode3D: TMenuItem;
     MenuItemClose: TMenuItem;
@@ -91,7 +89,7 @@ type
     MenuItemIncreaseViewSeparation: TMenuItem;
     MenuItemZoomOut: TMenuItem;
     MenuItemZoomIn: TMenuItem;
-    MenuItemLayout: TMenuItem;
+    MenuItemFile: TMenuItem;
     MenuItemAbout: TMenuItem;
     MenuItemOpenFile: TMenuItem;
     MenuItemOpenViewServerWindow: TMenuItem;
@@ -119,7 +117,7 @@ type
     procedure MenuItemFilterClick(Sender: TObject);
     procedure MenuItemSelectNextMatchClick(Sender: TObject);
     procedure MenuItemSelectPreviousMatchClick(Sender: TObject);
-    procedure MenuItemSetActiveBranchClick(Sender: TObject);
+    procedure MenuItemFocusBranchClick(Sender: TObject);
     procedure MenuItemSelectFirstChildClick(Sender: TObject);
     procedure MenuItemGotoNextBookmarkClick(Sender: TObject);
     procedure MenuItemGotoPreviousBookmarkClick(Sender: TObject);
@@ -846,7 +844,7 @@ begin
     UpdateTreeViewSelection(Match);
 end;
 
-procedure TMainForm.MenuItemSetActiveBranchClick(Sender: TObject);
+procedure TMainForm.MenuItemFocusBranchClick(Sender: TObject);
 var
   ActiveView: TView;
 begin
@@ -1030,7 +1028,7 @@ begin
     MenuItemSelectParent.Enabled :=
       Assigned(ActiveView.Parent) and (ActiveView <> FLayout.ActiveBranch);
 
-    MenuItemSetActiveBranch.Enabled := MenuItemSelectParent.Enabled;
+    MenuItemFocusBranch.Enabled := MenuItemSelectParent.Enabled;
 
     if ActiveView = FLayout.ActiveBranch then
     begin
@@ -1051,7 +1049,7 @@ begin
     MenuItemSelectNextSibbling.Enabled := False;
     MenuItemSelectParent.Enabled := False;
     MenuItemSelectFirstChild.Enabled := False;
-    MenuItemSetActiveBranch.Enabled := False;
+    MenuItemFocusBranch.Enabled := False;
   end;
 end;
 

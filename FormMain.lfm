@@ -103,7 +103,7 @@ object MainForm: TMainForm
       Height = 19
       Top = 454
       Width = 141
-      Caption = 'Show Full Class &Names'
+      Caption = 'Show F&ull Class Names'
       Enabled = False
       OnChange = UpdateTreeViewLabels
       TabOrder = 3
@@ -180,8 +180,8 @@ object MainForm: TMainForm
   object MainMenu: TMainMenu
     left = 312
     top = 88
-    object MenuItemLayout: TMenuItem
-      Caption = '&Layout'
+    object MenuItemFile: TMenuItem
+      Caption = '&File'
       object MenuItemOpenFile: TMenuItem
         Caption = 'Open Dump &File'
         ShortCut = 49231
@@ -209,8 +209,147 @@ object MainForm: TMainForm
         OnClick = MenuItemExitClick
       end
     end
-    object MenuItemSearch: TMenuItem
-      Caption = '&Search'
+    object MenuItem10: TMenuItem
+      Caption = '&View'
+      object MenuItemToogleTreePanel: TMenuItem
+        Caption = 'Toggle &Tree Panel'
+        ShortCut = 49236
+        OnClick = MenuItemToggleTreePanelClick
+      end
+      object MenuItemTogglePropertyInspector: TMenuItem
+        Caption = 'Toggle Property &Inspector'
+        ShortCut = 49225
+        OnClick = MenuItemTogglePropertyInspectorClick
+      end
+    end
+    object MenuItem1: TMenuItem
+      Caption = '&Canvas'
+      object MenuItemZoomIn: TMenuItem
+        Caption = 'Zoom In'
+        Enabled = False
+        ShortCut = 16491
+        OnClick = MenuItemZoomInClick
+      end
+      object MenuItemZoomOut: TMenuItem
+        Caption = 'Zoom Out'
+        Enabled = False
+        ShortCut = 16493
+        OnClick = MenuItemZoomOutClick
+      end
+      object MenuItemIncreaseViewSeparation: TMenuItem
+        Caption = 'Increase View Separation'
+        ShortCut = 24683
+        OnClick = MenuItemIncreaseViewSeparationClick
+      end
+      object MenuItemDecreaseViewSeparation: TMenuItem
+        Caption = 'Decrease View Separation'
+        ShortCut = 24685
+        OnClick = MenuItemDecreaseViewSeparationClick
+      end
+      object MenuItem2: TMenuItem
+        Caption = '-'
+      end
+      object MenuItemToggleMode3D: TMenuItem
+        Caption = '3D &Mode'
+        ShortCut = 49229
+        OnClick = MenuItemToggleMode3DClick
+      end
+      object MenuItemClipBounds: TMenuItem
+        Caption = 'Clip &Bounds to Parent'
+        ShortCut = 49218
+        OnClick = MenuItemClipBoundsClick
+      end
+      object MenuItemShowWireframes: TMenuItem
+        Caption = 'Show &Wireframes'
+        Checked = True
+        ShortCut = 49239
+        OnClick = MenuItemShowWireframesClick
+      end
+      object MenuItemShowContent: TMenuItem
+        Caption = 'Show &Content'
+        Checked = True
+        ShortCut = 49219
+        OnClick = MenuItemShowContentClick
+      end
+      object MenuItem6: TMenuItem
+        Caption = '-'
+      end
+      object MenuItemResetCamera: TMenuItem
+        Caption = '&Reset Camera'
+        ShortCut = 16453
+        OnClick = MenuItemResetCameraClick
+      end
+    end
+    object MenuItem8: TMenuItem
+      Caption = '&Navigation'
+      object MenuItemFilter: TMenuItem
+        Caption = '&Filter'
+        ShortCut = 16454
+        OnClick = MenuItemFilterClick
+      end
+      object MenuItemSelectNextMatch: TMenuItem
+        Caption = 'Select Next Match'
+        Enabled = False
+        ShortCut = 114
+        OnClick = MenuItemSelectNextMatchClick
+      end
+      object MenuItemSelectPreviousMatch: TMenuItem
+        Caption = 'Select Previous Match'
+        Enabled = False
+        ShortCut = 8306
+        OnClick = MenuItemSelectPreviousMatchClick
+      end
+      object MenuItem7: TMenuItem
+        Caption = '-'
+      end
+      object MenuItemSelectParent: TMenuItem
+        Caption = 'Select &Parent'
+        Enabled = False
+        ShortCut = 24764
+        OnClick = MenuItemSelectParentClick
+      end
+      object MenuItemSelectFirstChild: TMenuItem
+        Caption = 'Select First &Child'
+        Enabled = False
+        ShortCut = 16572
+        OnClick = MenuItemSelectFirstChildClick
+      end
+      object MenuItemSelectPreviousSibbling: TMenuItem
+        Caption = 'Select Previous Sibbling'
+        Enabled = False
+        ShortCut = 24766
+        OnClick = MenuItemSelectPreviousSibblingClick
+      end
+      object MenuItemSelectNextSibbling: TMenuItem
+        Caption = 'Select Next Sibbling'
+        Enabled = False
+        ShortCut = 16574
+        OnClick = MenuItemSelectNextSibblingClick
+      end
+      object MenuItem11: TMenuItem
+        Caption = '-'
+      end
+      object MenuItemFocusBranch: TMenuItem
+        Caption = 'F&ocus Branch'
+        Enabled = False
+        ShortCut = 16397
+        OnClick = MenuItemFocusBranchClick
+      end
+      object MenuItemBackFocusHistory: TMenuItem
+        Caption = '&Back in Focus History'
+        Enabled = False
+        ShortCut = 24648
+        OnClick = MenuItemBackFocusHistoryClick
+      end
+      object MenuItemForwardFocusHistory: TMenuItem
+        Caption = '&Forward in Focus History'
+        Enabled = False
+        ShortCut = 16456
+        OnClick = MenuItemForwardFocusHistoryClick
+      end
+      object MenuItem13: TMenuItem
+        Caption = '-'
+      end
       object MenuItemGotoBookmark: TMenuItem
         Caption = 'Goto Bookmark'
         object MenuItemGotoBookmark0: TMenuItem
@@ -365,151 +504,6 @@ object MainForm: TMainForm
         Caption = '&Clear all Bookmarks'
         Enabled = False
         OnClick = MenuItemClearBookmarksClick
-      end
-      object MenuItem12: TMenuItem
-        Caption = '-'
-      end
-      object MenuItemBackFocusHistory: TMenuItem
-        Caption = '&Back in Focus History'
-        Enabled = False
-        ShortCut = 24648
-        OnClick = MenuItemBackFocusHistoryClick
-      end
-      object MenuItemForwardFocusHistory: TMenuItem
-        Caption = '&Forward in Focus History'
-        Enabled = False
-        ShortCut = 16456
-        OnClick = MenuItemForwardFocusHistoryClick
-      end
-    end
-    object MenuItem10: TMenuItem
-      Caption = '&View'
-      object MenuItemToogleTreePanel: TMenuItem
-        Caption = 'Toggle &Tree Panel'
-        ShortCut = 49236
-        OnClick = MenuItemToggleTreePanelClick
-      end
-      object MenuItemTogglePropertyInspector: TMenuItem
-        Caption = 'Toggle Property &Inspector'
-        ShortCut = 49225
-        OnClick = MenuItemTogglePropertyInspectorClick
-      end
-    end
-    object MenuItem1: TMenuItem
-      Caption = '&Canvas'
-      object MenuItemZoomIn: TMenuItem
-        Caption = 'Zoom In'
-        Enabled = False
-        ShortCut = 16491
-        OnClick = MenuItemZoomInClick
-      end
-      object MenuItemZoomOut: TMenuItem
-        Caption = 'Zoom Out'
-        Enabled = False
-        ShortCut = 16493
-        OnClick = MenuItemZoomOutClick
-      end
-      object MenuItemIncreaseViewSeparation: TMenuItem
-        Caption = 'Increase View Separation'
-        ShortCut = 24683
-        OnClick = MenuItemIncreaseViewSeparationClick
-      end
-      object MenuItemDecreaseViewSeparation: TMenuItem
-        Caption = 'Decrease View Separation'
-        ShortCut = 24685
-        OnClick = MenuItemDecreaseViewSeparationClick
-      end
-      object MenuItem2: TMenuItem
-        Caption = '-'
-      end
-      object MenuItemToggleMode3D: TMenuItem
-        Caption = '3D &Mode'
-        ShortCut = 49229
-        OnClick = MenuItemToggleMode3DClick
-      end
-      object MenuItemClipBounds: TMenuItem
-        Caption = 'Clip &Bounds to Parent'
-        ShortCut = 49218
-        OnClick = MenuItemClipBoundsClick
-      end
-      object MenuItemShowWireframes: TMenuItem
-        Caption = 'Show &Wireframes'
-        Checked = True
-        ShortCut = 49239
-        OnClick = MenuItemShowWireframesClick
-      end
-      object MenuItemShowContent: TMenuItem
-        Caption = 'Show &Content'
-        Checked = True
-        ShortCut = 49219
-        OnClick = MenuItemShowContentClick
-      end
-      object MenuItem6: TMenuItem
-        Caption = '-'
-      end
-      object MenuItemResetCamera: TMenuItem
-        Caption = '&Reset Camera'
-        ShortCut = 16453
-        OnClick = MenuItemResetCameraClick
-      end
-    end
-    object MenuItem8: TMenuItem
-      Caption = '&Tree'
-      object MenuItemFilter: TMenuItem
-        Caption = '&Filter'
-        ShortCut = 16454
-        OnClick = MenuItemFilterClick
-      end
-      object MenuItemSelectNextMatch: TMenuItem
-        Caption = 'Select Next Match'
-        Enabled = False
-        ShortCut = 114
-        OnClick = MenuItemSelectNextMatchClick
-      end
-      object MenuItemSelectPreviousMatch: TMenuItem
-        Caption = 'Select Previous Match'
-        Enabled = False
-        ShortCut = 8306
-        OnClick = MenuItemSelectPreviousMatchClick
-      end
-      object MenuItem7: TMenuItem
-        Caption = '-'
-      end
-      object MenuItemSelectParent: TMenuItem
-        Caption = 'Select &Parent'
-        Enabled = False
-        ShortCut = 24764
-        OnClick = MenuItemSelectParentClick
-      end
-      object MenuItemSelectFirstChild: TMenuItem
-        Caption = 'Select First &Child'
-        Enabled = False
-        ShortCut = 16572
-        OnClick = MenuItemSelectFirstChildClick
-      end
-      object MenuItem9: TMenuItem
-        Caption = '-'
-      end
-      object MenuItemSelectPreviousSibbling: TMenuItem
-        Caption = 'Select Previous Sibbling'
-        Enabled = False
-        ShortCut = 24766
-        OnClick = MenuItemSelectPreviousSibblingClick
-      end
-      object MenuItemSelectNextSibbling: TMenuItem
-        Caption = 'Select Next Sibbling'
-        Enabled = False
-        ShortCut = 16574
-        OnClick = MenuItemSelectNextSibblingClick
-      end
-      object MenuItem11: TMenuItem
-        Caption = '-'
-      end
-      object MenuItemSetActiveBranch: TMenuItem
-        Caption = 'Set &Active Branch'
-        Enabled = False
-        ShortCut = 16397
-        OnClick = MenuItemSetActiveBranchClick
       end
     end
     object MenuItemHelp: TMenuItem
