@@ -23,8 +23,6 @@ type
   private
     FMode3D: boolean;
     FLayout: IViewLayout;
-    FHierarchyWidth: integer;
-    FHierarchyHeight: integer;
     FShowContent: boolean;
     FShowWireframes: boolean;
     FCurrentAnimator: TAnimator;
@@ -204,9 +202,6 @@ const
   MaxRotationY = 90;
 
   CameraDistance = 1500;
-
-  CanvasPaddingVertical = 50;
-  CanvasPaddingHorizontal = 50;
 
   // FToggleMode3DAnimator element indexes.
   t3daRotationY = 0;
@@ -738,6 +733,9 @@ begin
 end;
 
 procedure TLayoutViewer.DoOnPaint;
+var
+  ModelViewMatrix, ProjectionMatrix: T16dArray;
+  ViewportRect: TViewPortArray;
 
   procedure DrawTexture(Left, Top, Right, Bottom, Z: single;
     TextureName: integer); inline;
@@ -859,9 +857,6 @@ procedure TLayoutViewer.DoOnPaint;
   end;
 
   procedure DrawView(V: TView; Texture: cardinal);
-  var
-    ModelViewMatrix, ProjectionMatrix: T16dArray;
-    ViewportRect: TViewPortArray;
 
     function GetWindowPoint(const X, Y, Z: single): TPoint; inline;
     var
@@ -897,10 +892,6 @@ procedure TLayoutViewer.DoOnPaint;
     else if FShowWireframes then
       PolyLine(V.Left, V.Top, V.Right, V.Bottom, V.ZOrder, rgbaRectColor);
 
-    glGetDoublev(GL_MODELVIEW_MATRIX, ModelViewMatrix{%H-});
-    glGetDoublev(GL_PROJECTION_MATRIX, ProjectionMatrix{%H-});
-    glGetIntegerv(GL_VIEWPORT, ViewportRect{%H-});
-
     with V do
     begin
       // Store transformed points; we use them to perform hit test.
@@ -908,14 +899,6 @@ procedure TLayoutViewer.DoOnPaint;
       ViewportRect[1] := GetWindowPoint(Right, Top, ZOrder);
       ViewportRect[2] := GetWindowPoint(Right, Bottom, ZOrder);
       ViewportRect[3] := GetWindowPoint(Left, Bottom, ZOrder);
-
-      // Keep track of the hierarchy's width and height.
-      // We use this for "center fit" and determining how much can the
-      // hierarchy be moved while dragging.
-      FHierarchyWidth := Max(FHierarchyWidth, ViewportWidth +
-        CanvasPaddingHorizontal * 2);
-      FHierarchyHeight := Max(FHierarchyHeight, ViewportHeight +
-        CanvasPaddingVertical * 2);
     end;
   end;
 
@@ -966,8 +949,9 @@ begin
     glScalef(FZoomLevel, FZoomLevel, 1);
     gluPerspective(45, Width / Height, 0, FCameraZ);
 
-    FHierarchyWidth := 0;
-    FHierarchyHeight := 0;
+    glGetDoublev(GL_MODELVIEW_MATRIX, ModelViewMatrix);
+    glGetDoublev(GL_PROJECTION_MATRIX, ProjectionMatrix);
+    glGetIntegerv(GL_VIEWPORT, ViewportRect);
 
     CurrentRoot := FLayout.ActiveBranch;
     View := CurrentRoot;

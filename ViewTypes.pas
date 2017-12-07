@@ -738,8 +738,14 @@ begin
 end;
 
 function TView.GetFloatProp(const Name: string; DefaultValue: single): single;
+var
+  Value: string;
 begin
-  Result := StrToFloatDef(FProperties.Values[Name], DefaultValue);
+  Value := FProperties.Values[Name];
+  if Value = 'NaN' then
+    Result := DefaultValue
+  else
+    Result := StrToFloatDef(Value, DefaultValue);
 end;
 
 function TView.GetBoolProp(const Name: string; DefaultValue: boolean): boolean;
