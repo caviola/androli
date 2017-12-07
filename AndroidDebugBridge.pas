@@ -76,7 +76,7 @@ type
   public
     constructor Create(const ADevice: string);
     procedure Connect; override;
-    function ShellExecute(const Command: string): string;
+    function ShellExecute(const Command: string): TStream;
     procedure ConnectTcp(Port: integer);
     property DeviceSerial: string read FDevice;
   end;
@@ -206,6 +206,17 @@ const
 
 type
 
+  { TAdbDeviceConnectionStream }
+
+  TAdbDeviceConnectionStream = class(TStream)
+  private
+    FConnection: TAdbDeviceConnection;
+  public
+    constructor Create(AConnection: TAdbDeviceConnection);
+    destructor Destroy; override;
+    function Read(var Buffer; Count: longint): longint; override;
+  end;
+
   { TViewServerClient }
 
   TViewServerClient = class(TInterfacedObject, IViewServerClient)
@@ -228,6 +239,24 @@ type
 function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
 begin
   Result := TViewServerClient.Create(DeviceSerial);
+end;
+
+{ TAdbDeviceConnectionStream }
+
+constructor TAdbDeviceConnectionStream.Create(AConnection: TAdbDeviceConnection);
+begin
+  FConnection := AConnection;
+end;
+
+destructor TAdbDeviceConnectionStream.Destroy;
+begin
+  FConnection.Disconnect;
+  inherited Destroy;
+end;
+
+function TAdbDeviceConnectionStream.Read(var Buffer; Count: longint): longint;
+begin
+  Result := FConnection.Socket.RecvBuffer(@Buffer, Count);
 end;
 
 { TViewServerCaptureViewTask }
@@ -263,21 +292,48 @@ begin
 end;
 
 function TViewServerClient.IsServerRunning: boolean;
+var
+  Response: TStream;
+  B: array[0..Length(CallWindowSuccessResponse) - 1] of char;
 begin
-  Result := FAdbDeviceConnection.ShellExecute('service call window 3 i32 ' +
-    IntToStr(ViewServerPort)) = CallWindowSuccessResponse;
+  Response := FAdbDeviceConnection.ShellExecute('service call window 3 i32 ' +
+    IntToStr(ViewServerPort));
+  try
+    Response.ReadBuffer(B{%H-}, Length(B));
+    Result := B = CallWindowSuccessResponse;
+  finally
+    Response.Free;
+  end;
 end;
 
 function TViewServerClient.StartServer: boolean;
+var
+  Response: TStream;
+  B: array[0..Length(CallWindowSuccessResponse) - 1] of char;
 begin
-  Result := FAdbDeviceConnection.ShellExecute('service call window 1 i32 ' +
-    IntToStr(ViewServerPort)) = CallWindowSuccessResponse;
+  Response := FAdbDeviceConnection.ShellExecute('service call window 1 i32 ' +
+    IntToStr(ViewServerPort));
+  try
+    Response.ReadBuffer(B{%H-}, Length(B));
+    Result := B = CallWindowSuccessResponse;
+  finally
+    Response.Free;
+  end;
 end;
 
 function TViewServerClient.StopServer: boolean;
+var
+  Response: TStream;
+  B: array[0..Length(CallWindowSuccessResponse) - 1] of char;
 begin
-  Result := FAdbDeviceConnection.ShellExecute('service call window 2 i32 ' +
-    IntToStr(ViewServerPort)) = CallWindowSuccessResponse;
+  Response := FAdbDeviceConnection.ShellExecute('service call window 2 i32 ' +
+    IntToStr(ViewServerPort));
+  try
+    Response.ReadBuffer(B{%H-}, Length(B));
+    Result := B = CallWindowSuccessResponse;
+  finally
+    Response.Free;
+  end;
 end;
 
 function TViewServerClient.GetDeviceSerial: string;
@@ -599,12 +655,8 @@ end;
 procedure TWindowListTask.Run;
 begin
   with CreateViewServerClient(FDeviceSerial) do
-  begin
-    if not IsServerRunning and not StartServer then
-      Exit;
-
-    FResult := GetWindowList(2000);
-  end;
+    if IsServerRunning or StartServer then
+      FResult := GetWindowList(10000);
 end;
 
 procedure TWindowListTask.DoOnSuccess;
@@ -692,24 +744,15 @@ begin
   end;
 end;
 
-function TAdbDeviceConnection.ShellExecute(const Command: string): string;
+function TAdbDeviceConnection.ShellExecute(const Command: string): TStream;
 begin
   Connect;
   try
     SendRequest('shell:' + Command);
-    // Read everything until the connection is closed.
-    // We assume that the output of any shell command fits into 'string'.
-    Result := EmptyStr;
-    try
-      while True do
-        Result := Result + Socket.RecvString(5000);
-    except
-      on E: ESynapseError do
-        if E.ErrorCode <> WSAECONNRESET then
-          raise;
-    end;
-  finally
+    Result := TAdbDeviceConnectionStream.Create(Self);
+  except
     Disconnect;
+    raise;
   end;
 end;
 
