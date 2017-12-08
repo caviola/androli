@@ -1024,9 +1024,9 @@ begin
   if FLayout.SetActiveBranch(FLayout.ActiveView) then // active branch changed?
   begin
     FActiveViewChangedTimer.Enabled := False;
+    ResetCamera(False);
     if Assigned(FOnActiveBranchChanged) then
       FOnActiveBranchChanged(FLayout.ActiveBranch);
-    ResetCamera(False);
   end
   else if FActiveViewChangedTimer.Enabled then // active view changed?
   begin
@@ -1125,30 +1125,26 @@ end;
 procedure TLayoutViewer.GetActiveBranchCenter(out X, Y, Z: single);
 var
   View: TView;
-  MinLeft, MinTop, MaxRight, MaxBottom, MinZOrder, MaxZOrder: single;
+  MinLeft, MinTop, MaxRight, MaxBottom: single;
 begin
   MinLeft := MaxSingle;
   MinTop := MaxSingle;
-  MinZOrder := MaxSingle;
   MaxRight := MinSingle;
   MaxBottom := MinSingle;
-  MaxZOrder := MinSingle;
 
-  // Compute layout bounding cube.
+  // Compute layout bounding rectangle.
   View := FLayout.ActiveBranch;
   repeat
     MinLeft := Min(MinLeft, View.Left);
     MinTop := Min(MinTop, View.Top);
-    MinZOrder := Min(MinZOrder, View.ZOrder);
     MaxRight := Max(MaxRight, View.Right);
     MaxBottom := Max(MaxBottom, View.Bottom);
-    MaxZOrder := Max(MaxZOrder, View.ZOrder);
     View := View.Next;
   until View = FLayout.ActiveBranch;
 
-  X := (MaxRight - MinLeft) / 2 + View.Left;
-  Y := (MaxBottom - MinTop) / 2 + View.Top;
-  Z := (MaxZOrder - MinZOrder) / 2 + View.ZOrder;
+  X := (MinLeft + MaxRight) / 2;
+  Y := (MinTop + MaxBottom) / 2;
+  Z := (View.ZOrderOriginal + View.Previous.ZOrderOriginal) / 2;
 end;
 
 procedure TLayoutViewer.WMSize(var Message: TLMSize);
