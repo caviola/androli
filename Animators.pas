@@ -15,10 +15,13 @@ type
 
   TInterpolatorFunction = function(const Fraction: single): single;
 
+  TAnimatorState = (asNone, asStarted);
+
   { TAnimator }
 
   TAnimator = class
   private
+    FState: TAnimatorState;
     FStartTick: QWord;
     FDuration: cardinal;
     FInterpolator: TInterpolatorFunction;
@@ -28,12 +31,12 @@ type
   protected
     procedure DoFrameTick;
     procedure DoFrameUpdate(const InterpolatedFraction: single); virtual;
-    procedure DoFinish;
+    procedure DoFinish; inline;
   public
     constructor Create;
     destructor Destroy; override;
     procedure Start;
-    procedure Cancel;
+    procedure Cancel; inline;
     procedure Restart; inline;
     procedure Finish; inline;
     function IsRunning: boolean; inline;
@@ -312,6 +315,7 @@ end;
 
 constructor TAnimator.Create;
 begin
+  FState := asNone;
   FDuration := DefaultAnimationDuration;
   FInterpolator := @EaseOutQuadInterpolator;
 end;
@@ -326,11 +330,24 @@ procedure TAnimator.DoFrameTick;
 var
   Ellapsed: QWord;
 begin
-  Ellapsed := GetTickCount64 - FStartTick;
-  if Ellapsed < Duration then
-    DoFrameUpdate(Interpolator(Ellapsed / Duration))
+  if FStartTick = 0 then  // first tick?
+  begin
+    FStartTick := GetTickCount64;
+    if Assigned(FOnStart) then
+      FOnStart(Self);
+    DoFrameUpdate(0); // update first frame (fraction=0)
+  end
   else
-    DoFinish;
+  begin
+    Ellapsed := GetTickCount64 - FStartTick;
+    if Ellapsed < Duration then
+      DoFrameUpdate(Interpolator(Ellapsed / Duration))
+    else
+    begin
+      DoFrameUpdate(1); // update last frame (fraction=1)
+      DoFinish;
+    end;
+  end;
 end;
 
 procedure TAnimator.DoFrameUpdate(const InterpolatedFraction: single);
@@ -341,25 +358,17 @@ end;
 
 procedure TAnimator.Start;
 begin
-  if FStartTick = 0 then // not started yet?
+  if FState = asNone then
   begin
-    FStartTick := GetTickCount64;
-    if Assigned(FOnStart) then
-      FOnStart(Self);
-    DoFrameUpdate(0); // update first frame (fraction=0)
+    FState := asStarted;
     AnimationTickTimer.AddTickHandler(@DoFrameTick);
   end;
 end;
 
 procedure TAnimator.Cancel;
 begin
-  if FStartTick <> 0 then // animation started?
-  begin
-    if Assigned(FOnFinish) then
-      FOnFinish(Self);
-    AnimationTickTimer.RemoveTickHandler(@DoFrameTick);
-    FStartTick := 0;
-  end;
+  if FState = asStarted then
+    DoFinish;
 end;
 
 procedure TAnimator.Restart;
@@ -370,22 +379,25 @@ end;
 
 procedure TAnimator.DoFinish;
 begin
-  DoFrameUpdate(1); // update last frame (fraction=1)
   if Assigned(FOnFinish) then
     FOnFinish(Self);
   AnimationTickTimer.RemoveTickHandler(@DoFrameTick);
   FStartTick := 0;
+  FState := asNone;
 end;
 
 procedure TAnimator.Finish;
 begin
-  if FStartTick <> 0 then // animation started?
+  if FState = asStarted then
+  begin
+    DoFrameUpdate(1); // update last frame (fraction=1)
     DoFinish;
+  end;
 end;
 
 function TAnimator.IsRunning: boolean;
 begin
-  Result := FStartTick <> 0;
+  Result := FState = asStarted;
 end;
 
 initialization
