@@ -337,6 +337,8 @@ begin
   FLayout := AValue;
   FLayoutViewer.SetLayout(AValue);
 
+  FFocusHistoryManager.Clear;
+
   if Assigned(AValue) then
   begin
     UpdateTreeView(AValue.ActiveBranch);
@@ -391,7 +393,6 @@ begin
     MenuItemToggleBookmark9.Enabled := False;
 
     MenuItemSetBookmark.Enabled := False;
-    FFocusHistoryManager.Clear;
   end;
 
   FIndexedBookmarkManager.Clear;
