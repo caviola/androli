@@ -197,6 +197,7 @@ object MainForm: TMainForm
       end
       object MenuItemClose: TMenuItem
         Caption = '&Close'
+        Enabled = False
         ShortCut = 16471
         OnClick = MenuItemCloseClick
       end
@@ -238,11 +239,13 @@ object MainForm: TMainForm
       end
       object MenuItemIncreaseViewSeparation: TMenuItem
         Caption = 'Increase View Separation'
+        Enabled = False
         ShortCut = 24683
         OnClick = MenuItemIncreaseViewSeparationClick
       end
       object MenuItemDecreaseViewSeparation: TMenuItem
         Caption = 'Decrease View Separation'
+        Enabled = False
         ShortCut = 24685
         OnClick = MenuItemDecreaseViewSeparationClick
       end
@@ -261,13 +264,11 @@ object MainForm: TMainForm
       end
       object MenuItemShowWireframes: TMenuItem
         Caption = 'Show &Wireframes'
-        Checked = True
         ShortCut = 49239
         OnClick = MenuItemShowWireframesClick
       end
       object MenuItemShowContent: TMenuItem
         Caption = 'Show &Content'
-        Checked = True
         ShortCut = 49219
         OnClick = MenuItemShowContentClick
       end
@@ -284,6 +285,7 @@ object MainForm: TMainForm
       Caption = '&Navigation'
       object MenuItemFilter: TMenuItem
         Caption = '&Filter'
+        Enabled = False
         ShortCut = 16454
         OnClick = MenuItemFilterClick
       end
@@ -438,66 +440,77 @@ object MainForm: TMainForm
         Caption = 'Toggle Bookmark'
         object MenuItemToggleBookmark0: TMenuItem
           Caption = 'Toggle Bookmark 0'
+          Enabled = False
           ShortCut = 24624
           OnClick = MenuItemToggleBookmarkClick
         end
         object MenuItemToggleBookmark1: TMenuItem
           Tag = 1
           Caption = 'Toggle Bookmark 1'
+          Enabled = False
           ShortCut = 24625
           OnClick = MenuItemToggleBookmarkClick
         end
         object MenuItemToggleBookmark2: TMenuItem
           Tag = 2
           Caption = 'Toggle Bookmark 2'
+          Enabled = False
           ShortCut = 24626
           OnClick = MenuItemToggleBookmarkClick
         end
         object MenuItemToggleBookmark3: TMenuItem
           Tag = 3
           Caption = 'Toggle Bookmark 3'
+          Enabled = False
           ShortCut = 24627
           OnClick = MenuItemToggleBookmarkClick
         end
         object MenuItemToggleBookmark4: TMenuItem
           Tag = 4
           Caption = 'Toggle Bookmark 4'
+          Enabled = False
           ShortCut = 24628
           OnClick = MenuItemToggleBookmarkClick
         end
         object MenuItemToggleBookmark5: TMenuItem
           Tag = 5
           Caption = 'Toggle Bookmark 5'
+          Enabled = False
           ShortCut = 24629
           OnClick = MenuItemToggleBookmarkClick
         end
         object MenuItemToggleBookmark6: TMenuItem
           Tag = 6
           Caption = 'Toggle Bookmark 6'
+          Enabled = False
           ShortCut = 24630
           OnClick = MenuItemToggleBookmarkClick
         end
         object MenuItemToggleBookmark7: TMenuItem
           Tag = 7
           Caption = 'Toggle Bookmark 7'
+          Enabled = False
           ShortCut = 24631
           OnClick = MenuItemToggleBookmarkClick
         end
         object MenuItemToggleBookmark8: TMenuItem
           Tag = 8
           Caption = 'Toggle Bookmark 8'
+          Enabled = False
           ShortCut = 24632
           OnClick = MenuItemToggleBookmarkClick
         end
         object MenuItemToggleBookmark9: TMenuItem
           Tag = 9
           Caption = 'Toggle Bookmark 9'
+          Enabled = False
           ShortCut = 24633
           OnClick = MenuItemToggleBookmarkClick
         end
       end
       object MenuItemSetBookmark: TMenuItem
         Caption = '&Set a Free Bookmark'
+        Enabled = False
         OnClick = MenuItemSetBookmarkClick
       end
       object MenuItemClearBookmarks: TMenuItem
