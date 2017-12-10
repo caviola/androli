@@ -25,7 +25,7 @@ Download the latest release package from the [releases page](../../releases), un
 
 ### From source
 
-1. Install [Lazarus 1.6.4](http://www.lazarus-ide.org/)
+1. Install [Lazarus 1.8.0](http://www.lazarus-ide.org/)
 2. Install [MultiLog](https://github.com/blikblum/multilog)
 3. Clone this repository
 4. Compile
