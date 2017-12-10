@@ -265,7 +265,7 @@ begin
 
   FMode3D := True;
   FToggleMode3DAnimator := TFloatArrayAnimator.Create(2, @ToggleMode3DAnimatorAnimate);
-  FToggleMode3DAnimator.Duration := 500;
+  FToggleMode3DAnimator.Duration := 300;
   FToggleMode3DAnimator.OnStart := @LayoutAnimationStart;
 
   FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
