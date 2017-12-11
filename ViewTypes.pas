@@ -364,7 +364,13 @@ function TViewLayout.SetActiveView(AValue: TView): boolean;
 begin
   if FActiveView <> AValue then
   begin
-    Log('TViewLayout.SetActiveView %s', [DbgS(AValue)]);
+    if Assigned(AValue) then
+      Log('TViewLayout.SetActiveView: %s@%s Left=%f Top=%f Right=%f Bottom=%f',
+        [AValue.QualifiedClassName, DbgS(AValue), AValue.Left,
+        AValue.Top, AValue.Right, AValue.Bottom])
+    else
+      Log('TLayoutViewer.SetActiveView: nil');
+
     FActiveView := AValue;
     Result := True;
   end

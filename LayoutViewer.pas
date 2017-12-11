@@ -71,7 +71,7 @@ type
       const Values: array of single);
     procedure MouseLeaveHandler(Sender: TObject);
 
-    procedure ToggleMode3DAnimatorAnimate(Sender: TFloatArrayAnimator;
+    procedure ToggleMode3DAnimate(Sender: TFloatArrayAnimator;
       const Values: array of single);
 
     procedure MouseDownHandler(Sender: TObject; Button: TMouseButton;
@@ -85,11 +85,12 @@ type
       WheelDelta: integer; {%H-}MousePos: TPoint; var Handled: boolean);
 
     procedure DoActiveViewChanged; inline;
-    procedure ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
-    procedure ScaleZAnimateValueHandler(Sender: TFloatAnimator; Value: single);
-    procedure ZOrderAnimatorUpdateHandler(Sender: TAnimator;
+    procedure ZoomLevelAnimate(Sender: TFloatAnimator; Value: single);
+    procedure ScaleZAnimate(Sender: TFloatAnimator; Value: single);
+    procedure ZOrderAnimatorUpdate(Sender: TAnimator;
       const {%H-}InterpolatedFraction: single);
-    procedure GetActiveBranchCenter(out X, Y, Z: single);
+    procedure GetActiveBranchCenter(
+      out CenterX, CenterY, CenterZ, CameraDistance: single);
     procedure WMSize(var {%H-}Message: TLMSize); message LM_SIZE;
   public
     constructor Create(AOwner: TComponent); override;
@@ -186,13 +187,13 @@ const
 
   Mode3DScaleZ = 20;
 
-  StepZoomLevel = 0.1;
+  StepZoomLevel = 0.2;
   StepScaleZ = 20;
 
-  MinZoomLevel = 0.1;
+  MinZoomLevel = 0.2;
   MinScaleZ = 0;
 
-  MaxZoomLevel = 2;
+  MaxZoomLevel = 10;
   MaxScaleZ = 200;
 
   MinRotationX = -90;
@@ -201,7 +202,7 @@ const
   MaxRotationX = 90;
   MaxRotationY = 90;
 
-  CameraDistance = 1500;
+  MinCameraDistance = 1000;
 
   // FToggleMode3DAnimator element indexes.
   t3daRotationY = 0;
@@ -264,14 +265,14 @@ begin
   glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
   FMode3D := True;
-  FToggleMode3DAnimator := TFloatArrayAnimator.Create(2, @ToggleMode3DAnimatorAnimate);
+  FToggleMode3DAnimator := TFloatArrayAnimator.Create(2, @ToggleMode3DAnimate);
   FToggleMode3DAnimator.Duration := 300;
   FToggleMode3DAnimator.OnStart := @LayoutAnimationStart;
 
-  FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimateValueHandler);
+  FScaleZAnimator := TFloatAnimator.Create(@ScaleZAnimate);
   FScaleZAnimator.OnStart := @LayoutAnimationStart;
 
-  FZoomLevelAnimator := TFloatAnimator.Create(@ZoomAnimateValueHandler);
+  FZoomLevelAnimator := TFloatAnimator.Create(@ZoomLevelAnimate);
   FZoomLevelAnimator.OnStart := @LayoutAnimationStart;
 
   FResetCameraAnimator := TFloatArrayAnimator.Create(4, @ResetCameraAnimate);
@@ -279,7 +280,7 @@ begin
   FResetCameraAnimator.OnStart := @LayoutAnimationStart;
 
   FZOrderAnimator := TZOrderAnimator.Create;
-  FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdateHandler;
+  FZOrderAnimator.OnUpdate := @ZOrderAnimatorUpdate;
   FZOrderAnimator.OnStart := @LayoutAnimationStart;
 end;
 
@@ -387,8 +388,6 @@ begin
 
   if Assigned(FLayout) then
   begin
-    FCameraZ := CameraDistance + FLayout.ActiveBranch.Previous.ZOrderOriginal;
-
     OnMouseDown := @MouseDownHandler;
     OnMouseUp := @MouseUpHandler;
     OnMouseMove := @MouseMoveHandler;
@@ -398,7 +397,7 @@ begin
     OnDblClick := @MouseDblClickHandler;
 
     // TODO: resize to fit
-    GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ);
+    GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ, FCameraZ);
 
     if Mode3D then
     begin
@@ -424,12 +423,14 @@ end;
 
 procedure TLayoutViewer.ResetCamera(ResetRotation: boolean; Animate: boolean);
 var
-  EndOriginX, EndOriginY, EndOriginZ: single;
+  EndOriginX, EndOriginY, EndOriginZ, EndCameraDistance: single;
 begin
   if Assigned(FLayout) then
     if Animate then
     begin
-      GetActiveBranchCenter(EndOriginX, EndOriginY, EndOriginZ);
+      GetActiveBranchCenter(EndOriginX, EndOriginY, EndOriginZ,
+        EndCameraDistance);
+
       FResetCameraAnimator.SetElementInterval(rcaOriginX, OriginX, EndOriginX);
       FResetCameraAnimator.SetElementInterval(rcaOriginY, OriginY, EndOriginY);
       FResetCameraAnimator.SetElementInterval(rcaOriginZ, OriginZ, EndOriginZ);
@@ -438,11 +439,12 @@ begin
           InitialRotationY)
       else
         FResetCameraAnimator.SetElementInterval(rcaRotationY, RotationY, RotationY);
+
       FResetCameraAnimator.Restart;
     end
     else
     begin
-      GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ);
+      GetActiveBranchCenter(FOriginX, FOriginY, FOriginZ, FCameraZ);
       if ResetRotation then
         RotationY := InitialRotationY;
       Invalidate;
@@ -542,10 +544,11 @@ end;
 procedure TLayoutViewer.ResetCameraAnimate(Sender: TFloatArrayAnimator;
   const Values: array of single);
 begin
-  OriginX := Values[rcaOriginX];
-  OriginY := Values[rcaOriginY];
-  OriginZ := Values[rcaOriginZ];
-  RotationY := Values[rcaRotationY];
+  FOriginX := Values[rcaOriginX];
+  FOriginY := Values[rcaOriginY];
+  FOriginZ := Values[rcaOriginZ];
+  FRotationY := Values[rcaRotationY];
+  Invalidate;
 end;
 
 procedure TLayoutViewer.MouseLeaveHandler(Sender: TObject);
@@ -918,32 +921,30 @@ begin
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity;
-    // Note that the order in which we apply transformations is important.
-    // 1. Move to (-FOriginX, FOriginY, -FCameraZ).
-    glTranslatef(-FOriginX, FOriginY, -FCameraZ);
-    // 2. Invert our Y-axis.
-    glScalef(1, -1, 1);
 
-    if FToggleMode3DAnimator.IsRunning then
+    // Note that the order in which we specify transformations is crucial.
+    // They are applied in reverse, that is, the last "specified"
+    // transformation is the first one to be "applied".
+
+    // Move hierarchy far away from camera.
+    glTranslatef(0, 0, -FCameraZ);
+
+    if FToggleMode3DAnimator.IsRunning or Mode3D then
     begin
-      // 3. Rotate and scale Z coords around (FOriginX, FOriginY, FOriginZ).
-      glTranslatef(FOriginX, FOriginY, FOriginZ);
+      // Scale Z, rotate Y around origin and invert Y-axis.
       glRotatef(FRotationY, 0, 1, 0);
-      glScalef(1, 1, FScaleZ);
-      glTranslatef(-FOriginX, -FOriginY, -FOriginZ);
-    end
-    else if Mode3D then
-    begin
-      // 3. Rotate and scale Z coords around (FOriginX, FOriginY, FOriginZ).
-      glTranslatef(FOriginX, FOriginY, FOriginZ);
-      glRotatef(FRotationY, 0, 1, 0);
-      glScalef(1, 1, FScaleZ);
-      glTranslatef(-FOriginX, -FOriginY, -FOriginZ);
+      glScalef(1, -1, FScaleZ);
     end
     else
-      glScalef(1, 1, 0); // 2D mode, drop Z coord
+      // Drop Z coord (2D mode) and invert Y-axis.
+      glScalef(1, -1, 0);
 
-    // 4. Perspective projection.
+    // Move to origin.
+    // Initially our origin is the ActiveBranch's bounding cube center.
+    glTranslatef(-FOriginX, -FOriginY, -FOriginZ);
+
+
+    // Perspective projection.
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity;
     glScalef(FZoomLevel, FZoomLevel, 1);
@@ -970,11 +971,12 @@ begin
   end;
 end;
 
-procedure TLayoutViewer.ToggleMode3DAnimatorAnimate(Sender: TFloatArrayAnimator;
+procedure TLayoutViewer.ToggleMode3DAnimate(Sender: TFloatArrayAnimator;
   const Values: array of single);
 begin
-  RotationY := Values[t3daRotationY];
-  ScaleZ := Values[t3daScaleZ];
+  FRotationY := Values[t3daRotationY];
+  FScaleZ := Values[t3daScaleZ];
+  Invalidate;
 end;
 
 procedure TLayoutViewer.MouseDownHandler(Sender: TObject; Button: TMouseButton;
@@ -1105,46 +1107,66 @@ begin
     FOnActiveViewChanged(FLayout.ActiveView);
 end;
 
-procedure TLayoutViewer.ZoomAnimateValueHandler(Sender: TFloatAnimator; Value: single);
+procedure TLayoutViewer.ZoomLevelAnimate(Sender: TFloatAnimator; Value: single);
 begin
   ZoomLevel := Value;
 end;
 
-procedure TLayoutViewer.ScaleZAnimateValueHandler(Sender: TFloatAnimator;
-  Value: single);
+procedure TLayoutViewer.ScaleZAnimate(Sender: TFloatAnimator; Value: single);
+
 begin
   ScaleZ := Value;
 end;
 
-procedure TLayoutViewer.ZOrderAnimatorUpdateHandler(Sender: TAnimator;
+procedure TLayoutViewer.ZOrderAnimatorUpdate(Sender: TAnimator;
   const InterpolatedFraction: single);
 begin
   Invalidate;
 end;
 
-procedure TLayoutViewer.GetActiveBranchCenter(out X, Y, Z: single);
+procedure TLayoutViewer.GetActiveBranchCenter(
+  out CenterX, CenterY, CenterZ, CameraDistance: single);
 var
   View: TView;
   MinLeft, MinTop, MaxRight, MaxBottom: single;
 begin
-  MinLeft := MaxSingle;
-  MinTop := MaxSingle;
-  MaxRight := MinSingle;
-  MaxBottom := MinSingle;
+  MinLeft := NaN;
+  MinTop := NaN;
+  MaxRight := NaN;
+  MaxBottom := NaN;
 
-  // Compute layout bounding rectangle.
   View := FLayout.ActiveBranch;
+
+  Log('TLayoutViewer.GetActiveBranchCenter: Left=%f Top=%f Right=%f Bottom=%f',
+    [View.Left, View.Top, View.Right, View.Bottom]);
+
+  // Compute ActiveBranch's bounding rectangle.
   repeat
-    MinLeft := Min(MinLeft, View.Left);
-    MinTop := Min(MinTop, View.Top);
-    MaxRight := Max(MaxRight, View.Right);
-    MaxBottom := Max(MaxBottom, View.Bottom);
-    View := View.Next;
+    if View.VisibilityGone or (View.Width = 0) or (View.Height = 0) then
+      View := View.Next // continue
+    else
+    begin
+      MinLeft := Min(MinLeft, View.Left);
+      MinTop := Min(MinTop, View.Top);
+      MaxRight := Max(MaxRight, View.Right);
+      MaxBottom := Max(MaxBottom, View.Bottom);
+      View := View.Next;
+    end;
   until View = FLayout.ActiveBranch;
 
-  X := (MinLeft + MaxRight) / 2;
-  Y := (MinTop + MaxBottom) / 2;
-  Z := (View.ZOrderOriginal + View.Previous.ZOrderOriginal) / 2;
+  Log('TLayoutViewer.GetActiveBranchCenter: MinLeft=%f MinTop=%f MaxRight=%f MaxBottom=%f',
+    [MinLeft, MinTop, MaxRight, MaxBottom]);
+
+  CenterX := (MinLeft + MaxRight) / 2;
+  CenterY := (MinTop + MaxBottom) / 2;
+  CenterZ := (View.ZOrderOriginal + View.Previous.ZOrderOriginal) / 2;
+
+  CameraDistance := View.Previous.ZOrderOriginal - View.ZOrderOriginal;
+  CameraDistance := Max(CameraDistance, MaxRight - MinLeft);
+  CameraDistance += MinCameraDistance;
+
+  Log('TLayoutViewer.GetActiveBranchCenter: CenterX=%f CenterY=%f CenterZ=%f CameraDistance=%f',
+    [CenterX, CenterY, CenterZ, CameraDistance]);
 end;
 
 procedure TLayoutViewer.WMSize(var Message: TLMSize);
