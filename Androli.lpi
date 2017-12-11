@@ -25,7 +25,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="androli-$(TargetCPU)-$(TargetOS)"/>
+            <Filename Value="androli"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
