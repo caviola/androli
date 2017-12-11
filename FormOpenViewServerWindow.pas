@@ -5,7 +5,7 @@ unit FormOpenViewServerWindow;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
+  SysUtils, Forms, Controls,
   StdCtrls, AndroidDebugBridge;
 
 type

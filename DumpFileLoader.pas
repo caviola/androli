@@ -12,7 +12,7 @@ function CreateDumpFileLoadTask(const FilePath: string): TLayoutLoadTask;
 implementation
 
 uses
-  SysUtils, LazUTF8, laz2_XMLRead, laz2_DOM, Logging;
+  SysUtils, laz2_XMLRead, laz2_DOM, Logging;
 
 type
   { TDeviceMonitorDumpLoadTask }

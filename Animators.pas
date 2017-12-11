@@ -134,7 +134,7 @@ function FloatEvaluator(const Fraction: single;
 implementation
 
 uses
-  CustomTimer, fgl, dateutils, LCLIntf;
+  CustomTimer, fgl, LCLIntf;
 
 const
   AnimationTickInterval = 10; // milliseconds

@@ -5,8 +5,8 @@ unit LayoutViewer;
 interface
 
 uses
-  Classes, Controls, Graphics, Menus, ExtCtrls, ViewTypes, Animators, OpenGLContext,
-  TaskRunner, LMessages;
+  Classes, Controls, Graphics, ExtCtrls, ViewTypes, Animators, OpenGLContext,
+  LMessages;
 
 type
 

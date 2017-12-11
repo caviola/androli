@@ -14,7 +14,7 @@ function CreateDumpWindowFileLoadTask: TLayoutLoadTask;
 
 implementation
 
-uses AndroidDebugBridge, Logging, Classes, Graphics, TaskRunner, GLext, gl, LCLProc;
+uses AndroidDebugBridge, Logging, Graphics, TaskRunner, GLext, gl, LCLProc;
 
 type
 

@@ -33,7 +33,6 @@ type
     function IsServerRunning: boolean;
     function StartServer: boolean;
     function StopServer: boolean;
-    function GetDeviceSerial: string;
     function GetWindowList(Timeout: integer = -1): TWindowManagerEntryArray;
     function DumpWindow(const WindowHash: string;
       const CheckCanceled: TObjectProcedure): TView;
@@ -69,7 +68,6 @@ type
     procedure Disconnect; inline;
     function ShellExecute(const Command: string): TStream;
     procedure ConnectTcp(Port: integer);
-    property DeviceSerial: string read FDevice;
     property Socket: TTCPBlockSocket read GetSocket;
   end;
 
@@ -86,7 +84,6 @@ type
     function IsServerRunning: boolean;
     function StartServer: boolean;
     function StopServer: boolean;
-    function GetDeviceSerial: string;
     function GetWindowList(Timeout: integer = -1): TWindowManagerEntryArray;
     // Used only for debugging purposes.
     class function LoadDumpWindowFile: TView;
@@ -224,7 +221,7 @@ type
 implementation
 
 uses
-  LazLogger, synsock;
+  synsock;
 
 const
   AdbServerPort = 5037;
@@ -498,11 +495,6 @@ begin
   finally
     Response.Free;
   end;
-end;
-
-function TViewServerClient.GetDeviceSerial: string;
-begin
-  Result := FAdbDeviceConnection.DeviceSerial;
 end;
 
 function TViewServerClient.GetWindowList(Timeout: integer): TWindowManagerEntryArray;
