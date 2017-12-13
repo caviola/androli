@@ -191,7 +191,7 @@ implementation
 
 uses
   LCLType, FormOpenViewServerWindow, LazUTF8, DumpFileLoader,
-  ViewServerLoader, LCLProc, Logging;
+  ViewServerLoader, LCLProc, Logging, AndroidDebugBridge;
 
 const
   AppName = 'Androli';
@@ -222,7 +222,9 @@ begin
     @RestoreFocusBookmark, Self);
 
   {$IFDEF DEBUG}
-  StartLoadLayout(CreateDumpFileLoadTask('dumps/dump3.uix'));
+  //StartLoadLayout(CreateDumpFileLoadTask('dumps/dump3.uix'));
+  if FileExists(DumpWindowFileName) then
+    StartLoadLayout(CreateDumpWindowFileLoadTask);
   {$ELSE}
   SetLayout(nil);
   {$ENDIF}

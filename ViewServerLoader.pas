@@ -10,6 +10,8 @@ uses
 function CreateViewServerWindowLoadTask(
   const DeviceSerial, WindowTitle, WindowHash: string): TLayoutLoadTask;
 
+function CreateDumpWindowFileLoadTask: TLayoutLoadTask;
+
 implementation
 
 uses AndroidDebugBridge, Logging, Classes, Graphics, TaskRunner, GLext, gl, LCLProc;
@@ -44,11 +46,31 @@ type
     constructor Create(const ADeviceSerial, AWindowTitle, AWindowHash: string);
   end;
 
+  { TDumpWindowFileLoadTask }
+
+  TDumpWindowFileLoadTask = class(TLayoutLoadTask)
+  protected
+    procedure Run; override;
+  end;
+
 
 function CreateViewServerWindowLoadTask(
   const DeviceSerial, WindowTitle, WindowHash: string): TLayoutLoadTask;
 begin
   Result := TViewServerWindowLoadTask.Create(DeviceSerial, WindowTitle, WindowHash);
+end;
+
+function CreateDumpWindowFileLoadTask: TLayoutLoadTask;
+begin
+  Result := TDumpWindowFileLoadTask.Create;
+end;
+
+{ TDumpWindowFileLoadTask }
+
+procedure TDumpWindowFileLoadTask.Run;
+begin
+  SetResult(TViewLayout.Create(TViewServerClient.LoadDumpWindowFile,
+    DumpWindowFileName));
 end;
 
 { TDeviceWindowLayout }
@@ -161,9 +183,9 @@ begin
   Log('TViewServerWindowLoadTask.Run: Device=''%s'', WindowTitle=''%s'', WindowHash=''%s''',
     [FDeviceSerial, FWindowTitle, FWindowHash]);
 
-  SetResult(TViewServerWindowLayout.Create(
-    CreateViewServerClient(FDeviceSerial).DumpWindow(FWindowHash, @CheckCanceled),
-    FDeviceSerial, FWindowTitle, FWindowHash));
+  with TViewServerClient.Create(FDeviceSerial) as IViewServerClient do
+    SetResult(TViewServerWindowLayout.Create(DumpWindow(FWindowHash, @CheckCanceled),
+      FDeviceSerial, FWindowTitle, FWindowHash));
 end;
 
 constructor TViewServerWindowLoadTask.Create(

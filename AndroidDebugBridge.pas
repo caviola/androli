@@ -10,11 +10,14 @@ uses
 const
   RequestTimeout = 30000; // 30 seconds
   NoTimeout = -1;
+  DumpWindowFileName = 'dumpwindow.txt';
 
 type
 
   // https://android.googlesource.com/platform/system/core/+/master/adb/OVERVIEW.TXT
   // https://android.googlesource.com/platform/system/core/+/master/adb/SERVICES.TXT
+
+  { TWindowManagerEntry }
 
   TWindowManagerEntry = record
     HashCode: string;
@@ -26,6 +29,7 @@ type
   { IViewServerClient }
 
   IViewServerClient = interface
+    ['{71B6D23B-C021-4845-BC51-C7303849376D}']
     function IsServerRunning: boolean;
     function StartServer: boolean;
     function StopServer: boolean;
@@ -35,13 +39,6 @@ type
       const CheckCanceled: TObjectProcedure): TView;
     function CaptureView(const WindowHash, ViewClass, ViewHash: string): TRasterImage;
   end;
-
-  TAdbDeviceEntry = record
-    SerialNumber: string;
-    State: string;
-  end;
-
-  TAdbDeviceEntryArray = array of TAdbDeviceEntry;
 
   { TAdbConnection }
 
@@ -58,16 +55,6 @@ type
     property Socket: TTCPBlockSocket read FSocket;
   end;
 
-  { TAdbHostConnection }
-
-  TAdbHostConnection = class(TAdbConnection)
-  protected
-    function ParseDeviceEntry(var Line: PChar): TAdbDeviceEntry;
-  public
-    function GetDevices: TAdbDeviceEntryArray;
-    function GetVersion: integer;
-  end;
-
   { TAdbDeviceConnection }
 
   TAdbDeviceConnection = class(TAdbConnection)
@@ -79,6 +66,47 @@ type
     function ShellExecute(const Command: string): TStream;
     procedure ConnectTcp(Port: integer);
     property DeviceSerial: string read FDevice;
+  end;
+
+  { TViewServerClient }
+
+  TViewServerClient = class(TInterfacedObject, IViewServerClient)
+  private
+    FAdbDeviceConnection: TAdbDeviceConnection;
+  protected
+    class function ParseDumpLine(AParent: TView; Line: PChar; Depth: integer): TView;
+  public
+    constructor Create(const DeviceSerial: string);
+    destructor Destroy; override;
+    function IsServerRunning: boolean;
+    function StartServer: boolean;
+    function StopServer: boolean;
+    function GetDeviceSerial: string;
+    function GetWindowList(Timeout: integer = -1): TWindowManagerEntryArray;
+    // Used only for debugging purposes.
+    class function LoadDumpWindowFile: TView;
+    function DumpWindow(const WindowHash: string;
+      const CheckCanceled: TObjectProcedure): TView;
+    function CaptureView(const WindowHash, ViewClass, ViewHash: string): TRasterImage;
+  end;
+
+  { TAdbDeviceEntry }
+
+  TAdbDeviceEntry = record
+    SerialNumber: string;
+    State: string;
+  end;
+
+  TAdbDeviceEntryArray = array of TAdbDeviceEntry;
+
+  { TAdbHostConnection }
+
+  TAdbHostConnection = class(TAdbConnection)
+  protected
+    function ParseDeviceEntry(var Line: PChar): TAdbDeviceEntry;
+  public
+    function GetDevices: TAdbDeviceEntryArray;
+    function GetVersion: integer;
   end;
 
   TDeviceListResultEvent = procedure(const Task: ITask;
@@ -188,8 +216,6 @@ type
   end;
 
 
-function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
-
 implementation
 
 uses
@@ -217,29 +243,6 @@ type
     function Read(var Buffer; Count: longint): longint; override;
   end;
 
-  { TViewServerClient }
-
-  TViewServerClient = class(TInterfacedObject, IViewServerClient)
-  private
-    FAdbDeviceConnection: TAdbDeviceConnection;
-  public
-    constructor Create(const DeviceSerial: string);
-    destructor Destroy; override;
-    function IsServerRunning: boolean;
-    function StartServer: boolean;
-    function StopServer: boolean;
-    function GetDeviceSerial: string;
-    function GetWindowList(Timeout: integer = -1): TWindowManagerEntryArray;
-    function DumpWindow(const WindowHash: string;
-      const CheckCanceled: TObjectProcedure): TView;
-    function CaptureView(const WindowHash, ViewClass, ViewHash: string): TRasterImage;
-  end;
-
-
-function CreateViewServerClient(const DeviceSerial: string): IViewServerClient;
-begin
-  Result := TViewServerClient.Create(DeviceSerial);
-end;
 
 { TAdbDeviceConnectionStream }
 
@@ -266,8 +269,8 @@ var
   View: TView;
 begin
   View := GetAssociatedView;
-  SetResult(CreateViewServerClient(FDeviceSerial).CaptureView(FWindowHash,
-    View.QualifiedClassName, View.HashCode));
+  with TViewServerClient.Create(FDeviceSerial) as IViewServerClient do
+    SetResult(CaptureView(FWindowHash, View.QualifiedClassName, View.HashCode));
 end;
 
 constructor TViewServerCaptureViewTask.Create(const ADeviceSerial, AWindowHash: string;
@@ -279,6 +282,161 @@ begin
 end;
 
 { TViewServerConnection }
+
+class function TViewServerClient.ParseDumpLine(AParent: TView; Line: PChar;
+  Depth: integer): TView;
+
+  procedure ParseViewProperties(Line: PChar; View: TView); inline;
+  var
+    Pos: PChar;
+    PName, PValue: string;
+    PLen: integer;
+  begin
+    // TODO: error checking
+    // Note that we don't do any error checking here.
+    // For the time being, we assume all lines are formatted as expected.
+
+    Pos := StrScan(Line, '@');
+    View.QualifiedClassName := Copy(Line, 1, Pos - Line);  // substring up to '@'
+    Line := Pos + 1; // skip '@'
+
+    Pos := StrScan(Line, #32);
+    View.HashCode := Copy(Line, 1, Pos - Line); // substring up to whitespace
+
+    Line := Pos;
+    while Line[0] = #32 do
+    begin
+      Inc(Line); // skip whitespace
+      if Line[0] = #0 then
+        Break;  // reached end-of-line
+
+      Pos := StrScan(Line, '=');
+      PName := Copy(Line, 1, Pos - Line); // substring up to '='
+      Line := Pos + 1; // skip '='
+
+      Pos := StrScan(Line, ',');
+      PLen := StrToInt(Copy(Line, 1, Pos - Line));  // substring up to ','
+      Line := Pos + 1; // skip ','
+
+      PValue := Copy(Line, 1, PLen);  // next PLen characters
+      Inc(Line, PLen);
+
+      View.SetProperty(PName, PValue);
+    end;
+  end;
+
+var
+  OX, OY, ScaleX, ScaleY, TX, TY, TransformScaleX, TransformScaleY,
+  Left, Top, Right, Bottom, PaddingLeft, PaddingTop, PaddingRight,
+  PaddingBottom, MarginLeft, MarginTop, MarginRight, MarginBottom: single;
+begin
+  Result := TView.Create;
+  try
+    ParseViewProperties(Line, Result);
+
+    // These bounds are relative to parent view and untransformed.
+    // Since the bounds we must set in the view must be final window bounds,
+    // we have to apply all transformations first.
+    Left := Result.GetIntProp('layout:mLeft');
+    Top := Result.GetIntProp('layout:mTop');
+    Right := Result.GetIntProp('layout:mRight');
+    Bottom := Result.GetIntProp('layout:mBottom');
+
+    // Apply X and Y translation.
+    TX := Result.GetFloatProp('drawing:getTranslationX()');
+    TY := Result.GetFloatProp('drawing:getTranslationY()');
+    Left := Left + TX;
+    Top := Top + TY;
+    Right := Right + TX;
+    Bottom := Bottom + TY;
+
+    // Get the scale explicitly defined in the view.
+    ScaleX := Result.GetFloatProp('drawing:getScaleX()', 1);
+    ScaleY := Result.GetFloatProp('drawing:getScaleY()', 1);
+    // Compute the view's final scale, which takes into account
+    // the scale of its parents.
+    if Assigned(AParent) then
+    begin
+      TransformScaleX := AParent.TransformScaleX * ScaleX;
+      TransformScaleY := AParent.TransformScaleY * ScaleY;
+    end
+    else
+    begin
+      TransformScaleX := ScaleX;
+      TransformScaleY := ScaleY;
+    end;
+
+    if (ScaleX <> 1) or (ScaleY <> 1) then // view defines explicit scale?
+    begin
+      // Scale around provided pivot point.
+      OX := Left + Result.GetFloatProp('drawing:getPivotX()');
+      OY := Top + Result.GetFloatProp('drawing:getPivotY()');
+      Left := (Left - OX) * TransformScaleX + OX;
+      Top := (Top - OY) * TransformScaleY + OY;
+      Right := (Right - OX) * TransformScaleX + OX;
+      Bottom := (Bottom - OY) * TransformScaleY + OY;
+    end
+    else
+    begin
+      // Scale around origin (0,0).
+      Left := Left * TransformScaleX;
+      Top := Top * TransformScaleY;
+      Right := Right * TransformScaleX;
+      Bottom := Bottom * TransformScaleY;
+    end;
+
+    // Make bounds window absolute.
+    // These are the final bounds we'll set in the view.
+    if Assigned(AParent) then
+    begin
+      Left := Left + AParent.Left;
+      Top := Top + AParent.Top;
+      Right := Right + AParent.Left;
+      Bottom := Bottom + AParent.Top;
+    end;
+
+    PaddingLeft := Result.GetIntProp('padding:mPaddingLeft') * TransformScaleX;
+    PaddingTop := Result.GetIntProp('padding:mPaddingTop') * TransformScaleY;
+    PaddingRight := Result.GetIntProp('padding:mPaddingRight') * TransformScaleX;
+    PaddingBottom := Result.GetIntProp('padding:mPaddingBottom') * TransformScaleY;
+
+    // The constant -2147483648 is used by GridLayout and means UNDEFINED.
+    // For our rendering purposes we consider that to mean 0.
+    // See https://developer.android.com/reference/android/support/v7/widget/GridLayout.html
+    MarginLeft := Result.GetIntProp('layout:layout_leftMargin');
+    if MarginLeft = UndefinedMargin then
+      MarginLeft := 0;
+
+    MarginTop := Result.GetIntProp('layout:layout_topMargin');
+    if MarginTop = UndefinedMargin then
+      MarginTop := 0;
+
+    MarginRight := Result.GetIntProp('layout:layout_rightMargin');
+    if MarginRight = UndefinedMargin then
+      MarginRight := 0;
+
+    MarginBottom := Result.GetIntProp('layout:layout_bottomMargin');
+    if MarginBottom = UndefinedMargin then
+      MarginBottom := 0;
+
+    MarginLeft := MarginLeft * TransformScaleX;
+    MarginTop := MarginTop * TransformScaleY;
+    MarginRight := MarginRight * TransformScaleX;
+    MarginBottom := MarginBottom * TransformScaleY;
+
+    Result.SetBounds(Left, Top, Right, Bottom, Depth);
+    Result.SetPaddings(PaddingLeft, PaddingTop, PaddingRight, PaddingBottom);
+    Result.SetMargins(MarginLeft, MarginTop, MarginRight, MarginBottom);
+    Result.TransformScaleX := TransformScaleX;
+    Result.TransformScaleY := TransformScaleY;
+
+    if Assigned(AParent) then
+      AParent.AddChild(Result);
+  except
+    Result.Free;
+    raise;
+  end;
+end;
 
 constructor TViewServerClient.Create(const DeviceSerial: string);
 begin
@@ -367,178 +525,24 @@ begin
   end;
 end;
 
-function TViewServerClient.DumpWindow(const WindowHash: string;
-  const CheckCanceled: TObjectProcedure): TView;
-
-  procedure ParseDumpLine(Line: PChar; View: TView);
-  var
-    Pos: PChar;
-    PName, PValue: string;
-    PLen: integer;
-  begin
-    // TODO: error checking
-    // Note that we don't do any error checking here.
-    // For the time being, we assume all lines are formatted as expected.
-
-    Pos := StrScan(Line, '@');
-    View.QualifiedClassName := Copy(Line, 1, Pos - Line);  // substring up to '@'
-    Line := Pos + 1; // skip '@'
-
-    Pos := StrScan(Line, #32);
-    View.HashCode := Copy(Line, 1, Pos - Line); // substring up to whitespace
-
-    Line := Pos;
-    while Line[0] = #32 do
-    begin
-      Inc(Line); // skip whitespace
-      if Line[0] = #0 then
-        Break;  // reached end-of-line
-
-      Pos := StrScan(Line, '=');
-      PName := Copy(Line, 1, Pos - Line); // substring up to '='
-      Line := Pos + 1; // skip '='
-
-      Pos := StrScan(Line, ',');
-      PLen := StrToInt(Copy(Line, 1, Pos - Line));  // substring up to ','
-      Line := Pos + 1; // skip ','
-
-      PValue := Copy(Line, 1, PLen);  // next PLen characters
-      Inc(Line, PLen);
-
-      View.SetProperty(PName, PValue);
-    end;
-  end;
-
-  function CreateView(AParent: TView; Line: PChar; Depth: integer): TView;
-  var
-    OX, OY, ScaleX, ScaleY, TX, TY, TransformScaleX, TransformScaleY,
-    Left, Top, Right, Bottom, PaddingLeft, PaddingTop, PaddingRight,
-    PaddingBottom, MarginLeft, MarginTop, MarginRight, MarginBottom: single;
-  begin
-    Result := TView.Create;
-    try
-      ParseDumpLine(Line, Result);
-
-      // These bounds are relative to parent view and untransformed.
-      // Since the bounds we must set in the view must be final window bounds,
-      // we have to apply all transformations first.
-      Left := Result.GetIntProp('layout:mLeft');
-      Top := Result.GetIntProp('layout:mTop');
-      Right := Result.GetIntProp('layout:mRight');
-      Bottom := Result.GetIntProp('layout:mBottom');
-
-      // Apply X and Y translation.
-      TX := Result.GetFloatProp('drawing:getTranslationX()');
-      TY := Result.GetFloatProp('drawing:getTranslationY()');
-      Left := Left + TX;
-      Top := Top + TY;
-      Right := Right + TX;
-      Bottom := Bottom + TY;
-
-      // Get the scale explicitly defined in the view.
-      ScaleX := Result.GetFloatProp('drawing:getScaleX()', 1);
-      ScaleY := Result.GetFloatProp('drawing:getScaleY()', 1);
-      // Compute the view's final scale, which takes into account
-      // the scale of its parents.
-      if Assigned(AParent) then
-      begin
-        TransformScaleX := AParent.TransformScaleX * ScaleX;
-        TransformScaleY := AParent.TransformScaleY * ScaleY;
-      end
-      else
-      begin
-        TransformScaleX := ScaleX;
-        TransformScaleY := ScaleY;
-      end;
-
-      if (ScaleX <> 1) or (ScaleY <> 1) then // view defines explicit scale?
-      begin
-        // Scale around provided pivot point.
-        OX := Left + Result.GetFloatProp('drawing:getPivotX()');
-        OY := Top + Result.GetFloatProp('drawing:getPivotY()');
-        Left := (Left - OX) * TransformScaleX + OX;
-        Top := (Top - OY) * TransformScaleY + OY;
-        Right := (Right - OX) * TransformScaleX + OX;
-        Bottom := (Bottom - OY) * TransformScaleY + OY;
-      end
-      else
-      begin
-        // Scale around origin (0,0).
-        Left := Left * TransformScaleX;
-        Top := Top * TransformScaleY;
-        Right := Right * TransformScaleX;
-        Bottom := Bottom * TransformScaleY;
-      end;
-
-      // Make bounds window absolute.
-      // These are the final bounds we'll set in the view.
-      if Assigned(AParent) then
-      begin
-        Left := Left + AParent.Left;
-        Top := Top + AParent.Top;
-        Right := Right + AParent.Left;
-        Bottom := Bottom + AParent.Top;
-      end;
-
-      PaddingLeft := Result.GetIntProp('padding:mPaddingLeft') * TransformScaleX;
-      PaddingTop := Result.GetIntProp('padding:mPaddingTop') * TransformScaleY;
-      PaddingRight := Result.GetIntProp('padding:mPaddingRight') * TransformScaleX;
-      PaddingBottom := Result.GetIntProp('padding:mPaddingBottom') * TransformScaleY;
-
-      // The constant -2147483648 is used by GridLayout and means UNDEFINED.
-      // For our rendering purposes we consider that to mean 0.
-      // See https://developer.android.com/reference/android/support/v7/widget/GridLayout.html
-      MarginLeft := Result.GetIntProp('layout:layout_leftMargin');
-      if MarginLeft = UndefinedMargin then
-        MarginLeft := 0;
-
-      MarginTop := Result.GetIntProp('layout:layout_topMargin');
-      if MarginTop = UndefinedMargin then
-        MarginTop := 0;
-
-      MarginRight := Result.GetIntProp('layout:layout_rightMargin');
-      if MarginRight = UndefinedMargin then
-        MarginRight := 0;
-
-      MarginBottom := Result.GetIntProp('layout:layout_bottomMargin');
-      if MarginBottom = UndefinedMargin then
-        MarginBottom := 0;
-
-      MarginLeft := MarginLeft * TransformScaleX;
-      MarginTop := MarginTop * TransformScaleY;
-      MarginRight := MarginRight * TransformScaleX;
-      MarginBottom := MarginBottom * TransformScaleY;
-
-      Result.SetBounds(Left, Top, Right, Bottom, Depth);
-      Result.SetPaddings(PaddingLeft, PaddingTop, PaddingRight, PaddingBottom);
-      Result.SetMargins(MarginLeft, MarginTop, MarginRight, MarginBottom);
-      Result.TransformScaleX := TransformScaleX;
-      Result.TransformScaleY := TransformScaleY;
-
-      if Assigned(AParent) then
-        AParent.AddChild(Result);
-    except
-      Result.Free;
-      raise;
-    end;
-  end;
-
+class function TViewServerClient.LoadDumpWindowFile: TView;
 var
   CurrentView: TView = nil;
   CurrentDepth: integer = -1;
   Depth: integer;
   Line: PChar;
+  S: string;
+  DumpFile: TextFile;
 begin
-  FAdbDeviceConnection.ConnectTcp(ViewServerPort);
+  AssignFile(DumpFile, DumpWindowFileName);
+  Reset(DumpFile);
   try
-    FAdbDeviceConnection.Socket.SendString('DUMP ' + WindowHash + #10);
     try
       repeat
-        Line := PChar(FAdbDeviceConnection.Socket.RecvTerminated(-1, #10));
+        ReadLn(DumpFile, S);
+        Line := PChar(S);
         if (Line = DONEp) or (Line = DONE) then
           Break;
-
-        CheckCanceled;
 
         Depth := 0;
         while Line[0] = #32 do
@@ -554,9 +558,9 @@ begin
           Dec(CurrentDepth);
         end;
 
-        CurrentView := CreateView(CurrentView, Line, Depth);
+        CurrentView := ParseDumpLine(CurrentView, Line, Depth);
         CurrentDepth := Depth;
-      until False;
+      until EOF(DumpFile);
     except
       // At this point CurrentView may be some branch deep down the tree.
       // So here we rewind to root view to free the whole tree.
@@ -574,11 +578,88 @@ begin
       while Assigned(CurrentView.Parent) do
         CurrentView := CurrentView.Parent
     else
-      raise Exception.CreateFmt('Window ''%s'' has no root view', [WindowHash]);
+      raise Exception.CreateFmt('''%s'' has no root view', [DumpWindowFileName]);
 
     Result := CurrentView;
   finally
-    FAdbDeviceConnection.Disconnect;
+    CloseFile(DumpFile);
+  end;
+end;
+
+function TViewServerClient.DumpWindow(const WindowHash: string;
+  const CheckCanceled: TObjectProcedure): TView;
+var
+  CurrentView: TView = nil;
+  CurrentDepth: integer = -1;
+  Depth: integer;
+  Line: PChar;
+  {$IFDEF DEBUG}
+  DumpFile: TFileStream;
+  {$ENDIF}
+begin
+  {$IFDEF DEBUG}
+  DumpFile := TFileStream.Create(DumpWindowFileName, fmCreate or fmShareDenyWrite);
+  {$ENDIF}
+  try
+    FAdbDeviceConnection.ConnectTcp(ViewServerPort);
+    try
+      FAdbDeviceConnection.Socket.SendString('DUMP ' + WindowHash + #10);
+      try
+        repeat
+          Line := PChar(FAdbDeviceConnection.Socket.RecvTerminated(-1, #10));
+          {$IFDEF DEBUG}
+          DumpFile.WriteBuffer(Line[0], strlen(Line));
+          DumpFile.WriteBuffer(LineEnding[1], Length(LineEnding));
+          {$ENDIF}
+          if (Line = DONEp) or (Line = DONE) then
+            Break;
+
+          CheckCanceled;
+
+          Depth := 0;
+          while Line[0] = #32 do
+          begin
+            Inc(Line);
+            Inc(Depth);
+          end;
+
+          while Depth <= CurrentDepth do
+          begin
+            if Assigned(CurrentView) then
+              CurrentView := CurrentView.Parent;
+            Dec(CurrentDepth);
+          end;
+
+          CurrentView := ParseDumpLine(CurrentView, Line, Depth);
+          CurrentDepth := Depth;
+        until False;
+      except
+        // At this point CurrentView may be some branch deep down the tree.
+        // So here we rewind to root view to free the whole tree.
+        if Assigned(CurrentView) then
+        begin
+          while Assigned(CurrentView.Parent) do
+            CurrentView := CurrentView.Parent;
+          CurrentView.Free;
+        end;
+        raise;
+      end;
+
+      // Rewind to root view.
+      if Assigned(CurrentView) then
+        while Assigned(CurrentView.Parent) do
+          CurrentView := CurrentView.Parent
+      else
+        raise Exception.CreateFmt('Window ''%s'' has no root view', [WindowHash]);
+
+      Result := CurrentView;
+    finally
+      FAdbDeviceConnection.Disconnect;
+    end;
+  finally
+    {$IFDEF DEBUG}
+    DumpFile.Free;
+    {$ENDIF}
   end;
 end;
 
@@ -654,7 +735,7 @@ end;
 
 procedure TWindowListTask.Run;
 begin
-  with CreateViewServerClient(FDeviceSerial) do
+  with TViewServerClient.Create(FDeviceSerial) as IViewServerClient do
     if IsServerRunning or StartServer then
       FResult := GetWindowList(10000);
 end;
