@@ -48,7 +48,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    procedure Connect; virtual;
+    procedure Connect;
     procedure Disconnect;
     procedure SendRequest(const Payload: string);
     function ReadResponse(Timeout: integer = RequestTimeout): string;
@@ -57,15 +57,20 @@ type
 
   { TAdbDeviceConnection }
 
-  TAdbDeviceConnection = class(TAdbConnection)
+  TAdbDeviceConnection = class
   private
     FDevice: string;
+    FAdbConnection: TAdbConnection;
+    function GetSocket: TTCPBlockSocket; inline;
   public
     constructor Create(const ADevice: string);
-    procedure Connect; override;
+    destructor Destroy; override;
+    procedure Connect;
+    procedure Disconnect; inline;
     function ShellExecute(const Command: string): TStream;
     procedure ConnectTcp(Port: integer);
     property DeviceSerial: string read FDevice;
+    property Socket: TTCPBlockSocket read GetSocket;
   end;
 
   { TViewServerClient }
@@ -248,6 +253,7 @@ type
 
 constructor TAdbDeviceConnectionStream.Create(AConnection: TAdbDeviceConnection);
 begin
+  inherited Create;
   FConnection := AConnection;
 end;
 
@@ -730,6 +736,7 @@ end;
 
 constructor TWindowListTask.Create(const DeviceSerial: string);
 begin
+  inherited Create;
   FDeviceSerial := DeviceSerial;
 end;
 
@@ -808,28 +815,44 @@ end;
 
 { TAdbDeviceConnection }
 
+function TAdbDeviceConnection.GetSocket: TTCPBlockSocket;
+begin
+  Result := FAdbConnection.Socket;
+end;
+
 constructor TAdbDeviceConnection.Create(const ADevice: string);
 begin
-  inherited Create;
+  FAdbConnection := TAdbConnection.Create;
   FDevice := ADevice;
+end;
+
+destructor TAdbDeviceConnection.Destroy;
+begin
+  FAdbConnection.Free;
+  inherited Destroy;
 end;
 
 procedure TAdbDeviceConnection.Connect;
 begin
-  inherited Connect;
+  FAdbConnection.Connect;
   try
-    SendRequest('host:transport:' + FDevice);
+    FAdbConnection.SendRequest('host:transport:' + FDevice);
   except
     Disconnect;
     raise;
   end;
 end;
 
+procedure TAdbDeviceConnection.Disconnect;
+begin
+  FAdbConnection.Disconnect;
+end;
+
 function TAdbDeviceConnection.ShellExecute(const Command: string): TStream;
 begin
   Connect;
   try
-    SendRequest('shell:' + Command);
+    FAdbConnection.SendRequest('shell:' + Command);
     Result := TAdbDeviceConnectionStream.Create(Self);
   except
     Disconnect;
@@ -841,7 +864,7 @@ procedure TAdbDeviceConnection.ConnectTcp(Port: integer);
 begin
   Connect;
   try
-    SendRequest('tcp:' + IntToStr(Port));
+    FAdbConnection.SendRequest('tcp:' + IntToStr(Port));
   except
     Disconnect;
     raise;
@@ -900,7 +923,6 @@ end;
 
 constructor TAdbConnection.Create;
 begin
-  inherited;
   FSocket := TTCPBlockSocket.Create;
   FSocket.RaiseExcept := True;
 end;
