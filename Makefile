@@ -1,28 +1,33 @@
 .PHONY: release
 
-
-ifndef RELEASE_VERSION
-$(error You must define RELEASE_VERSION and a tag named vRELEASE_VERSION must exist.)
+TAG ?= $(shell git tag --points-at HEAD | head -q -n1)
+ifeq ($(TAG),)
+$(error You must specify TAG with the name of an existing tag)
 endif
 
-TARGET_CPU ?= i386
-TARGET_OS ?= win32
+FPC ?= $(shell which fpc)
+ifeq ($(FPC),)
+$(error You must specify FPC with full path to compiler)
+endif
 
-OUTFILE_NAME := androli-$(RELEASE_VERSION)-$(TARGET_CPU)-$(TARGET_OS)
+TARGET_CPU := $(shell $(FPC) -iTP)
+TARGET_OS := $(shell $(FPC) -iTO)
+
+OUTFILE := androli-$(TAG)-$(TARGET_CPU)-$(TARGET_OS)
 
 ifneq (,$(filter $(TARGET_OS),win32 win64))
-OUTFILE_EXT = .exe
+EXT = .exe
 else
-OUTFILE_EXT =
+EXT =
 endif
 
-CLONE_DIR := $(TMP)/androli
+OUTDIR := $(shell mktemp -d)
 
 release:
-	rm -rf "$(CLONE_DIR)"
-	git clone -q --single-branch -b v$(RELEASE_VERSION) . "$(CLONE_DIR)"
-	cd "$(CLONE_DIR)" && lazbuild Androli.lpi --bm=Release --os=$(TARGET_OS) --cpu=$(TARGET_CPU)
-	cd "$(CLONE_DIR)" && mv androli$(OUTFILE_EXT) $(OUTFILE_NAME)$(OUTFILE_EXT)
-	cd "$(CLONE_DIR)" && zip -r $(OUTFILE_NAME).zip dumps media README.md LICENSE $(OUTFILE_NAME)$(OUTFILE_EXT)
-	mv "$(CLONE_DIR)/$(OUTFILE_NAME).zip" ./
+	rm -rf "$(OUTDIR)"
+	git clone -q --single-branch -b $(TAG) --shared . "$(OUTDIR)"
+	cd "$(OUTDIR)" && lazbuild Androli.lpi --bm=Release --os=$(TARGET_OS) --cpu=$(TARGET_CPU) --compiler=$(FPC)
+	cd "$(OUTDIR)" && mv androli$(EXT) $(OUTFILE)$(EXT)
+	cd "$(OUTDIR)" && zip -r $(OUTFILE).zip dumps media README.md LICENSE $(OUTFILE)$(EXT)
+	mv -f "$(OUTDIR)/$(OUTFILE).zip" ./
 
