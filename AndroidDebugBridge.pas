@@ -607,7 +607,7 @@ begin
           Line := PChar(FAdbDeviceConnection.Socket.RecvTerminated(-1, #10));
           {$IFDEF DEBUG}
           DumpFile.WriteBuffer(Line[0], strlen(Line));
-          DumpFile.WriteBuffer(LineEnding[1], Length(LineEnding));
+          DumpFile.WriteBuffer(PChar(LineEnding)[0], Length(LineEnding));
           {$ENDIF}
           if (Line = DONEp) or (Line = DONE) then
             Break;
